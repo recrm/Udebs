@@ -1,0 +1,136 @@
+Keywords
+
+ControlMove effects
+
+#unique
+ACTIVATE 
+- Chaincasts an equiped item, fails if empty
+- prevalue: target
+- value: reserve slot to activate.
+
+CAST
+- Caster of origionating move, now casts new move on target. Does not need to be in movelist
+- prevalue: target
+- value: any move
+
+DELAY
+- can append to any function that uses controlmove.
+- value: formula
+
+controlList
+
+GETS
+- move is appended to targets status
+- prevalue: target
+- value: List to edit
+- Second: move to add to list
+
+LOSES
+- move is removed from targets status, ignored if not in list.
+- prevalue: target
+- value: List to edit
+- Second: Move to add to list
+
+ControlStat
+
+CHANGE
+- Note: everything after CHANGE keyword is considered same formula
+- prevalue: target
+- value: stat formula
+
+controlString
+
+REPLACE
+- prevalue target
+- value string to replace
+
+ControlTravel
+
+TRAVEL
+- NTA - moves target to absolute location
+- NTA - prevailue: target
+- NTA - value: location
+- Moves caster to location of target
+- Allways alone
+
+BUMP
+- removes target from board
+- prevalue target
+
+MOVE
+- Moves target to relative location (to itself)
+- prevalue: target
+- value: x, y, xy
+- second value: Formula, either int or tuple.
+
+controlRecruit
+
+RECRUIT
+- Creates a clone of target and puts it in location.
+- prevalue: target
+- value: coordinates, (x, y)
+
+Tests
+
+BLOCK
+- NTA - same as distance, relative and absolute locations
+- True if nothing is between target and caster
+- value: x, y, diag
+
+
+(don't like, doesn't follow same patterns.)
+in/ not in
+- python overlay
+- prevalue, object to check
+- value, list to check (form target list).
+- accepts STATUS, MOVELIST.
+- eventually want to improve it to accept all lists.
+
+numbers
+
+STATS
+- prevalue target
+- works out to numerical value of stat.
+
+LISTS
+- prevalue target
+- accepts all defined lists
+
+STRINGS
+- prevaule Target
+- all defined strings
+
+DISTANCE
+- NTA - ability to change distances both relative and absolute.
+- Grabs distance between caster and target
+- values x, y, p1, p2, pinf
+
+POSITION
+- Absolute location of target
+- Prevalues target, caster
+- Values x, y
+
+DICE
+- values: any integer
+- picks a random number between and including one and the value.
+
+target data
+
+LOCATION(
+- ends with a )
+- do not put any brackets in between
+- use to insert any map location. 
+
+CASTER
+- indicates action performed on caster
+
+TARGET
+- indicates action performed on target
+
+SELF
+- indicates action performed on move (Not moves are not mutable.)
+
+GROUP
+- indicates action performed on unit group
+- prevalues target, caster
+- value group type

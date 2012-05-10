@@ -1,0 +1,460 @@
+<udebs>
+    
+<stats>
+    <item>HP</item>
+    <item>MP</item>
+    <item>MEL</item>
+    <item>MGK</item>
+</stats>
+
+<strings>
+    <item>DESC</item>
+</strings>
+
+<lists>
+    <item>inventory</item>
+</lists>
+
+<entities>
+    
+<!-- move groups -->
+    <entity>
+        <DESC>Damaging moves</DESC>
+        <ID>damage</ID>
+        <effect>
+            <item>TARGET CAST KO DELAY 0</item>
+        </effect>
+    </entity>
+    
+    <entity>
+        <DESC>Healing moves</DESC>
+        <ID>health</ID>
+        <effect>
+            <item>TARGET CAST OVERHEAL DELAY 0</item>
+        </effect>
+    </entity>
+    
+    <entity>
+        <DESC>Active Moves</DESC>
+        <ID>active</ID>
+        <require>
+            <item>CASTER ACT >= 1</item>
+        </require>
+    </entity>
+    
+    <entity>
+        <DESC>Delayed or repeating moves</DESC>
+        <ID>delayed</ID>
+    </entity>
+    
+    <entity>
+        <ID>globe</ID> 
+        <DESC>Every move is in this class</DESC>
+        <require>
+            <item>KO not in CASTER status</item>
+            <item>KO not in TARGET status</item>
+        </require>
+    </entity>
+    
+<!-- item groups -->
+    
+    <entity>
+        <DESC>ONE use unequipable items</DESC>
+        <ID>one_use</ID>
+        <effect>
+            <item>CASTER LOSES INVENTORY SELF</item>
+            <item>CASTER CHANGE ACT -5</item>
+        </effect>
+        <require>
+            <item>CASTER ACT >= 1</item>
+        </require>
+    </entity>
+    
+    <entity>
+        <DESC>sword class for items</DESC>
+        <ID>sword</ID>
+    </entity>
+    
+    <entity>
+        <DESC>hat class for items.</DESC>
+        <ID>hat</ID>
+        <stats>
+            <HP>10</HP>
+        </stats>
+    </entity>
+    
+<!-- Status Effects and Checks -->
+    
+    <entity>
+        <ID>KO</ID>
+        <DESC>Character's HP has dropped to 0</DESC>
+        <require>
+            <item>TARGET HP &lt;= 0</item>
+            <item>KO not in TARGET status</item>
+        </require>
+        <effect>
+            <item>TARGET CHANGE HP ( - TARGET HP )</item>
+            <item>TARGET CHANGE SPD ( - TARGET SPD )</item>
+            <item>TARGET GETS status SELF</item>
+        </effect>
+    </entity>
+    
+    <entity>
+        <ID>OVERHEAL</ID>
+        <DESC>A check to make sure character hasn't overhealed</DESC>
+        <require>
+            <item>TARGET HP >= TARGET CLASS TEMPLATE HP</item>
+        </require>
+        <effect>
+            <item>TARGET CHANGE HP (  TARGET CLASS TEMPLATE HP - TARGET HP )</item>
+        </effect>
+    </entity>
+    
+    <entity>
+        <ID>POISON</ID>
+        <DESC>DROPS THE CHARACTERS HEALTH ONCE USING A DELAYED CHAIN MOVE</DESC>
+        <require>
+            <item>POISON not in TARGET status</item>
+            <item>DICE 5 > 2</item>
+        </require>
+        <effect>
+            <item>TARGET CAST POISON_ACTIVE DELAY 5</item>
+            <item>TARGET GETS status SELF</item>
+        </effect>
+    </entity>
+    
+<!-- moves -->
+    
+    <entity>
+        <DESC>Attack</DESC>
+        <ID>ATK</ID>
+        <effect>
+            <item>TARGET CHANGE HP -( CASTER MEL + DICE 10 )</item>
+            <item>CASTER CHANGE ACT -5</item>
+            <item>TARGET ACTIVATE sword</item>
+        </effect>
+        <group>
+            <item>damage</item>
+            <item>active</item>
+            <item>globe</item>
+        </group> 
+    
+    </entity>
+    
+    <entity>
+        <DESC>Pass</DESC> 
+        <ID>PSS</ID>
+        <effect>
+            <item>CASTER CHANGE ACT -2</item>
+        </effect>
+        <group>
+            <item>active</item>
+            <item>globe</item>
+        </group>
+    </entity>
+    
+    <entity>
+        <DESC>Toxic Spit</DESC>
+        <ID>SPIT</ID>
+        <effect>
+            <item>TARGET CHANGE HP ( -( CASTER MGK + DICE 10 ) )</item>
+            <item>CASTER CHANGE MP -1</item>
+            <item>CASTER CHANGE ACT -10</item>
+            <item>TARGET CAST POISON</item>
+        </effect>
+        <require>
+            <item>CASTER MP >= 1</item>
+        </require>
+        <group>
+            <item>damage</item>
+            <item>active</item>
+            <item>globe</item>
+        </group>
+    </entity>
+    
+    <entity>
+        <DESC>Toxic Spit Active Part</DESC>
+        <ID>POISON_ACTIVE</ID>
+        <effect>
+            <item>TARGET CHANGE HP ( -(5+ DICE 5 ) )</item>
+            <item>TARGET CAST POISON_ACTIVE DELAY 1</item>
+        </effect>
+        <require>
+            <item>POISON in TARGET status</item>
+        </require>
+        <group>
+            <item>damage</item>
+            <item>delayed</item>
+            <item>globe</item>
+        </group>
+    </entity>
+    
+    <entity>
+        <DESC>Magic Missiles</DESC>
+        <ID>MGM</ID>
+        <effect>
+            <item>TARGET CHANGE HP ( -( CASTER MGK + DICE 10 ) )</item>
+            <item>CASTER CHANGE MP -5</item>
+            <item>CASTER CHANGE ACT -5</item>
+        </effect> 
+        <require>
+            <item>CASTER MP  >= 1</item>
+        </require>
+        <group>
+            <item>damage</item>
+            <item>active</item>
+            <item>globe</item>
+        </group>
+    </entity>
+    
+    <entity>
+        <DESC>Doomsday</DESC>
+        <ID>DOOM</ID>
+        <effect>
+            <item>TARGET CAST DOOM_ACTIVE DELAY 2</item>
+            <item>CASTER CHANGE MP -5</item>
+            <item>CASTER CHANGE ACT -50</item>
+        </effect>
+        <require>
+            <item>CASTER MP >= 5</item>
+        </require>
+        <group>
+            <item>active</item>
+            <item>globe</item>
+        </group>
+    </entity>
+    
+    <entity>
+        <DESC>Doomsday Active Component</DESC>
+        <ID>DOOM_ACTIVE</ID>
+        <effect>
+            <item>TARGET CHANGE HP ( - TARGET HP )</item>
+        </effect>
+        <group>
+            <item>damage</item>
+            <item>delayed</item>
+            <item>globe</item>
+        </group>
+    </entity>
+    
+    <entity>
+        <DESC>Heal</DESC>
+        <ID>HEAL</ID>
+        <effect>
+            <item>TARGET CHANGE HP ( CASTER MGK + DICE 10 )</item>
+            <item>CASTER CHANGE MP -2</item>
+            <item>CASTER CHANGE ACT -5</item>
+        </effect>
+        <require>
+            <item>CASTER MP >= 1</item>
+        </require>
+        <group>
+            <item>health</item>
+            <item>active</item>
+            <item>globe</item>
+        </group>
+    </entity>
+    
+    <entity>
+        <DESC>Antidote</DESC>
+        <ID>ANTIDOTE</ID>
+        <effect>
+            <item>TARGET LOSES status POISON</item>
+            <item>CASTER CHANGE MP -1</item>
+            <item>CASTER CHANGE ACT -5</item>
+        </effect>
+        <require>
+            <item>CASTER MP >= 1</item>
+        </require>
+        <group>
+            <item>active</item>
+            <item>globe</item>
+        </group>
+    </entity>
+    
+<!-- items -->
+    
+    <entity>
+        <DESC>A wooden helmet</DESC>
+        <ID>wood_helm</ID>
+            <stats>
+                <HP>10</HP>
+            </stats>
+        <group>
+            <item>hat</item>
+        </group>
+    </entity>
+    
+    <entity>
+        <DESC>A wooden Sword</DESC>
+        <ID>wood_sword</ID>
+        <group>
+            <item>sword</item>
+        </group>
+        <stats>
+            <MEL>2</MEL>
+        </stats>
+        <effect>
+            <item>TARGET CHANGE HP ( -( DICE 10 ) - 5 )</item>
+        </effect>
+    </entity>
+    
+    <entity>
+        <DESC>An HP potion</DESC>
+        <ID>potion</ID>
+        <group>
+            <item>one_use</item>
+            <item>health</item>
+        </group>
+        <effect>
+            <item>TARGET CHANGE HP 50</item>
+        </effect>
+    </entity>
+    
+</entities>
+
+<units>    
+<!-- unit classes -->
+    
+    <unit>
+        <DESC>Template for Fighter the Brave</DESC>
+        <type>TEMPLATE</type>
+        <ID>tfighter</ID>
+        <stats>
+            <HP>100</HP>
+            <MP>1</MP> 
+            <MEL>40</MEL>
+            <MGK>10</MGK>
+            <SPD>4</SPD>
+            <ACT>0</ACT>
+        </stats>     
+        <movelist>
+            <item>ATK</item>
+            <item>SPIT</item>
+            <item>PSS</item>
+        </movelist>
+        <equip>
+            <item>wood_helm</item>
+            <item>wood_sword</item>
+        </equip>
+    </unit>
+    
+    <unit>
+        <DESC>Template for Black Mage the Evil</DESC>
+        <type>TEMPLATE</type>
+        <ID>tbmage</ID>
+        <stats>
+            <HP>100</HP>
+            <MP>10</MP> 
+            <MEL>10</MEL>
+            <MGK>40</MGK>
+            <SPD>3</SPD>
+            <ACT>0</ACT>
+        </stats>     
+        <movelist>
+            <item>MGM</item>
+            <item>DOOM</item>
+            <item>PSS</item>
+        </movelist> 
+
+    </unit>
+    <unit>
+        <DESC>Template for White Mage the Good</DESC>
+        <type>TEMPLATE</type>
+        <ID>twmage</ID>
+        <stats>
+            <HP>100</HP>, 
+            <MP>10</MP> 
+            <MEL>10</MEL>
+            <MGK>40</MGK>
+            <SPD>3</SPD>
+            <ACT>0</ACT>
+        </stats>     
+        <movelist>
+            <item>HEAL</item>
+            <item>ANTIDOTE</item>
+            <item>PSS</item>
+        </movelist>
+    </unit>
+    <unit>
+        <DESC>A Hoard of Zombies (with magic powers)</DESC>
+        <type>TEMPLATE</type>
+        <ID>zombies</ID>
+        <stats>
+            <HP>101</HP>
+            <MP>1000</MP>
+            <MEL>30</MEL>
+            <MGK>40</MGK>
+            <SPD>4</SPD>
+            <ACT>0</ACT>
+        </stats>
+        <movelist>
+            <item>ATK</item>
+            <item>SPIT</item>
+            <item>MGM</item>
+            <item>DOOM</item>
+        </movelist>
+    </unit>
+
+<!-- units -->    
+    
+    <unit active='active' tick='tick'>
+        <DESC>Fighter the Brave</DESC>
+        <ID>fighter</ID>
+        <group>
+            <item>tfighter</item>
+        </group>
+        <inventory>
+            <item>potion</item>
+        </inventory>
+    </unit>
+    
+    <unit active='active' tick='tick'>
+        <DESC>Black Mage the Evil</DESC>
+        <ID>bmage</ID>
+        <group>
+            <item>tbmage</item>
+        </group>
+    </unit>
+    
+    <unit active='active' tick='tick'>
+        <DESC>White Mage the Good</DESC>
+        <ID>wmage</ID>
+        <group>
+            <item>twmage</item>
+        </group>
+    </unit>
+    
+    <unit active='active' tick='tick'>
+        <DESC>A zombie</DESC>
+        <ID>zombie1</ID>
+        <group>
+            <item>zombies</item>
+        </group>
+    </unit>
+    
+    <unit active='active' tick='tick'>
+        <DESC>A zombie</DESC>
+        <ID>zombie2</ID>
+        <group>
+            <item>zombies</item>
+        </group>
+    </unit>
+    
+    <unit active='active' tick='tick'>
+        <DESC>A zombie</DESC>
+        <ID>zombie3</ID>
+        <group>
+            <item>zombies</item>
+        </group>
+    </unit>
+</units>    
+<!-- environment -->
+    
+<MAP>
+    <row>bmage, zombie1</row>
+    <row>fighter, zombie2</row> 
+    <row>wmage, zombie3</row>
+</MAP>
+
+</udebs>
