@@ -4,6 +4,11 @@
     <revert>5</revert>
 </config>
 
+<lists>
+    <item>colour</item>
+    <item>sprite</item>
+</lists>
+
 
 <entities>
     
@@ -146,6 +151,10 @@
     
     <entity>
         <ID>captured</ID>
+        <effect>
+            <item>TARGET GETS status SELF</item>
+        </effect>
+        
         <require>
             <item>SELF not in TARGET status</item>
             <item>CASTER CLASS player not in TARGET group</item>
@@ -402,6 +411,12 @@
             <ACT>1</ACT>
             <SPD>1</SPD>
         </stats>
+        <colour>
+            <item>100</item>
+            <item>100</item>
+            <item>100</item>
+        </colour>
+    <item>sprite</item>
     </unit>
     
     <unit tick='tick'>
@@ -411,6 +426,11 @@
             <ACT>2</ACT>
             <SPD>1</SPD>
         </stats>
+        <colour>
+            <item>0</item>
+            <item>250</item>
+            <item>0</item>
+        </colour>
     </unit>
     
     <unit>
@@ -420,7 +440,10 @@
             <item>white_pawn_double</item>
             <item>white_pawn_capture</item>
             <item>white_pawn_passant</item>
-        </movelist> 
+        </movelist>
+        <sprite>
+            <item>P</item>
+        </sprite> 
     </unit>
     
     <unit>
@@ -430,21 +453,30 @@
             <item>black_pawn_double</item>
             <item>black_pawn_capture</item>
             <item>black_pawn_passant</item>
-        </movelist> 
+        </movelist>
+        <sprite>
+            <item>P</item>
+        </sprite> 
     </unit>
     
     <unit>
         <ID>bishop</ID>     
         <movelist>
             <item>bishop_travel</item>
-        </movelist> 
+        </movelist>
+        <sprite>
+            <item>B</item>
+        </sprite> 
     </unit>
     
     <unit>
         <ID>rook</ID>     
         <movelist>
             <item>rook_travel</item>
-        </movelist> 
+        </movelist>
+        <sprite>
+            <item>R</item>
+        </sprite> 
     </unit>
     
     <unit>
@@ -452,7 +484,10 @@
         <movelist>
             <item>bishop_travel</item>
             <item>rook_travel</item>
-        </movelist> 
+        </movelist>
+        <sprite>
+            <item>Q</item>
+        </sprite> 
     </unit>
     
     <unit>
@@ -460,14 +495,20 @@
         <movelist>
             <item>king_castle</item>
             <item>king_travel</item>
-        </movelist> 
+        </movelist>
+        <sprite>
+            <item>K</item>
+        </sprite> 
     </unit>
     
     <unit>
         <ID>knight</ID>     
         <movelist>
             <item>knight_travel</item>
-        </movelist> 
+        </movelist>
+        <sprite>
+            <item>N</item>
+        </sprite> 
     </unit>
     
     <!-- white units -->

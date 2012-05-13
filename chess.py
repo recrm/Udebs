@@ -135,28 +135,14 @@ while True:
                 #draw the tile
                 pygame.draw.rect(mainSurface, colour, tile)
                 
+                #draw any unit on the tile.
                 unit = udebs.getMap((x, y))
 
-                if udebs.getStat(unit, udebs.ID) != 'empty':
-                    if 'black' in udebs.getStat(unit, udebs.GROUP):
-                        sprite_colour = (100, 100, 100)
-                    else:
-                        sprite_colour = (0, 250, 0 )
+                if unit != 'empty':
                     
-                    #selects sprites
-                    
-                    if 'black_pawn' in udebs.getStat(unit, udebs.GROUP) or 'white_pawn' in udebs.getStat(unit, udebs.GROUP):
-                        sprite_symbol = "P"
-                    elif 'rook' in udebs.getStat(unit, udebs.GROUP):
-                        sprite_symbol = 'R'
-                    elif 'bishop' in udebs.getStat(unit, udebs.GROUP):
-                        sprite_symbol = 'B'
-                    elif 'knight' in udebs.getStat(unit, udebs.GROUP):
-                        sprite_symbol = 'N'
-                    elif 'queen' in udebs.getStat(unit, udebs.GROUP):
-                        sprite_symbol = 'Q'
-                    elif 'king' in udebs.getStat(unit, udebs.GROUP):
-                        sprite_symbol = 'K'
+                    colour_list = udebs.getStat(unit, 'colour')
+                    sprite_colour = tuple([int(number) for number in colour_list])
+                    sprite_symbol = udebs.getStat(unit, 'sprite')[0]
                    
                     mainSurface.blit(basicFont.render(sprite_symbol, True, sprite_colour, colour), (x*50+10, y*50+10))
                 del colour

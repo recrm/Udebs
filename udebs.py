@@ -47,7 +47,12 @@ STATE = []
 
 #eventually this will be the config parser
 def battleStart(xml_file):
-    tree = ElementTree.parse(xml_file)
+    try:
+        tree = ElementTree.parse(xml_file)
+    except IOError as inst:
+        print( "battleStart Error:", inst)
+        sys.exit()
+    
     root = tree.getroot()
     
     #create ENV
@@ -217,11 +222,25 @@ def battleStart(xml_file):
                 ENV[UNITS].append(new_unit[ID])
             if item.get("tick") == "tick":
                 ENV[TICK].append(new_unit[ID])
-        
-    del tree
-    del root
-    STATE.append(copy.deepcopy(OBJECT))
     
+    init = root.find("init")
+    if init is not None:
+        for effect in init:
+            
+            try:
+                output = interpret('empty', 'empty', 'empty', effect.text, (0,0), (0,0) ) 
+            except:
+                print("Interpreter Error:", effect)
+                raise
+            try:
+                exec(output)
+            except:
+                print("invalid effect (", effect,"), (", output,")")
+                raise
+                
+    battleTick(0)
+    
+    STATE.append(copy.deepcopy(OBJECT))  
     return
 
 #---------------------------------------------------
@@ -230,7 +249,10 @@ def battleStart(xml_file):
 
 #adds time units to the main clock, and other things.
 def battleTick(time=1):   
-
+    
+    if type(time) != type(int()):
+        raise Exception("battleTick Error: Only accepts int as argument")
+    
     ENV = OBJECT["ENV"]
 
     if time != 0:
@@ -260,6 +282,9 @@ def battleTick(time=1):
     return
 
 def battleRevert(state=1):
+    
+    if type(state) != type(int()) or state <= 0:
+        raise Exception("battleRevert Error: Only accepts int > 0 as argument")
     
     if len(STATE) < state:
         print("Revert failed. Choosen state not available.")
@@ -356,7 +381,9 @@ def getStat(dictionary, stat):
         for item in equip_list:
             lst.extend( getStat(item, stat) )
         
-        return lst 
+        return lst
+    else:
+        raise Exception("Unknown Stat in GetStat") 
 
 #swiss army function. Should probobly break this up.
 def getMap(target="all"):
@@ -367,14 +394,19 @@ def getMap(target="all"):
         return temp_map        
     
     #returns length of axis if 'x' or 'y' is given.
-    if target == "y":
+    elif target == "y":
         return len(temp_map)
-    if target == "x":
+    elif target == "x":
         return len(temp_map[0])
     
     #if coordinates are given, returns what is in that spot
-    if type(target) == type(()) or type(target) == type([]):
-        return temp_map[target[1]][target[0]]
+    elif type(target) == type(()) or type(target) == type([]):
+        try:
+            return temp_map[target[1]][target[0]]   
+        except IndexError:
+            return 'empty'
+    else:
+        raise Exception("Unknown command in getMap")
 
 #Returns coordinates of a unit, I'd like to make it faster.                
 def getLocation( unit ):
@@ -393,16 +425,16 @@ def getDistance(one, two, method):
     
     if type( one ) == type (''):
         one = getLocation( one )
-    if type( two ) == type (''):
+    elif type( two ) == type (''):
         two = getLocation( two )
     if one == False or two == False:
-        return False
+        return float("inf")
     
-    #return how far away the objects are along x
+    #return how far away the objects are along y
     if method == 'y':
         return int( abs( one[1] - two[1] ) )
     
-    #return how far away the objects are along y
+    #return how far away the objects are along x
     elif method == 'x':
         return int( abs( one[0] - two[0] ) )
     
@@ -421,8 +453,7 @@ def getDistance(one, two, method):
         else:
             return int(abs(one[1] - two[1]))
     else:
-        print("Invalid distance type")
-        raise Exception
+        raise Exception("Unknown Command in getDistance")
 
 #returns every unit in a particular group. Terrible function
 #for use with targeting data only. Will change in future releases       
@@ -486,7 +517,8 @@ def controlTravel(caster, targetLoc, command='travel'):
     
     #move caster to new location 
     ENV[MAP][targetLoc[1]][targetLoc[0]] = caster
-    print (getStat(caster, ID), "has moved to", targetLoc)
+    if caster != 'empty':
+        print (getStat(caster, ID), "has moved to", targetLoc)
     if target != 'empty':
         print (target, "has been bumped")
 
@@ -526,15 +558,12 @@ def controlList( target, lst, entry, command='add'):
     
 #Activates moves, and statuses. 
 def controlMove( caster, target , move, command="cast", delay=-1):
-    if caster == 'empty':
-        return
     
     delay = int(delay)
     
     #accepted commands, cast, force, remove, add, item, equip   
     if command not in ['cast', 'chain']:
-        print("unknown command in controlMove. Saw", command)
-        raise Exception
+        raise Exception("Unknown command in controlMove.")
     
     #check to see if target is a list of targets. (target could be a position, this is ignored for now.)
     if type(target) == type([]):
@@ -584,9 +613,9 @@ def controlEffect(caster, target, move):
     #activate all the effects
     for effect in getStat(move, EFFECT):
         try:
-            output = interpret(caster, target, move, effect) 
+            output = interpret(caster, target, move, effect, casterLocation, targetLocation) 
         except:
-            print(effect)
+            print("Interpreter Error:", effect)
             raise
         try:
             exec(output)
@@ -608,6 +637,9 @@ def testBlock( start, finish, path ):
         start = getLocation(start)
     if type( finish ) != type( [] ) and type( finish ) != type ( () ):
         finish = getLocation(finish)
+        
+    if start == False or finish == False:
+        return False
     
     def changeX( start ):
         new = copy.copy(start)
@@ -678,7 +710,7 @@ def testBlock( start, finish, path ):
         if getMap(spot) != 'empty':
             return False
     return True
-    
+
 def testMove(caster, target, move):
     
     casterLocation = getLocation(caster)
@@ -691,10 +723,9 @@ def testMove(caster, target, move):
     #check requires to see if move can actually activate
     for require in getStat(move, REQUIRE):
         try:
-            check = interpret(caster, target, move, require)
+            check = interpret(caster, target, move, require, casterLocation, targetLocation)
         except:
-            print(require)
-            raise
+            print("Interpreter error:", require)
         try:
             if not eval(check):
                 return require
@@ -703,14 +734,17 @@ def testMove(caster, target, move):
             raise
     return True
     
-    
+def testInterpret(string):
+    value = interpret('caster', 'target', 'move', string, (0, 0), (1,1))
+    print(value)
+    return value
 
 
 #---------------------------------------------------
 #                 The Interpreter                  -
 #---------------------------------------------------
 
-def interpret(casterID, targetID, moveID, string):
+def interpret(casterID, targetID, moveID, string, casterLocation, targetLocation):
     
     #targeting
     def CASTER(stringList, index):
@@ -724,17 +758,21 @@ def interpret(casterID, targetID, moveID, string):
     
     def CLASS(stringList, index):
         trgt = stringList[index - 1]
+        trgt = trgt[1:len(trgt)-1]
         group_type = stringList[index + 1]
         
-        #finds the group ID
-        for group in getStat( trgt, GROUP ):
-            if getStat(group, TYPE) == group_type:
-                print_group = getStat(group, ID)
-                break
+        if trgt != 'empty':
+        
+            #finds the group ID
+            for group in getStat( trgt, GROUP ):
+                if getStat(group, TYPE) == group_type:
+                    print_group = getStat(group, ID)
+                    break
+            else:
+                print (getStat( trgt, ID), "has no group", group_type)
+                raise Exception("Interpret could not find Group")
         else:
-            print (getStat( trgt, ID), "has no group", group_type)
-            raise Exception
-            
+            print_group = 'empty'            
         stringList[index + 1] = "'" + print_group  + "'"
         stringList[index] = stringList[index - 1] = ""
         
@@ -743,9 +781,13 @@ def interpret(casterID, targetID, moveID, string):
         end = stringList.index(")")
         stringList[end] = ")"
         
-        formula = interpret(casterID, targetID, moveID, " ".join(stringList[index:end + 1]))+ ")"
+        new = interpret(casterID, targetID, moveID, " ".join(stringList[index:end + 1]), casterLocation, targetLocation)+ ")"
+        formula = eval(new)
         
-        stringList[end] = formula
+        if formula == None:
+            stringList[end] = "'empty'"
+        else:
+            stringList[end] = "'"+formula+"'"
         for i in range(index, end):
             stringList[i] = ''
     
@@ -889,8 +931,10 @@ def interpret(casterID, targetID, moveID, string):
         stringList[index +1] = ""
         
     def DICE(stringList, index):
-        stringList[index] = "random.randint(1," + stringList[index+1] + ")"
-        stringList[index+1] = ""  
+        stringList[index] = "random.randint(1,"
+        end = stringList.index(")")
+        stringList[end] = "))"
+          
         
     keyword = {
         'MOVE': MOVE,
@@ -923,24 +967,24 @@ def interpret(casterID, targetID, moveID, string):
         
         check = stringList[index]
         
+        try:
+            keyword[check](stringList, index)
+            continue
+        except KeyError:
+            pass
+        
         #Core Stats, Don't know how to move this to the functions yet
         if stringList[index] in OBJECT['ENV'][STATS] + OBJECT['ENV'][LISTS] + OBJECT['ENV'][STRINGS]:
             trgt = stringList[index - 1]
             stat = stringList[index]
-            stringList[index] = "getStat('" + trgt + "', '" + stat + "')"
+            stringList[index] = "getStat(" + trgt + ", '" + stat + "')"
             stringList[index-1] = ""
             continue
         
-        try:
-            keyword[check](stringList, index)
-        except KeyError:
-            pass
-            
-                   
-    #quotation mark any remaining defined terms
-    for index in range(0, len(stringList)):
+        #wraps any remaining defined string in quotes    
         if stringList[index] in OBJECT.keys():
             stringList[index] = "'"+stringList[index]+"'"
+            continue
     
     #prevents indentation errors
     while "" in stringList:
