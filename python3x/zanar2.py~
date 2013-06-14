@@ -19,8 +19,8 @@ basicFont = pygame.font.SysFont(None, 48)
 smallFont = pygame.font.SysFont(None, 24)
 
 #music
-#overworld = pygame.mixer.Sound('overworld.ogg')
-#overworld.play(-1)
+overworld = pygame.mixer.Sound('overworld.ogg')
+overworld.play(-1)
 #pygame.mixer.music.play(-1)
 
 
