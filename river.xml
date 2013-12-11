@@ -30,26 +30,26 @@
             <item>RECRUIT 'land' (FILL (0,0) 'empty')</item>
             <item>'source' TRAVEL (0,8)</item>
             <item>'pit' TRAVEL (15,8)</item>
-            <item>CAST 'terrain' (FILL 'source' 'empty')</item>
+            <item>CAST (FILL 'source' 'empty') 'terrain'</item>
         </effect>
     </init>
     
     <tick>
         <effect>
-            <item>CHANGE W 'source' 4</item>
-            <item>'source' CAST 'flow' (FILL 'source' 'adjacent')</item>
+            <item>CHANGE 'source' 'W' 4</item>
+            <item>'source' CAST (FILL 'source' 'adjacent') 'flow'</item>
         </effect>
     </tick>
     
     <terrain>
         <effect>
-            <item>CHANGE D T (DICE 10)</item>
+            <item>CHANGE T 'D' (DICE 10)</item>
         </effect>
     </terrain>
     
     <adjacent>
         <require>
-            <item>DISTANCE hex == 1</item>
+            <item>DISTANCE 'hex' == 1</item>
         </require>
     </adjacent>
         
@@ -57,27 +57,27 @@
     
     <flow>
         <require>
-            <item>(STAT W T + STAT D T) &lt; (STAT W C + STAT D C - 1)</item>
+            <item>(STAT T 'W' + STAT T 'D') &lt; (STAT C 'W' + STAT C 'D' - 1)</item>
         </require> 
         <effect>
-            <item>amount = (STAT W C + STAT D C - STAT W T - STAT D T + 10)/10</item>
-            <item>CHANGE W T amount</item>
-            <item>CHANGE W C -amount</item>
-            <item>CHANGE S C 1</item>
-            <item>CAST 'colourchange' target</item>
-            <item>CAST 'erode' target</item>
-            <item>CAST 'pitcheck' target</item>
-            <item>target CAST 'flow' (FILL target 'adjacent')</item>
+            <item>amount = (STAT C 'W' + STAT C 'D' - STAT T 'W' - STAT T 'D' + 10)/10</item>
+            <item>CHANGE T 'W' amount</item>
+            <item>CHANGE C 'W' -amount</item>
+            <item>CHANGE C 'S' 1</item>
+            <item>CAST T 'colourchange'</item>
+            <item>CAST T 'erode'</item>
+            <item>CAST T 'pitcheck'</item>
+            <item>target CAST (FILL target 'adjacent') 'flow'</item>
         </effect>
     </flow> 
     
     <erode>
         <require>
-            <item>STAT S T >= 10</item>
+            <item>STAT T 'S' >= 10</item>
         </require>
         <effect>
-            <item>CHANGE S T -10</item>
-            <item>CHANGE D T -1</item>
+            <item>CHANGE T 'S' -10</item>
+            <item>CHANGE T 'D' -1</item>
         </effect>
     </erode>
     
@@ -86,7 +86,7 @@
             <item>target.name == 'pit'</item>
         </require>
         <effect>
-            <item>CHANGE W T -1</item>
+            <item>CHANGE T 'W' -1</item>
         </effect>
     </pitcheck>
     
@@ -95,11 +95,11 @@
             <item>target.name != 'pit'</item>
         </require>
         <effect>
-            <item>CAST 'sand' T</item>
-            <item>CAST 'dirt' T</item>
-            <item>CAST 'grass' T</item>
-            <item>CAST 'shallow' T</item>
-            <item>CAST 'deep' T</item>
+            <item>CAST T 'sand'</item>
+            <item>CAST T 'dirt'</item>
+            <item>CAST T 'grass'</item>
+            <item>CAST T 'shallow'</item>
+            <item>CAST T 'deep'</item>
         </effect>
     </colourchange>
     
@@ -125,50 +125,50 @@
     
     <sand>
         <require>
-            <item>STAT W T &lt; 10</item>
-            <item>STAT W T &gt;= 0</item>
+            <item>STAT T 'W' &lt; 10</item>
+            <item>STAT T 'W' &gt;= 0</item>
         </require>
         <effect>
-            <item>REPLACE colour T sand</item>
+            <item>REPLACE T 'colour' 'sand'</item>
         </effect>
     </sand>
     
     <dirt>
         <require>
-            <item>STAT W T &lt; 20</item>
-            <item>STAT W T &gt;= 10</item>
+            <item>STAT T 'W' &lt; 20</item>
+            <item>STAT T 'W' &gt;= 10</item>
         </require>
         <effect>
-            <item>REPLACE colour T dirt</item>
+            <item>REPLACE T 'colour' 'dirt'</item>
         </effect>
     </dirt>
     
     <grass>
         <require>
-            <item>STAT W T &lt; 30</item>
-            <item>STAT W T &gt;= 20</item>
+            <item>STAT T 'W' &lt; 30</item>
+            <item>STAT T 'W' &gt;= 20</item>
         </require>
         <effect>
-            <item>REPLACE colour T grass</item>
+            <item>REPLACE T 'colour' 'grass'</item>
         </effect>
     </grass>
     
     <shallow>
         <require>
-            <item>STAT W T &lt; 40</item>
-            <item>STAT W T &gt;= 30</item>
+            <item>STAT T 'W' &lt; 40</item>
+            <item>STAT T 'W' &gt;= 30</item>
         </require>
         <effect>
-            <item>REPLACE colour T shallow</item>
+            <item>REPLACE T 'colour' 'shallow'</item>
         </effect>
     </shallow>
     
     <deep>
         <require>
-            <item>STAT W T &gt;= 40</item>
+            <item>STAT T 'W' &gt;= 40</item>
         </require>
         <effect>
-            <item>REPLACE colour T deep</item>
+            <item>REPLACE T 'colour' 'deep'</item>
         </effect>
     </deep>
 </entities>

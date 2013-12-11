@@ -384,7 +384,7 @@ class instance:
         return True
     
     def controlRecruit(self, clone, position=None, tick=False):
-        if isinstance(clone, list):
+        if isinstance(position, list):
             for element in position:
                 self.controlRecruit(clone, element)
             return
@@ -477,7 +477,7 @@ class instance:
             if len(target) == 0:
                 print("empty list in controlMove")
             for entry in target:
-                self.controlMove(caster, entry, move, delay)
+                self.controlMove(caster, entry, move)
             return True
         
         env = self.createTarget(caster, target, move)
@@ -491,12 +491,14 @@ class instance:
             return False
         self.controlLog(env['caster'].name, "uses", env['move'].name,
                         "on", env['target'].name)
+        
         self.controlEffect(env)
         return True
         
     def controlEffect(self, env, single=False):
         
         def decode(effect, env):
+            
             if type(effect) is script:
                 raw = effect.raw
                 inter = effect.interpret
@@ -516,7 +518,7 @@ class instance:
             decode(single, env)
         else:
             for effect in self.getStat(env['move'], 'effect'):
-                decode(single, env)
+                decode(effect, env)
         return True
 
     #---------------------------------------------------
@@ -525,9 +527,9 @@ class instance:
     
     def testTarget(self, target):
         #This function is a bottleneck
-        if isinstance(target):
+        if isinstance(target, entity):
             return target
-        elif isinstance(target, basestring):
+        elif isinstance(target, str):
             return self.getObject(target)
         elif isinstance(target, tuple):
             name = self.getMap(target)
@@ -632,8 +634,8 @@ class instance:
                 inter = require.interpret
                 scode = require.code
             else:
-                raw = effect
-                inter = interpret(effect)
+                raw = require
+                inter = interpret(require)
                 scode = inter
             try:
                 if not eval(scode, env):
@@ -988,7 +990,6 @@ def battleStart(xml_file, field=instance(), obj=entity()):
     if entities is not None:
         for item in entities:
             new_entity = addObject(item)
-
     
     if 'tick' not in field.getObject():
         print("warning, no tick is defined.")             
@@ -1002,6 +1003,7 @@ def battleStart(xml_file, field=instance(), obj=entity()):
 #---------------------------------------------------
 
 def interpret(string, debug=False):
+    
     if string == None:
         return ''
     
@@ -1021,7 +1023,7 @@ def interpret(string, debug=False):
                 if arg[-1] != "'":
                     arg = arg + "'"  
             value = value+arg+","
-        value = value + ")"
+        value = value + "}"
         return value
     
     #keywords
@@ -1143,7 +1145,7 @@ def interpret(string, debug=False):
     #this one feels like arbitray target distance might be nice
     def DISTANCE(list_, i):
         dtype = list_[i + 1]
-        list_[i] = call('getDistance', 'target', dtype)
+        list_[i] = call('getDistance', 'caster', 'target', dtype)
         erase(list_, i, (1,))
         
     def DICE(list_, i):
@@ -1189,10 +1191,10 @@ def interpret(string, debug=False):
         'FILL': FILL,
     }
     
-    if debug:
-        print(string)
-    
     def recursive(string, debug=False):
+        if debug:
+            print(string)
+        
         #Deal with Brackets
         while "(" in string:
             start = string.find("(")
@@ -1212,26 +1214,30 @@ def interpret(string, debug=False):
             formula = formula.replace(" ", "")
             string = string[:start] + formula + string[end+1:]
             
-        #parse remaining strings.
+        #parse remaining strings.       
+        
         list_ = re.split(" ", string)
+        if debug:
+            print(list_)
         for index in range(len(list_)):
             check = list_[index]
             try:
                 keyword[check](list_, index)
-                continue
+                if debug:
+                    print(list_)
+                continue    
             except KeyError:
-                if len(check) > 0:
-                    if check[0] == "'":
-                        if check[-1] != "'":
-                            list_[index] = check + "'"  
                 continue
             except IndexError:
                 print("Keyword error, can't parse", string)
-                raise 
+                raise
 
         #prevents indentation errors
         while "" in list_:
             list_.remove("")
+        if debug:
+            print(" ".join(list_))
+        
         return " ".join(list_)
     
     final = recursive(string, debug)
