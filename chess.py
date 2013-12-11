@@ -4,7 +4,7 @@ from pygame.locals import *
 #initialize pygame and udebs
 pygame.init()
 main_map = udebs.battleStart("chess.xml")
-main_map.controlScript('init')
+main_map.controlMove('empty', 'empty', 'init')
 mainClock = pygame.time.Clock()
 
 #definitions
@@ -33,12 +33,12 @@ while True:
             sys.exit()
         if event.type == KEYDOWN:
             
-            if event.key == K_DELETE:
-                #exit selection mode, and revert.
-                active_unit = False
-                highlighted = []
-                active_selection = False
-                main_map.battleRevert(2)
+#            if event.key == K_DELETE:
+#                #exit selection mode, and revert.
+#                active_unit = False
+#                highlighted = []
+#                active_selection = False
+#                main_map.battleRevert(2)
             
             if event.key == K_ESCAPE:
                 #exit selection mode.
@@ -48,9 +48,7 @@ while True:
                 
             if event.key == K_RETURN:
                 if active_unit != False:
-                    
-                    #activates move.
-                    trgt = [ selection['x'], selection['y'] ]
+                    trgt = (selection['x'], selection['y'])
                     test = False
                     for move in main_map.getStat(active_unit, 'movelist'):
                         test = main_map.controlMove(active_unit, trgt, move)
@@ -77,11 +75,11 @@ while True:
                         active_unit = main_map.getMap( ( selection['x'], selection['y'] ) )
                         for x in range(8):
                             for y in range(8):
-                                trgt = [x,y]
+                                trgt = (x,y)
                                 for move in main_map.getStat(active_unit, 'movelist'):
                                     env = main_map.createTarget(active_unit, trgt, move)
                                     if main_map.testRequire(env) == True:
-                                        highlighted.append( [x,y] )
+                                        highlighted.append((x,y))
                                 
             #selection right/left
             if event.key == K_RIGHT:
@@ -116,13 +114,8 @@ while True:
                     colour = WHITE
                 else:
                     colour = BLACK
-                
-                #if square is highlighted
-                if active_unit != False:
-                    if [x,y] in highlighted or active_selection == [x,y]:
-                        colour = GREEN
-                
-                #if Curser is currently on the square.                       
+                if (x,y) in highlighted:
+                    colour = GREEN    
                 if selection == {'x': x, 'y': y}:
                     colour = RED
                 
@@ -132,18 +125,14 @@ while True:
                 #draw any unit on the tile.
                 unit = main_map.getMap((x, y))
                 if unit != 'empty':
-                    #print(unit)
                     colour_list = main_map.getStat(unit, 'colour')
                     sprite_colour = tuple([int(number) for number in colour_list])
-                    sprite_symbol = main_map.getStat(unit, 'sprite')[0]
+                    sprite_symbol = main_map.getStat(unit, 'sprite')
                    
                     mainSurface.blit(basicFont.render(sprite_symbol, True, sprite_colour, colour), (x*50+10, y*50+10))
-                del colour
-                del unit
                 i +=1
             i +=1
-        del i 
-    
+        
     pygame.display.update()
         
     mainClock.tick(60)

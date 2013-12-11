@@ -1,0 +1,77 @@
+<udebs>
+
+<config>
+    <hex>True</hex>
+</config>
+
+<definitions>
+    <stats>
+        <ACT />
+    </stats>
+    <strings>
+        <sprite />
+    </strings>
+</definitions>
+
+<map>
+    <dim>
+        <x>8</x>
+        <y>8</y>
+    </dim>
+</map>
+
+<entities>
+    
+    <!-- scripts -->
+    
+    <init>
+        <effect>
+            <item>RECRUIT 'token' (0,0)</item>
+            <item>CAST 'earthquake' (DICE 8 , DICE 8)</item>
+        </effect>
+    </init>
+
+    <suptravel>
+        <require>
+            <item>target.id == 'empty'</item>
+            <item>DISTANCE hex &lt;= (STAT ACT caster)</item>
+        </require>
+    </suptravel>
+    
+    <travel>
+        <effect>
+            <item>TRAVEL target</item>
+        </effect>
+        <require>
+            <item>DISTANCE 'suptravel' &lt;= (STAT ACT caster)</item>
+        </require>
+        <group>
+            <item>suptravel</item>
+        </group>
+    </travel>
+    
+    <ridge>
+        <require>
+            <item>DISTANCE x &lt;= 2</item>
+            <item>DISTANCE y == 0</item>
+        </require>
+    </ridge>
+    
+    <earthquake>
+        <effect>
+            <item>RECRUIT 'earth' (FILL target ridge)</item>
+        </effect>
+    </earthquake>    
+
+    <earth>
+        <sprite>M</sprite>
+    </earth>
+    
+    <token>
+        <ID>token</ID>     
+        <sprite>K</sprite>
+        <ACT>2</ACT>
+    </token>
+</entities>
+
+</udebs>

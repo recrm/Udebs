@@ -1,0 +1,176 @@
+<udebs>
+
+<config>
+    <hex>True</hex>
+    <logging>False</logging>
+</config>
+
+<definitions>
+    <stats>
+        <W />
+        <D />
+        <S />
+    </stats>
+    <strings>
+        <colour />
+    </strings>
+</definitions>
+
+<map>
+    <dim>
+        <x>16</x>
+        <y>16</y>
+    </dim>
+</map>
+
+<entities>
+    <!-- scripts -->
+    <init>
+        <effect>
+            <item>RECRUIT 'land' (FILL (0,0) 'empty')</item>
+            <item>'source' TRAVEL (0,8)</item>
+            <item>'pit' TRAVEL (15,8)</item>
+            <item>CAST 'terrain' (FILL 'source' 'empty')</item>
+        </effect>
+    </init>
+    
+    <tick>
+        <effect>
+            <item>CHANGE W 'source' 4</item>
+            <item>'source' CAST 'flow' (FILL 'source' 'adjacent')</item>
+        </effect>
+    </tick>
+    
+    <terrain>
+        <effect>
+            <item>CHANGE D T (DICE 10)</item>
+        </effect>
+    </terrain>
+    
+    <adjacent>
+        <require>
+            <item>DISTANCE hex == 1</item>
+        </require>
+    </adjacent>
+        
+    <!-- moves --> 
+    
+    <flow>
+        <require>
+            <item>(STAT W T + STAT D T) &lt; (STAT W C + STAT D C - 1)</item>
+        </require> 
+        <effect>
+            <item>amount = (STAT W C + STAT D C - STAT W T - STAT D T + 10)/10</item>
+            <item>CHANGE W T amount</item>
+            <item>CHANGE W C -amount</item>
+            <item>CHANGE S C 1</item>
+            <item>CAST 'colourchange' target</item>
+            <item>CAST 'erode' target</item>
+            <item>CAST 'pitcheck' target</item>
+            <item>target CAST 'flow' (FILL target 'adjacent')</item>
+        </effect>
+    </flow> 
+    
+    <erode>
+        <require>
+            <item>STAT S T >= 10</item>
+        </require>
+        <effect>
+            <item>CHANGE S T -10</item>
+            <item>CHANGE D T -1</item>
+        </effect>
+    </erode>
+    
+    <pitcheck>
+        <require>
+            <item>target.name == 'pit'</item>
+        </require>
+        <effect>
+            <item>CHANGE W T -1</item>
+        </effect>
+    </pitcheck>
+    
+    <colourchange>
+        <require>
+            <item>target.name != 'pit'</item>
+        </require>
+        <effect>
+            <item>CAST 'sand' T</item>
+            <item>CAST 'dirt' T</item>
+            <item>CAST 'grass' T</item>
+            <item>CAST 'shallow' T</item>
+            <item>CAST 'deep' T</item>
+        </effect>
+    </colourchange>
+    
+    <!-- land squares -->
+
+    <land>
+        <colour>sand</colour>
+        <D>500</D>
+    </land>
+    
+    <source>
+        <D>0</D>
+        <W>500</W>
+        <colour>deep</colour>
+    </source>    
+    
+    <pit>
+        <D>10</D>
+        <colour>black</colour>
+    </pit>
+    
+    <!-- colour changes -->
+    
+    <sand>
+        <require>
+            <item>STAT W T &lt; 10</item>
+            <item>STAT W T &gt;= 0</item>
+        </require>
+        <effect>
+            <item>REPLACE colour T sand</item>
+        </effect>
+    </sand>
+    
+    <dirt>
+        <require>
+            <item>STAT W T &lt; 20</item>
+            <item>STAT W T &gt;= 10</item>
+        </require>
+        <effect>
+            <item>REPLACE colour T dirt</item>
+        </effect>
+    </dirt>
+    
+    <grass>
+        <require>
+            <item>STAT W T &lt; 30</item>
+            <item>STAT W T &gt;= 20</item>
+        </require>
+        <effect>
+            <item>REPLACE colour T grass</item>
+        </effect>
+    </grass>
+    
+    <shallow>
+        <require>
+            <item>STAT W T &lt; 40</item>
+            <item>STAT W T &gt;= 30</item>
+        </require>
+        <effect>
+            <item>REPLACE colour T shallow</item>
+        </effect>
+    </shallow>
+    
+    <deep>
+        <require>
+            <item>STAT W T &gt;= 40</item>
+        </require>
+        <effect>
+            <item>REPLACE colour T deep</item>
+        </effect>
+    </deep>
+</entities>
+
+</udebs>
