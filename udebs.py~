@@ -1220,10 +1220,9 @@ def interpret(string, debug=False):
                 keyword[check](list_, index)
                 continue
             except KeyError:
-                if len(check) > 0:
-                    if check[0] == "'":
-                        if check[-1] != "'":
-                            list_[index] = check + "'"  
+                if check[0] == "'":
+                    if check[-1] != "'":
+                        list_[index] = check + "'"  
                 continue
             except IndexError:
                 print("Keyword error, can't parse", string)

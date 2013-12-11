@@ -43,8 +43,8 @@
     
     <init>
         <effect>
-            <item>'black' CAST 'empty' 'brecruit'</item>
-            <item>'white' CAST 'empty' 'wrecruit'</item>
+            <item>'black' CAST 'brecruit' 'empty'</item>
+            <item>'white' CAST 'wrecruit' 'empty'</item>
         </effect>
     </init>
 
