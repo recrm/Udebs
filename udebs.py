@@ -52,8 +52,8 @@ class instance:
             
     def getStat(self, target, stat):
         #This function is a bottleneck
-        
         target = self.testTarget(target)
+
         if stat == 'group':
             return getattr(target, stat)
         
@@ -242,10 +242,10 @@ class instance:
                 for delay in copy.copy(self.delay):
                     if delay["DELAY"] <= 0:
                         check = False
-                        env = createTarget(delay["CASTER"], 
-                                           delay["target"],
+                        env = self.createTarget(delay["CASTER"], 
+                                           delay["TARGET"],
                                            delay["MOVE"])
-                        controlEffect(env, delay['STRING'])
+                        self.controlEffect(env, delay['STRING'])
                         self.delay.remove(delay)
                 if check:
                     self.controlLog()
@@ -449,9 +449,7 @@ class instance:
                 target.save()
         return True
          
-    def controlDelay(caster, target, move, call_string, delay):
-        if int(delay) < 0:
-            raise
+    def controlDelay(self, caster, target, move, call_string, delay):
         new_delay = {
             "DELAY": delay,  
             "STRING": call_string,
@@ -533,14 +531,14 @@ class instance:
             return self.getObject(target)
         elif isinstance(target, tuple):
             name = self.getMap(target)
-            if name:
-                if name == 'empty':
-                    target_entity = entity(self)
-                    target_entity.loc = target
-                    return target_entity
-                else:
-                    return self.getObject(name)
-            raise KeyError
+            if not name:
+                return entity(self)
+            elif name == 'empty':
+                target_entity = entity(self)
+                target_entity.loc = target
+                return target_entity
+            else:
+                return self.getObject(name)
         else:
             print(target)
             raise TypeError
@@ -1030,14 +1028,14 @@ def interpret(string, debug=False):
     def DELAY(list_, i):
         string = list_[i+1]
         delay = list_[i+2]
-        list_[i] = call("controlDelay", 'caster', 'target', 'move', "'"+string, delay)
+        list_[i] = call("controlDelay", 'caster', 'target', 'move', '"'+string + '"', delay)
         erase(list_, i, (1,2))
     
     #targeting
     def CLASS(list_, i):
-        target = list_[i + 2]
-        grtype = list_[i + 1]
-        list_[i] = call('getListGroup', target, 'group', grtype)
+        target = list_[i + 1]
+        grtype = list_[i + 2]
+        list_[i] = call('getListGroup', target, "'group'", grtype)
         erase(list_, i, (1,2))
         
     def ALL(list_, i):
@@ -1085,14 +1083,14 @@ def interpret(string, debug=False):
         target = list_[i +1]
         slist = list_[i +2]
         move = list_[i +3]
-        list_[i] = call('controlList', target, slist, move, 'add')
+        list_[i] = call('controlList', target, slist, move, "'add'")
         erase(list_, i, (1,2,3))
     
     def LOSES(list_, i):
         target = list_[i +1]
         slist = list_[i +2]
         move = list_[i +3]
-        list_[i] = call('controlList', target, slist, move, 'remove')
+        list_[i] = call('controlList', target, slist, move,"'remove'")
         erase(list_, i, (1,2,3))
     
     #controlStat

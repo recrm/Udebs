@@ -27,14 +27,14 @@
     <init>
         <effect>
             <item>RECRUIT 'token' (0,0)</item>
-            <item>CAST 'earthquake' (DICE 8 , DICE 8)</item>
+            <item>CAST (DICE 7 , DICE 7) 'earthquake'</item>
         </effect>
     </init>
 
     <suptravel>
         <require>
-            <item>target.id == 'empty'</item>
-            <item>DISTANCE hex &lt;= (STAT ACT caster)</item>
+            <item>target.name == 'empty'</item>
+            <item>DISTANCE 'hex' &lt;= (STAT caster 'ACT')</item>
         </require>
     </suptravel>
     
@@ -43,7 +43,7 @@
             <item>TRAVEL target</item>
         </effect>
         <require>
-            <item>DISTANCE 'suptravel' &lt;= (STAT ACT caster)</item>
+            <item>DISTANCE 'suptravel' &lt;= (STAT caster 'ACT')</item>
         </require>
         <group>
             <item>suptravel</item>
@@ -52,14 +52,14 @@
     
     <ridge>
         <require>
-            <item>DISTANCE x &lt;= 2</item>
-            <item>DISTANCE y == 0</item>
+            <item>DISTANCE 'x' &lt;= 2</item>
+            <item>DISTANCE 'y' == 0</item>
         </require>
     </ridge>
     
     <earthquake>
         <effect>
-            <item>RECRUIT 'earth' (FILL target ridge)</item>
+            <item>RECRUIT 'earth' (FILL target 'ridge')</item>
         </effect>
     </earthquake>    
 

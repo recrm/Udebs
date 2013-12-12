@@ -29,7 +29,7 @@
     
     <fill_pawn>
         <require>
-            <item>DISTANCE y == 0</item>
+            <item>DISTANCE 'y' == 0</item>
         </require>
     </fill_pawn>
     
@@ -59,7 +59,7 @@
             <item>RECRUIT 'bishop' (5,0)</item>
             <item>RECRUIT 'king' (3,0)</item>
             <item>RECRUIT 'queen' (4,0)</item>
-            <item>GETS group 'black' (FILL (0,1) 'nonempty')</item>
+            <item>GETS (FILL (0,1) 'nonempty') 'group' 'black'</item>
         </effect>
     </brecruit>
     
@@ -74,7 +74,7 @@
             <item>RECRUIT 'bishop' (5,7)</item>
             <item>RECRUIT 'king' (3,7)</item>
             <item>RECRUIT 'queen' (4,7)</item>
-            <item>GETS group 'white' (FILL (0,6) 'nonempty')</item>
+            <item>GETS (FILL (0,6) 'nonempty') 'group' 'white'</item>
         </effect>
     </wrecruit>
     
@@ -93,10 +93,10 @@
     
     <status_group>
         <require>
-            <item>move.name not in STAT status target</item>
+            <item>move.name not in STAT target 'status'</item>
         </require>
         <effect>
-            <item>GETS status move.name target</item>
+            <item>GETS target 'status' move.name</item>
         </effect>
     </status_group>
     
@@ -108,7 +108,7 @@
     
     <passant_danger>
         <effect>
-            <item>CAST 'passant_remove' target DELAY 2</item>
+            <item>DELAY (CAST target 'passant_remove') 2</item>
         </effect>
         <group>
             <item>status_group</item>
@@ -137,15 +137,15 @@
             <item>caster.loc[1] in [0,7]</item>
         </require>
         <effect>
-            <item>RECRUIT 'queen' caster</item>
-            <item>GETS group (CLASS 'tick' caster) new</item>
-            <item>GETS status 'promoted' caster</item>
+            <item>new = RECRUIT 'queen' caster</item>
+            <item>GETS new 'group' (CLASS caster 'tick')</item>
+            <item>GETS caster 'status' 'promoted'</item>
         </effect>
     </promote>
     
     <passant_remove>
         <effect>
-            <item>LOSES status 'passant_danger' target</item>
+            <item>LOSES target 'status' 'passant_danger'</item>
         </effect>
     </passant_remove>
     
@@ -162,35 +162,35 @@
         
     <player_move>
         <require>
-            <item>CLASS 'tick' caster not in STAT group target</item>
+            <item>CLASS caster 'tick' not in STAT target 'group'</item>
         </require>
         <effect>
-            <item>CAST 'moved_once' caster</item>
-            <item>CAST 'captured' target</item>
+            <item>CAST caster 'moved_once'</item>
+            <item>CAST target 'captured'</item>
         </effect>
     </player_move>
 
     <pawn_move>
         <require>
-            <item>(target.loc[1] * STAT FLP C) &lt; (caster.loc[1] * STAT FLP C)</item>
+            <item>(target.loc[1] * STAT C 'FLP') &lt; (caster.loc[1] * STAT C 'FLP')</item>
         </require>
         <effect>
             <item>TRAVEL target</item>
-            <item>CAST 'promote' caster</item>
+            <item>CAST caster 'promote'</item>
         </effect>
     </pawn_move>
     
     <king_castle>
         <require>
-            <item>CLASS 'tick' caster in STAT group target</item>
+            <item>CLASS caster 'tick' in STAT target 'group'</item>
             <item>'rook' in target.name</item>
-            <item>'moved_once' not in STAT status caster</item>
-            <item>'moved_once' not in STAT status target</item>
-            <item>BLOCK x</item>
+            <item>'moved_once' not in STAT caster 'status'</item>
+            <item>'moved_once' not in STAT target 'status'</item>
+            <item>BLOCK 'x'</item>
         </require>
         <effect>
-            <item>CAST 'moved_once' caster</item>
-            <item>CAST 'moved_once' target</item>
+            <item>CAST caster 'moved_once'</item>
+            <item>CAST target 'moved_once'</item>
         </effect>
     </king_castle>
     
@@ -198,8 +198,8 @@
 
     <pawn_travel>
         <require>
-            <item>DISTANCE y == 1</item>
-            <item>DISTANCE x == 0</item>
+            <item>DISTANCE 'y' == 1</item>
+            <item>DISTANCE 'x' == 0</item>
             <item>target.name == 'empty'</item>            
         </require>
         <group>
@@ -211,14 +211,14 @@
 
     <pawn_double>
         <require>
-            <item>'moved_once' not in STAT status caster</item>
-            <item>DISTANCE x == 0</item>
-            <item>DISTANCE y == 2</item>
+            <item>'moved_once' not in STAT caster 'status'</item>
+            <item>DISTANCE 'x' == 0</item>
+            <item>DISTANCE 'y' == 2</item>
             <item>target.name == 'empty'</item>
-            <item>BLOCK y</item>
+            <item>BLOCK 'y'</item>
         </require>
         <effect>
-            <item>CAST 'passant_danger' caster</item>
+            <item>CAST caster 'passant_danger'</item>
         </effect>
         <group>
             <item>player_move</item>
@@ -229,8 +229,8 @@
     
     <pawn_capture>
         <require>
-            <item>DISTANCE pinf == 1</item>
-            <item>DISTANCE x == DISTANCE y</item>
+            <item>DISTANCE 'pinf' == 1</item>
+            <item>DISTANCE 'x' == DISTANCE 'y'</item>
             <item>target.name != 'empty'</item>
         </require>
         <group>
@@ -242,12 +242,12 @@
 
     <pawn_passant>
         <require>
-            <item>'passant_danger' in STAT status target</item>
-            <item>DISTANCE x == 1</item>
-            <item>DISTANCE y == 0</item>
+            <item>'passant_danger' in STAT target 'status'</item>
+            <item>DISTANCE 'x' == 1</item>
+            <item>DISTANCE 'y' == 0</item>
         </require>
         <effect>
-            <item>TRAVEL (target.loc[0], caster.loc[1] - STAT FLP C)</item>
+            <item>TRAVEL (target.loc[0], caster.loc[1] - STAT C 'FLP')</item>
             <item>target TRAVEL False</item>
         </effect>
         <group>
@@ -286,8 +286,8 @@
     
     <rook_travel>
         <require>
-            <item>(DISTANCE p1 == DISTANCE x) or (DISTANCE p1 == DISTANCE y)</item>
-            <item>BLOCK x</item>
+            <item>(DISTANCE 'p1' == DISTANCE 'x') or (DISTANCE 'p1' == DISTANCE 'y')</item>
+            <item>BLOCK 'x'</item>
         </require>
         <effect>
             <item>TRAVEL target</item>
@@ -300,9 +300,9 @@
     
     <bishop_travel>
         <require>
-            <item>DISTANCE pinf == DISTANCE x</item>
-            <item>DISTANCE pinf == DISTANCE y</item>
-            <item>BLOCK diag</item>
+            <item>DISTANCE 'pinf' == DISTANCE 'x'</item>
+            <item>DISTANCE 'pinf' == DISTANCE 'y'</item>
+            <item>BLOCK 'diag'</item>
         </require>
         <effect>
             <item>TRAVEL target</item>
@@ -315,7 +315,7 @@
     
     <knight_travel>
         <require>
-            <item>DISTANCE x == 2 and DISTANCE y == 1 or DISTANCE x == 1 and DISTANCE y == 2</item>
+            <item>DISTANCE 'x' == 2 and DISTANCE 'y' == 1 or DISTANCE 'x' == 1 and DISTANCE 'y' == 2</item>
         </require>
         <effect>
             <item>TRAVEL target</item>
@@ -328,7 +328,7 @@
     
     <king_travel>
         <require>
-            <item>DISTANCE pinf == 1</item>
+            <item>DISTANCE 'pinf' == 1</item>
         </require>
         <effect>
             <item>TRAVEL target</item>
