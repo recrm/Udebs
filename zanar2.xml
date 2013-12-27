@@ -1,46 +1,26 @@
 <udebs>
 
-<name>World MAP</name>
+<config>
+    <name>World MAP</name>
+</config>
+
+
 <!-- definitions -->
 <definitions>
-
     <stats>
-        <item>ACT</item>
-        <item>SPD</item>
-        <item>LVL</item>
+        <ACT />
+        <SPD />
+        <LVL />
     </stats>
 
     <strings>
-        <item>sprite</item>
+        <sprite />
     </strings>
 
     <lists>
-        <item rlist='rlist'>status</item>
+        <status rlist='rlist' />
     </lists>
-    
 </definitions>
-<scripts>
-    
-    <tick>
-        <item>TARGET CHANGE ACT [TARGET STAT SPD * time]</item>
-    </tick>
-    
-    <init>
-        <item>hero MOVE travel (0,0)</item>
-        <item>goal MOVE travel (7,7)</item>
-        <item>treasure MOVE travel [DICE 6 , DICE 6]</item>
-        <item>recruiter CHANGE ACT 4</item>
-        <item>recruiter CAST recruit</item>
-        <item>recruiter CAST boss_recruit</item>
-    </init>
-
-    <finish>
-        <item>recruiter CHANGE LVL 1</item>
-        <item>recruiter CHANGE ACT [recruiter STAT LVL]</item>
-        <item>ALL mob CAST KO</item>
-    </finish>
-    
-</scripts>
 
 <map>
     <dim>
@@ -50,116 +30,122 @@
 </map>
 
 <entities>
+    <tick>
+        <effect>
+            <item>CAST (ALL mob) tick_active</item>
+        </effect>
+    </tick>
+    
+    
+    <tick_active>
+        <effect>CHANGE T ACT (STAT T SPD)</effect>
+    </tick_active>
+    
+    <init>
+        <effect>
+            <item>'hero' TRAVEL (0,0)</item>
+            <item>'goal' TRAVEL (7,7)</item>
+            <item>'treasure' TRAVEL (DICE 5 +2 , DICE 5 +2)</item>
+            <item>CHANGE 'recruiter' 'ACT' 0</item>
+            <item>CAST 'recruiter' 'recruit'</item>
+            <item>CAST 'recruiter' 'boss_recruit'</item>
+        </effect>
+    </init>
+
+    <finish>
+        <effect>
+            <item>CHANGE 'recruiter' LVL 1</item>
+            <item>CHANGE 'recruiter' ACT (STAT recruiter LVL)</item>
+            <item>CAST (ALL mob) KO</item>
+        </effect>
+    </finish>
 
 <!-- Status and chaincasts -->
 
-    <entity>
-        <ID>recruit</ID>
+    <recruit>
         <effect>
-            <item>baddie RECRUIT [DICE 6 , DICE 6]</item>
-            <item>recruiter CHANGE ACT -1</item>
-            <item>recruiter CAST recruit DELAY 0</item>
+            <item>RECRUIT baddie (DICE 5 +2 , DICE 5 +2)</item>
+            <item>CHANGE recruiter ACT -1</item>
+            <item>DELAY (CAST recruiter recruit) 0</item>
         </effect>
         <require>
-            <item>recruiter STAT ACT &gt;=1</item>
+            <item>STAT recruiter ACT &gt;= 1</item>
         </require>
-    </entity>
+    </recruit>
 
     <!-- Moves -->
     
-    <entity>
-        <ID>travel</ID>
+    <travel>
         <require>
-            <item>CASTER STAT ACT &gt;=1</item>
+            <item>STAT caster ACT &gt;=1</item>
             <item>DISTANCE pinf &lt;= 1</item>
-            <item>[TARGET == CASTER] or [TARGET == empty] or [TARGET == False]</item>
+            <item>(target.name == caster.name) or (target.name == 'empty') or (target.name == False)</item>
         </require>
         <effect>
-            <item>CASTER CHANGE ACT -1</item>
-            <item>TRAVEL</item>
+            <item>CHANGE C ACT -1</item>
+            <item>TRAVEL T</item>
         </effect>
-    </entity>
+    </travel>
     
-    <entity>
-        <ID>KO</ID>
-        
+    <KO>
         <require>
             <item>ONBOARD</item>
         </require>
         
         <effect>
-            <item>TARGET BUMP</item>
-            <item>TARGET CHANGE ACT -[TARGET STAT ACT]</item>
-            <item>TARGET GETS status SELF</item>
+            <item>target TRAVEL bump</item>
+            <item>CHANGE T ACT -(STAT T ACT)</item>
+            <item>GETS T status move</item>
         </effect>
         <stats>
             <SPD>-1</SPD>
         </stats>
-    </entity>
+    </KO>
     
-    <entity>
-        <ID>boss_recruit</ID>
+    <boss_recruit>
         <require>
-            <item>recruiter STAT LVL == 2</item>
+            <item>STAT recruiter LVL == 2</item>
         </require>
         <effect>
-            <item>boss MOVE travel (7,7)</item>
+            <item>boss TRAVEL (7,7)</item>
         </effect>
-    </entity>
-</entities>
+    </boss_recruit>
 
-<units>
 <!-- clonables -->
-    <unit>
-        <ID>mob</ID>
-    </unit>
-    
-    <unit>
-        <ID>baddie</ID>
+    <mob />
+        
+    <baddie>
         <sprite>I</sprite>
-        <stats>
-            <ACT>1</ACT>
-            <SPD>1</SPD>
-        </stats>
-        <movelist>
-            <item>travel</item>
-        </movelist>
+        <ACT>1</ACT>
+        <SPD>1</SPD>
         <group>
             <item>mob</item>
         </group>
-    </unit>
-
-    <!-- off board units -->
-    <unit>
-        <ID>recruiter</ID>
-    </unit>
-
+    </baddie>
+    
+    <recruiter />
+        
     <!-- on board units -->
     
-    <unit>
-        <ID>hero</ID>
+    <hero>
         <sprite>X</sprite>
-        <stats>
-            <ACT>1</ACT>
-            <SPD>1</SPD>
-        </stats>
-    </unit>
+        <ACT>1</ACT>
+        <SPD>1</SPD>
+        <group>mob</group>
+    </hero>
 
-    <unit>
-        <ID>goal</ID>
+    <goal>
         <sprite>E</sprite>
-    </unit>
+    </goal>
     
-    <unit>
-        <ID>treasure</ID>
+    <treasure>
         <sprite>T</sprite>
-    </unit>
+    </treasure>
     
-    <unit>
-        <ID>boss</ID>
+    <boss>
         <sprite>B</sprite>
-    </unit>
+    </boss>
                 
-</units>
+</entities>
 
 </udebs>

@@ -138,14 +138,14 @@
         </require>
         <effect>
             <item>new = RECRUIT 'queen' caster</item>
-            <item>GETS new 'group' (CLASS caster 'tick')</item>
+            <item>GETS var.new 'group' (CLASS caster 'tick')</item>
             <item>GETS caster 'status' 'promoted'</item>
         </effect>
     </promote>
     
     <passant_remove>
         <effect>
-            <item>LOSES target 'status' 'passant_danger'</item>
+            <item>LOSES target status passant_danger</item>
         </effect>
     </passant_remove>
     
@@ -153,10 +153,10 @@
 
     <time>
         <!--<require>
-            <item>STAT ACT caster &gt;= 2</item>
+            <item>STAT C ACT &gt;= 2</item>
         </require>
         <effect>
-            <item>CHANGE ACT (- STAT ACT caster) (CLASS tick caster)</item>
+            <item>CHANGE (CLASS C tick) ACT -(STAT C ACT)</item>
         </effect>-->
     </time>
         
@@ -248,7 +248,7 @@
         </require>
         <effect>
             <item>TRAVEL (target.loc[0], caster.loc[1] - STAT C 'FLP')</item>
-            <item>target TRAVEL False</item>
+            <item>target TRAVEL bump</item>
         </effect>
         <group>
             <item>player_move</item>
@@ -390,6 +390,7 @@
     </knight>
 
     <!-- Tick -->
+    <tick />>
     <black>
         <ACT>1</ACT>
         <SPD>1</SPD>

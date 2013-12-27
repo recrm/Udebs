@@ -14,60 +14,73 @@ from xml.etree import ElementTree
 class instance:
     
     def __init__(self, *args, **kwargs):
+        #config
         self.django = False
         self.compile = True
         self.hex = False
         self.name = 'Unknown'
         self.logging = True
-        self.lists = ['group', 'effect', 'require']
-        self.stats = ['increment']
-        self.strings = []
-        self.slist = {}
-        self.rlist = []
         
+        #definitions
+        self.lists = {'group', 'effect', 'require'}
+        self.stats = {'increment'}
+        self.strings = set()
+        self.slist = {}
+        self.rlist = set()
+        
+        #var
         self.time = 0
         self.delay = []
         self.map = []
         self.log = []
         
-        #only used for custom effects.
-        self.data = {}
+        #needs to be adjusted manually.
         self.variables = {}
+        
+        #internal use only.
+        self.data = {}
+        
                 
-        #revert function broken
-#        self.state = []        
-#        self.revert = 0
-
         super(instance, self).__init__(*args, **kwargs)
         
     #---------------------------------------------------
     #                 Get Functions                    -
     #---------------------------------------------------
     
-    def getObject(self, string='', lst=False):
-        if string:
+    def getObject(self, string=False):
+        """Returns object associated with string selector. Error if undefined"""
+        if not string:
+            return self.data.keys()
+        try:
             return self.data[string]
-        else:
-            return self.data
+        except KeyError:
+            raise UndefinedEntityError(string)
             
     def getStat(self, target, stat):
+        """Returns stat of entity object plus linked group objects.
+        
+        target - Entity selector.
+        stat - Stat defined in env.lists, env.stats, or env.strings
+        
+        """ 
         #This function is a bottleneck
-        target = self.testTarget(target)
-
+        target = self.testTarget(target, True)
+        
         if stat == 'group':
-            return getattr(target, stat)
+            return target.group
         
         classes = target.group
         
         def recursive_list(classes):
             for lst in self.rlist:
                 for cls in classes:
-                    yield getattr(self.getObject(cls), lst)
-        
+                    for item in getattr(self.getObject(cls), lst):
+                        yield item
+                    
         if stat in self.strings:
             for cls in itertools.chain(classes, recursive_list(classes)):
                 base = getattr(self.getObject(cls), stat)
-                if base != "":
+                if base:
                     return base
             return ""
         
@@ -87,69 +100,88 @@ class instance:
                 lst.extend(self.getStat(item, stat))
             return lst
         else:
-            raise Exception("Unknown Stat in GetStat")
+            raise UndefinedStatError(stat)
     
     def getLog(self):
+        """Returns list of log entries made since last call."""
         test = copy.deepcopy(self.log)
         self.controlLog(clear=True)
         return test
         
     def getMap(self, target):
+        """Returns first location for string in env.map."""
         if target[0] < 0 or target[1] < 0:
             return False
         try:
             return self.map[target[1]][target[0]]   
         except IndexError:
             return False
+            
+    def getLocation(self, target):
+        """Returns location of entity selector."""
+        return self.testTarget(target, True).loc
     
-    def getDistance(self, one1, two1, method):
+    def getDistance(self, one, two, method):
+        """Returns distance between two entity selectors.
         
-        one1 = self.testTarget(one1)
-        two1 = self.testTarget(two1)
+        one - Entity selector
+        two - Entity selector
+        method - Distance metric to used
         
-        if False in [one1.loc, two1.loc]:
+        """
+        #Note: Dictonary switch method doubles this functions run time.
+        
+        one = self.testTarget(one, True).loc
+        two = self.testTarget(two, True).loc
+        
+        if False in {one, two}:
             return float("inf")  
-        
-        one = (one1.loc[0], one1.loc[1], -(one1.loc[0] + one1.loc[1]))
-        two = (two1.loc[0], two1.loc[1], -(two1.loc[0] + two1.loc[1]))
-  
-        if method == 'x':
-            return abs(one[0] - two[0])
         elif method == 'y':
-            return abs(one[1] - two[1])
+            return int( abs( one[1] - two[1] ) )
+        elif method == 'x':
+            return int( abs( one[0] - two[0] ) )
         elif method == 'z':
-            return abs(one[2] - two[2])
+            return abs(two[0] + two[1]) - (one[0] + one[1])
         elif method == 'hex':
-            return (abs(one[0] - two[0]) + abs(one[1] - two[1]) + abs(one[2] - two[2]))/2
-        elif method == 'p1':
-            return abs(one[0] - two[0]) + abs(one[1] - two[1])
-        elif method == 'p2':
-            return math.sqrt(math.pow(one[0] - two[0], 2) + math.pow(one[1] - two[1], 2))
-        elif method == 'pinf':
-          return max(abs(one[0] - two[0]), abs(one[1] - two[1]))
+            return (abs(one[0] - two[0]) + abs(one[1] - two[1]) + abs((two[0] + two[1]) - (one[0] + one[1])))/2
+        elif method == "p1":
+            return int(abs(one[0] - two[0]) + abs(one[1] - two[1]))
+        elif method == "p2":
+            return int(math.sqrt(math.pow(one[0] - two[0], 2) + math.pow(one[1] - two[1], 2)))
+        elif method == "pinf":
+            return max(abs(one[0] - two[0]), abs(one[1] - two[1]))
+        elif method in self.getObject():
+            return self.getFill(one, method, two, True)
         else:
-            if method in self.getObject():
-                return self.getFill(one1, method, two1, True)
-            else:
-                print("Unknown distance metric")
-                raise TypeError             
+            print("Unknown distance metric")
+            raise TypeError             
             
         #starting at center gets all attached nodes that move can cast on.
     def getFill(self, center, move='empty', target=float("inf"), returnd=False):        
+        """Returns list of locations castable by move and connected to center.
+        
+        Note: target and returnd wrapped by getDistance. Internal use only.
+        
+        center - Entity selector (Begining of search.)
+        move - Entity selector (Move to use in testRequire.)
+        target - Entity selector (Stop when selector is reached.)
+        returnd - Boolean (return number of iterations instead of list of locations)
+        
+        """
         
         hexmap = self.hex
-        center = self.testTarget(center)
-        if type(target) in [int, float]:
+        center = self.testTarget(center, True)
+        if isinstance(target, (int, float)):
             distance = target
             target = False
         else:
-            target = self.testTarget(target).loc
+            target = self.testTarget(target, True).loc
             distance = float('inf')
         
         if distance == 0 or center.loc == False:
             return []
         
-        def adjacent(location, hexmap):
+        def adjacent(location):
             x = location[0]
             y = location[1]
             yield (x -1, y)
@@ -164,65 +196,88 @@ class instance:
                 yield (x -1, y -1)
             return
             
-        def recursive(future, past, yes, counter):
-            new = []
-            for node in future:
-                if node in past:
+        def recursive(check, searched, found, counter):
+            new = set()
+            for node in check:
+                if not self.getMap(node):
                     continue
-                elif not self.getMap(node):
-                    past.append(node)
-                    continue
-                else:
-                    past.append(node)
-                    env = self.createTarget(center, node, move)
-                    if self.testRequire(env) == True:
-                        new.append(node)
-            
-            yes.extend(new)
+                env = self.createTarget(center, node, move)
+                if self.testRequire(env) == True:
+                    new.add(node)
+                    
+            found.update(new)
+            searched.update(check)
             counter +=1
-            if len(new) == 0 or counter >= distance or target in yes:
+            if len(new) == 0 or counter >= distance or target in found:
                 if returnd:
                     return counter
-                else:
-                    return yes
-            else:
-                search = []
-                for node in new:
-                    search.append(adjacent(node, hexmap))
-                return recursive(itertools.chain.from_iterable(search), past, yes, counter)
+                return found
+            
+            next = set().union(*[adjacent(node) for node in new])
+            next.difference_update(searched)
+            return recursive(next, searched, found, counter)
         
-        test = recursive(adjacent(center.loc, hexmap), [], [], 0)
-        if type(test) is not int:
+        test = recursive(adjacent(center.loc), set(), set(), 0)
+        if isinstance(test, set):
+            test = list(test)
             random.shuffle(test)
         return test
     
-    #returns all objects belonging to group.
-    def getGroup(self, group):
+    def getGroup(self, group, inc_self=True):
+        """Return all objects belonging to group."""
+        group = self.testTarget(group, True).name
+        
         found = []
         for unit in self.getObject():
             if group in self.getStat(unit, 'group'):
                 found.append(unit)
+        if not inc_self:
+            found.remove(group)
         return found
         
     #returns combined stat for all elements in a list
     def getListStat(self, target, lst, stat):
-        target = self.testTarget(target)
+        """Returns combination of all stats for objects in a units list.
+        
+        target - Entity selector
+        lst - String representing list to check.
+        stat - String representing defined stat.
+        
+        """
+        target = self.testTarget(target, True)
         start = self.getStat(target.name, lst)
         
-        found = []
-        for element in start:
-            item = self.getStat(element, stat)
-            if type(item) is list:
-                for entry in item:
-                    found.append(entry)
-            else:
-                found.append(item)
-        return sum(found)
+        if stat in self.stats:
+            total = 0
+            for element in start:
+                inc = self.getStat(element, stat)
+                total +=inc
+            return total        
+        
+        elif stat in self.lists:
+            found = []
+            for element in start:
+                item = self.getStat(element, stat)
+                found.extend(item)
+            return found
+        
+        elif stat in self.stats:
+            return start
+        
+        else:
+            raise UndefinedStatError(stat)
         
     #returns first element in list contained in group    
     def getListGroup(self, target, lst, group):
-        target = self.testTarget(target)
-        group = self.testTarget(group)
+        """Returns first element in list that is a member of group.
+        
+        target - Entity selector.
+        lst - String representing list to check.
+        group - Entity selector representing group.
+        
+        """
+        target = self.testTarget(target, True)
+        group = self.testTarget(group, True)
         start = self.getStat(target, lst)
         for item in start:
             if group.name in self.getStat(item, 'group'):
@@ -235,7 +290,11 @@ class instance:
     
     #change so controlTime is pulling from scripts
     def controlTime(self, time=1):   
+        """Changes internal time, runs tick script, and updates any delayed effects.
         
+        time - Integer representing number of updates.
+        
+        """
         def checkdelay():
             while True:
                 check = True
@@ -243,8 +302,8 @@ class instance:
                     if delay["DELAY"] <= 0:
                         check = False
                         env = self.createTarget(delay["CASTER"], 
-                                           delay["TARGET"],
-                                           delay["MOVE"])
+                                                delay["TARGET"],
+                                                delay["MOVE"])
                         self.controlEffect(env, delay['STRING'])
                         self.delay.remove(delay)
                 if check:
@@ -256,7 +315,6 @@ class instance:
                 self.time +=1
                 self.controlLog('Env time is now', self.time)
                 if 'tick' in self.getObject():
-                    tick = self.getObject('tick')
                     env = self.createTarget("empty", 'empty', "tick")
                     if self.testRequire(env) == True:
                         self.controlEffect(env)
@@ -265,37 +323,20 @@ class instance:
                 checkdelay()
         else:
             checkdelay()
-            
         
-#        if time != 0:
-#            #Broken, make sure STATE isn't longer then revert.
-#            #while len(STATE) >= self.env["REVERT"]:
-#            #    STATE.pop(0)
-#            self.state.append(copy.deepcopy(self.object))
         if self.django:
-          self.save()
+            self.save()
         return True
 
-    #not maintained, and probobly broken.
-#    def controlRevert(self, state=1):
-#        if type(state) is not int or state <= 0:
-#            raise Exception("controlRevert only accepts int > 0 as argument")
-#        if len(self.state) < state:
-#            self.controlLog("Revert failed. Choosen state not available.")
-#            return
-#    
-#        index = len(self.state) - state
-#        self.getObject().update(copy.deepcopy(self.state[index]))
-#        for count in range(index+1, index):
-#            del self.state[count]
-#        self.controlLog("revert successful")
-#        return
-    
     def controlLog(self, *args, clear=False):
+        """Adds entry to log.
         
+        *args - Similar to print command.
+        clear - Boolean, clears log entries if true.
         
+        """
         if not self.logging:
-            return True
+            return False
         if clear:
             self.log = []
             return True
@@ -307,113 +348,132 @@ class instance:
         print(log)
         return True
 
-    def controlStat(self, target, stat, increment ):
-        if isinstance(target, list):
-            for trgt in target:
-                self.controlStat(trgt, stat, increment)
-            return True
-
-        target = self.testTarget(target)
+    def controlStat(self, targets, stat, increment ):
+        """Changes stored stat of target by increment.
+        
+        targets - Multiple Entity selector
+        stat - Defined statistic to change
+        increment - integer to change stat by.
+        
+        """
+        targets = self.testTarget(targets)
         increment = int(increment)
-        if target.name == 'empty' or increment ==0:
+        if increment == 0:
             return False
         
-        newValue = getattr(target, stat) + increment
-        setattr(target, stat, newValue)
-        self.controlLog(target.name, stat, "changed by", increment, "is now", self.getStat(target, stat))
-        if self.django:
-            target.save()
+        for target in targets:
+            if target.name == 'empty':
+                continue
+            
+            newValue = getattr(target, stat) + increment
+            setattr(target, stat, newValue)
+            if stat is not 'increment':
+                self.controlLog(target.name, stat, "changed by", increment, "is now", self.getStat(target, stat))
+            if self.django:
+                target.save()
+        
         return True
 
-    def controlString(self, target, strg, new):
-        if isinstance(target, list):
-            for trgt in target:
-                self.controlString(trgt, strg, new)
-            return True
+    def controlString(self, targets, strg, new):
+        """Changes stored stat of target by increment.
         
-        target = self.testTarget(target)
-        if target == 'empty' or strg == "ID":
-            self.controlLog("String update failed")
-            return False
-        if new == 'False':
-            new = ''    
+        targets - Multiple Entity selector
+        stat - Defined statistic to change
+        increment - String to change stat to.
         
-        setattr(target, strg, new)
+        """
+        targets = self.testTarget(targets)   
         
-        self.controlLog(target.name, strg, "is now", new)
-        if self.django:
-            target.save()
+        for target in targets:
+            if target.name == 'empty':
+                continue
+            
+            setattr(target, strg, new)
+            self.controlLog(target.name, strg, "is now", new)
+            if self.django:
+                target.save()
+        
         return True
         
-    def controlList(self, target, lst, entry, method='add'):
-        if isinstance(target, list):
-            for trgt in target:
-                self.controlList(trgt, lst, entry, method)
-            return True
+    def controlList(self, targets, lst, entry, method='add'):
+        """Adds or removes items in Entity list.
         
-        target = self.testTarget(target)
+        targets - Multiple Entity selector
+        lst - Defined list to change.
+        entry - String to add or remove.
+        increment - String to add to or remove from list.
         
-        if target.name == 'empty' or entry == 'empty':
-            return False
+        """
+        flag = False
+        targets = self.testTarget(targets)
+        if isinstance(entry, entity):
+            entry = entry.name
         
-        if method == 'remove':
-            if entry in getattr(target, lst):
-                getattr(target, lst).remove(entry)
-                self.controlLog(entry, "removed from", target.name, lst)
-                return True
-            return False
-        
-        if lst in self.slist.keys():
-            if self.slist[lst] in self.getStat(entry, "group"):
+        for target in targets:
+            if target.name == 'empty':
+                continue
+            
+            list_ = getattr(target, lst)
+            if method == 'remove':
+                if entry in list_:
+                    list_.remove(entry)
+                    self.controlLog(entry, "removed from", target.name, lst)
+                    flag = True
+                    if self.django:
+                        target.save()
+                continue
+            
+            elif lst in self.slist:
+                if not self.slist[lst] in self.getStat(entry, "group"):
+                    self.controlLog("Can't special add", entry, "to", lst, "because invalid type.")
+                    continue
+
                 env = self.createTarget('empty', target, entry)
                 check = self.testRequire(env)
                 if check != True:  
-                    self.controlLog(target.name, "special list", lst, entry, 
-                                    "failed because", check)
-                    return False
-            else:
-                self.controlLog(target.name, "special list", lst, entry, 
-                                "failed because invalid type")
-                return False
-
-        getattr(target, lst).append(entry)
+                    self.controlLog("Can't special add", entry, "to", lst, "because", check)
+                    continue
+                    
+            list_.append(entry)
+            self.controlLog(entry, "added to", target.name, lst)
+            flag = True
+            if self.django:
+                target.save()
         
-        self.controlLog(entry, "added to", target.name, lst)
-        if self.django:
-            target.save()
-        return True
+        return flag
+            
     
-    def controlRecruit(self, clone, position=None, tick=False):
-        if isinstance(position, list):
-            for element in position:
-                self.controlRecruit(clone, element)
-            return
+    def controlRecruit(self, clone, positions=[None], tick=False):
+        positions=self.testTarget(positions)
+        clone = self.testTarget(clone, True)
+        new_unit = None
         
-        clone = self.testTarget(clone)
         if clone.name == 'empty':
             self.controlLog("can't clone empty.")
             return False
-       
-        new_unit =copy.deepcopy(clone)
-        if self.django:
-            new_unit.id = None
         
-        #change name
-        self.controlStat(clone, 'increment', 1)
-        new_unit.name = clone.name + str(clone.increment)
-        
-        #change group
-        new_unit.group.remove(clone.name)
-        new_unit.group = [new_unit.name] + new_unit.group
-        
-        #add object to env
-        new_unit.record(self)
-        self.controlLog(new_unit.name, "has been recruited")       
-        
-        #travel object to location
-        if position is not None:
-            self.controlTravel(new_unit, position)
+        for position in positions:
+           
+            new_unit = copy.deepcopy(clone)
+            if self.django:
+                new_unit.id = None
             
+            #change name
+            self.controlStat(clone, 'increment', 1)
+            new_unit.name = clone.name + str(clone.increment)
+            
+            #change group
+            new_unit.group.remove(clone.name)
+            new_unit.group = [new_unit.name] + new_unit.group
+            
+            #add object to env
+            new_unit.record(self)
+            self.controlLog(new_unit.name, "has been recruited")       
+            
+            #travel object to location
+            if position is not None:
+                self.controlTravel(new_unit, position)
+                
         return new_unit
             
     def controlTravel(self, caster, target=False):    
@@ -421,8 +481,8 @@ class instance:
             target = caster
             caster = 'empty'
         
-        caster = self.testTarget(caster)
-        target = self.testTarget(target)    
+        caster = self.testTarget(caster, True)
+        target = self.testTarget(target, True)    
         
         #check if targetLoc is valid
         if not target.loc:
@@ -463,85 +523,80 @@ class instance:
             self.save()
         return True
 
-    def controlMove(self, caster, target , move):
-        if isinstance(move, list):
-            if len(move) == 0:
-                print("empty list in controlMove")
-            for entry in move:
-                self.controlMove(caster,target, entry, delay)
-            return True
+    def controlMove(self, caster, targets , moves):
+        caster = self.testTarget(caster, True)
+        targets = self.testTarget(targets)
+        moves = self.testTarget(moves)
+        flag = False
         
-        if isinstance(target, list):
-            if len(target) == 0:
-                print("empty list in controlMove")
-            for entry in target:
-                self.controlMove(caster, entry, move)
-            return True
+        for target in targets:
+            for move in moves:
+                env = self.createTarget(caster, target, move)
+                check = self.testRequire(env)
         
-        env = self.createTarget(caster, target, move)
-        check = self.testRequire(env)
+                if check != True:
+                    self.controlLog(env['caster'].name, "cast", 
+                                    env['move'].name,"on", 
+                                    env['target'].name, "failed because", 
+                                    check)
+                    continue
+                        
+                self.controlLog(env['caster'].name, "uses", env['move'].name,
+                                "on", env['target'].name)
         
-        if check != True:
-            self.controlLog(env['caster'].name, "cast", 
-                            env['move'].name,"on", 
-                            env['target'].name, "failed because", 
-                            check)
-            return False
-        self.controlLog(env['caster'].name, "uses", env['move'].name,
-                        "on", env['target'].name)
-        
-        self.controlEffect(env)
-        return True
+                self.controlEffect(env)
+                flag = True
+                
+        return flag
         
     def controlEffect(self, env, single=False):
         
-        def decode(effect, env):
-            
-            if type(effect) is script:
-                raw = effect.raw
-                inter = effect.interpret
-                scode = effect.code
-            else:
-                raw = effect
-                inter = interpret(effect)
-                scode = inter
+        effects = [single] if single else self.getStat(env['move'], 'effect')
+        
+        for effect in effects:
+            if not isinstance(effect, script):
+                effect = script(effect, False)
             try:
-                exec(scode, env)
+                exec(effect.code, env)
             except:
-                print("invalid (", raw, ") interpreted as (", inter,
-                      ")")
+                print("invalid\n\n", effect.raw, "\n\ninterpreted as\n\n", effect.interpret)
                 raise  
         
-        if single:
-            decode(single, env)
-        else:
-            for effect in self.getStat(env['move'], 'effect'):
-                decode(effect, env)
         return True
 
     #---------------------------------------------------
     #                 Other Functions                  -
     #---------------------------------------------------
     
-    def testTarget(self, target):
-        #This function is a bottleneck
-        if isinstance(target, entity):
+    def testTarget(self, target, single=False):
+        """Returns entity object based on given selector.
+        
+        target - Any entity selector.
+        single - Boolean, guerenteed to only return one object if true.
+        
+        """
+        ttype = type(target)
+        if ttype is entity:
             return target
-        elif isinstance(target, str):
+        elif ttype is str:
             return self.getObject(target)
-        elif isinstance(target, tuple):
+        elif ttype is tuple:
             name = self.getMap(target)
-            if not name:
-                return entity(self)
-            elif name == 'empty':
-                target_entity = entity(self)
-                target_entity.loc = target
-                return target_entity
-            else:
+            if name not in {'empty', False}:
                 return self.getObject(name)
+            target_entity = entity(self)
+            if name:
+                target_entity.loc = target
+            return target_entity
+        elif ttype is list:
+            if single:
+                return self.testTarget(target[0], True)
+            else:
+                return [self.testTarget(unit, True) for unit in target]
+        elif ttype is bool:
+            return self.getObject('empty')
         else:
-            print(target)
-            raise TypeError
+            raise UndefinedSelectorError(target)
                 
     #Make this similar to getFill, not just empty, arbitrary requires.
     def testBlock(self, start, finish, path ):
@@ -549,8 +604,8 @@ class instance:
         
         #accepted paths (x, y, diag)
         
-        start = self.testTarget(start).loc
-        finish = self.testTarget(finish).loc
+        start = self.testTarget(start, True).loc
+        finish = self.testTarget(finish, True).loc
  
         if start == False or finish == False:
             return False
@@ -578,12 +633,12 @@ class instance:
             return new
             
         if path == "x":
-            recent = changeX( start)
-            changeY( recent )
+            recent = changeX(start)
+            changeY(recent)
                 
         elif path == "y":
-            recent = changeY( start)
-            changeX( recent )
+            recent = changeY(start)
+            changeX(recent)
             
         if path == "diag":
             recent = start
@@ -627,27 +682,21 @@ class instance:
 
     def testRequire(self, env):
         for require in self.getStat(env['move'], 'require'):
-            if type(require) is script:
-                raw = require.raw
-                inter = require.interpret
-                scode = require.code
-            else:
-                raw = require
-                inter = interpret(require)
-                scode = inter
+            if not isinstance(require, script):
+                require = script(require, True)
             try:
-                if not eval(scode, env):
-                    return raw
+                if not eval(require.code, env):
+                    return require.raw
             except:
-                print("invalid (", raw, ") interpreted as (", inter, ")")
+                print("invalid (", require.raw, ") interpreted as (", require.interpret, ")")
                 raise
         return True
     
     def createTarget(self, caster, target, move, add={}):
         
-        caster = self.testTarget(caster)
-        target = self.testTarget(target)
-        move = self.testTarget(move)
+        caster = self.testTarget(caster, True)
+        target = self.testTarget(target, True)
+        move = self.testTarget(move, True)
         
         environment = {
             "caster": caster,
@@ -662,6 +711,27 @@ class instance:
         environment.update(add)
          
         return environment
+
+class UndefinedEntityError(Exception):
+    def __init__(self, entity):
+        self.entity = entity
+        
+    def __str__(self):
+        return repr(self.entity)+" is not a defined entity."
+
+class UndefinedStatError(Exception):
+    def __init__(self, stat):
+        self.stat = stat
+        
+    def __str__(self):
+        return repr(self.stat)+" is not a defined stat."
+
+class UndefinedSelectorError(Exception):
+    def __init__(self, target):
+        self.selector = target
+
+    def __str__(self):
+        return repr(self.selector)+" is not a valid target selector"
 
 class entity:
     def __init__(self, field=instance(), *args, **kwargs):
@@ -679,7 +749,10 @@ class entity:
             super(entity, self).__init__(field, *args, **kwargs)
     
     def __repr__(self):
-        return "entity: "+self.name
+        return "<entity: "+self.name+">"
+    
+    def __iter__(self):
+        yield self
             
     def update(self, env=instance()):
         if self.name == "empty":
@@ -702,11 +775,9 @@ class entity:
         field.data[name] = self
         
 class script:
-    def __init__(self, effect, env=instance(), require=False):
-        if require:
-            command = 'eval'
-        else:
-            command = 'exec'
+    def __init__(self, effect, require=False):
+        command = 'eval' if require else 'exec'
+        
         self.raw = effect
         self.interpret = interpret(effect)
         self.code = compile(self.interpret, '<string>', command)
@@ -833,24 +904,25 @@ class script:
 #    return True
 
 #Creates and instance object from xml file.
-def battleStart(xml_file, field=instance(), obj=entity()):
+def battleStart(xml_file, env=instance, ind=entity):
     
     try:
         tree = ElementTree.parse(xml_file)
     except IOError as inst:
-        print( "battleStart Error:", inst)
+        print("battleStart Error:", inst)
         sys.exit()
     
     #ENV
+    field = env()
     root = tree.getroot()
     
     config = root.find("config")
     if config is not None:
         
-        out = config.findtext("name")
-        if out is not None:
-            print("INITIALIZING", out, "\n")
-            field.name = out
+        name = config.findtext("name")
+        if name is not None:
+            print("INITIALIZING", name, "\n")
+            field.name = name
         
         django = config.findtext('django')
         if django is not None:
@@ -863,20 +935,16 @@ def battleStart(xml_file, field=instance(), obj=entity()):
         logichex = config.findtext("hex")
         if logichex is not None:
             field.hex = eval(logichex)
-        
-#        revert = config.findtext("revert")
-#        if revert is not None:
-#            field.revert = int(revert)
-            
+                    
         logging = config.findtext('logging')
         if logging is not None:
             field.logging = eval(logging)
     
     #fix due to bug with django
-    field.strings = []
-    field.stats = [u'increment']
-    field.lists = [u'group', u'effect', u'require']
-    field.rlist = []
+    field.strings = set()
+    field.stats = {'increment'}
+    field.lists = {'group', 'effect', 'require'}
+    field.rlist = set()
     field.slist = {}
     field.delay = []
     
@@ -884,21 +952,21 @@ def battleStart(xml_file, field=instance(), obj=entity()):
     def_stats = defs.find("stats")
     if def_stats is not None:
         for stat in def_stats:
-            field.stats.append(stat.tag)
+            field.stats.add(stat.tag)
             
     def_lists = defs.find("lists")
     if def_lists is not None:
         for stat in def_lists:
-            field.lists.append(stat.tag)
-            if stat.get('rlist') == "rlist":
-                field.rlist.append(stat.tag)
+            field.lists.add(stat.tag)
+            if stat.get('rlist') is not None:
+                field.rlist.add(stat.tag)
             if stat.get('slist') is not None:
                 field.slist[stat.tag] = stat.get('slist')
                           
     def_strings = defs.find("strings")
     if def_strings is not None:
         for stat in def_strings:
-            field.strings.append(stat.tag)
+            field.strings.add(stat.tag)
         
     #VAR
     field_map = root.find("map")
@@ -938,6 +1006,8 @@ def battleStart(xml_file, field=instance(), obj=entity()):
     if field.django:
         field.save()
     
+    obj = ind(field)
+    
     #Set empty 
     empty = copy.deepcopy(obj)
     empty.group.append('empty')
@@ -950,32 +1020,27 @@ def battleStart(xml_file, field=instance(), obj=entity()):
         
         for stat in field.stats:
             elem = item.find(stat)
-            if elem is not None:
-                setattr(new_entity, stat, int(elem.text))
-            else:
-                setattr(new_entity, stat, 0)
+            add_attr = int(elem.text) if elem is not None else 0
+            setattr(new_entity, stat, add_attr)
                 
         for string in field.strings:
             value = item.findtext(string)
-            if value is not None:
-                setattr(new_entity, string, value)
-            else:
-                setattr(new_entity, string, '')
-                
+            add_attr = value if value is not None else ""
+            setattr(new_entity, string, add_attr)
+            
         for lst in field.lists:
             new_list = []
             if lst == 'group':
                 new_list.append(new_entity.name)
+            
             find_list = item.find(lst)
             if find_list is not None:
+                if len(find_list) == 0:
+                    find_list = [find_list]
                 for value in find_list:
-                    if field.compile:
-                        if lst == 'require':
-                            new_list.append(script(value.text, field, True))
-                            continue
-                        elif lst == 'effect':
-                            new_list.append(script(value.text, field))
-                            continue
+                    if field.compile and lst in {"effect", "require"}:
+                        require = True if lst == "require" else False
+                        value.text = script(value.text, require)
                     new_list.append(value.text)
             setattr(new_entity, lst, new_list)
         
@@ -1002,70 +1067,80 @@ def battleStart(xml_file, field=instance(), obj=entity()):
 
 def interpret(string, debug=False):
     
-    if string == None:
-        return ''
-    
     #utility
+    def s(string):
+        if string[0] in {"'", '"', "{"}:
+            return string
+        if "var." in string:
+            return string.replace("var.", "")
+        if string in {"caster", "target", "move", "T", "C"}:
+            return string
+        if "." in string:
+            return string
+        return "'"+string+"'"
+    
     def erase(list_, index, range_):
         for i in range_:
             list_[i+index] = ""
         return list_
     
     def call(function, *args, env=True):
-        if env:
-            value = "self."+function+"{"
-        else:
-            value = function+"{"
+        value = ("self." if env else "")+function+"{"
+        first = True
         for arg in args:
-            if arg[0] == "'":
-                if arg[-1] != "'":
-                    arg = arg + "'"  
-            value = value+arg+","
+            value = value+arg if first else value+","+arg
+            first = False
         value = value + "}"
         return value
     
     #keywords
     def DELAY(list_, i):
-        string = list_[i+1]
+        f = "controlDelay"
+        string = "'"+list_[i+1].replace("'", "\\'")+"'"
         delay = list_[i+2]
-        list_[i] = call("controlDelay", 'caster', 'target', 'move', '"'+string + '"', delay)
+        list_[i] = call(f,'caster','target','move',string,delay)
         erase(list_, i, (1,2))
     
     #targeting
     def CLASS(list_, i):
+        f = "getListGroup"
         target = list_[i + 1]
         grtype = list_[i + 2]
-        list_[i] = call('getListGroup', target, "'group'", grtype)
+        list_[i] = call(f, s(target), "'group'", s(grtype))
         erase(list_, i, (1,2))
         
     def ALL(list_, i):
+        f = "getGroup"
         group = list_[i +1]
-        list_[i] = call('getGroup', group)
+        list_[i] = call(f, s(group))
         erase(list_, i, (1,))
         
     def FILL(list_, i):
+        f = "getFill"
         target = list_[i + 1]
         move = list_[i + 2]
-        list_[i] = call('getFill', target, move)
+        list_[i] = call(f, s(target), s(move))
         erase(list_, i, (1,2))
         
     #controlMove
     def ACTIVATE(list_, i):
+        f = "controlMove"
+        g = "getListGroup"
         target = list_[i +1]
         slist_ = list_[i +2]
         group = list_[i +3]
         
         if i == 0:
             caster = "caster" 
-        else:
             caster= list_[i-1]
             list_[i-1] = ""
             
-        move = call('getListGroup', caster, slist_, group)
-        list_[i] = call('controlMove', caster, target, move)
+        move = call(g, s(caster), s(slist_), s(group))
+        list_[i] = call(f, s(caster), s(target), move)
         erase(list_, i, (1,2,3))
         
     def CAST(list_, i):
+        f = "controlMove"
         target = list_[i + 1]
         move = list_[i + 2]
         
@@ -1075,99 +1150,120 @@ def interpret(string, debug=False):
             caster = list_[i-1]
             list_[i-1] = ""
             
-        list_[i] = call('controlMove', caster, target, move)
+        list_[i] = call(f, s(caster), s(target), s(move))
         erase(list_, i, (1,2))
         
     #controlList
     def GETS(list_, i):
+        f = "controlList"
         target = list_[i +1]
         slist = list_[i +2]
         move = list_[i +3]
-        list_[i] = call('controlList', target, slist, move, "'add'")
+        list_[i] = call(f, s(target), s(slist), s(move), s('add'))
         erase(list_, i, (1,2,3))
     
     def LOSES(list_, i):
+        f = "controlList"
         target = list_[i +1]
         slist = list_[i +2]
         move = list_[i +3]
-        list_[i] = call('controlList', target, slist, move,"'remove'")
+        list_[i] = call(f, s(target), s(slist), s(move), s('remove'))
         erase(list_, i, (1,2,3))
     
     #controlStat
     def CHANGE(list_, i):
+        f = "controlStat"
         target = list_[i +1]
         stat = list_[i +2]
         amount = list_[i +3]
-        list_[i] = call('controlStat', target, stat, amount)
+        list_[i] = call(f, s(target), s(stat), amount)
         erase(list_, i, (1,2,3))
         
     #controlString
     def REPLACE(list_, i):
+        f = "controlString"
         target = list_[i +1]
         stat = list_[i +2]
         change = list_[i +3]
-        list_[i] = call('controlString', target, stat, change)
+        list_[i] = call(f, s(target), s(stat), s(change))
         erase(list_, i, (1,2,3))
     
     #control Recruit
     def RECRUIT(list_, i):
+        f = "controlRecruit"
         target = list_[i +1]
         location = list_[i +2]
-        list_[i] = call('controlRecruit', target, location)
+        list_[i] = call(f, s(target), s(location))
         erase(list_, i, (1,2))
         
     #control Travel
     def TRAVEL(list_, i):
+        f = "controlTravel"
         location = list_[i +1]
         if i == 0:
             caster = "caster"
         else:
             caster = list_[i-1]
             list_[i-1] = ""
-        list_[i] = call('controlTravel', caster, location)
+        list_[i] = call(f, s(caster), s(location))
         erase(list_, i, (1,))
+        
+    def MOVE(list_, i):
+        f = "controlTravel"
+        target = list_[i+1]
+        location = list_[i+2]
+        list_[i] = call(f, s(target), s(location))
+        erase(list_, i, (1,2))
     
     #instant requires
     def BLOCK(list_, i):
+        f = "testBlock"
         command = list_[i + 1]
-        list_[i] = call('testBlock', 'caster', 'target', command)
+        list_[i] = call(f, 'caster', 'target', s(command))
         erase(list_, i, (1,))
     
     #might change for arbitrary target
     def ONBOARD(list_, i):
-        list_[i] = call('getLocation', 'target.loc')
+        f = "getLocation"
+        list_[i] = 'target.loc'
         
     def ISUNIT(list_, i):
-        list_[i] = call('getMap', 'target.name')
+        f = "getMap"
+        list_[i] = call(f, 'target.name')
         
     #this one feels like arbitray target distance might be nice
     def DISTANCE(list_, i):
+        f = "getDistance"
         dtype = list_[i + 1]
-        list_[i] = call('getDistance', 'caster', 'target', dtype)
+        list_[i] = call(f, 'caster', 'target', s(dtype))
         erase(list_, i, (1,))
         
     def DICE(list_, i):
+        f = "randint"
         value = list_[i +1]
-        list_[i] = call('randint', "0", value, env=False)
+        list_[i] = call(f, "0", value, env=False)
         erase(list_, i, (1,))
     
     #getStat
     def STAT(list_, i):
+        f = "getStat"
         target = list_[i +1]
         stat = list_[i +2]
-        list_[i] = call("getStat", target, stat)
+        list_[i] = call(f, s(target), s(stat))
         erase(list_, i, (1,2))
     
     def LISTSTAT(list_, i):
+        f = "getListStat"
         target = list_[i +1]
         slist = list_[i +2]
         stat = list_[i +3]
-        list_[i] = call('getListStat', target, slist, stat)
+        list_[i] = call(f, s(target), s(slist), s(stat))
         erase(list_, i, (1,2,3))
     
     #shortcuts
     
     keyword = {
+        'MOVE': MOVE,
         'DELAY': DELAY,
         'ONBOARD': ONBOARD,
         'ALL': ALL,
@@ -1207,6 +1303,7 @@ def interpret(string, debug=False):
                 print("entering subshell")
             formula = recursive(formula, debug)
             if debug:
+                print(formula)
                 print("exiting subshell")
             formula = "{"+formula+"}"
             formula = formula.replace(" ", "")
@@ -1227,14 +1324,12 @@ def interpret(string, debug=False):
             except KeyError:
                 continue
             except IndexError:
-                print("Keyword error, can't parse", string)
+                print("Invalid formula", string)
                 raise
 
         #prevents indentation errors
         while "" in list_:
             list_.remove("")
-        if debug:
-            print(" ".join(list_))
         
         return " ".join(list_)
     

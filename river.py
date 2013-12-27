@@ -53,5 +53,5 @@ while True:
     surface.blit(basicFont.render(str(field.time), True, (255,255,255), (0,0,0)), (750,50)) 
     
     pygame.display.update()
-    field.controlTime(10)
+    field.controlTime(25)
     

@@ -5,7 +5,7 @@ from pygame.locals import *
 pygame.mixer.pre_init(44100, -16, 2, 2048)
 pygame.init()
 main_map = udebs.battleStart("zanar2.xml")
-main_map.controlScript('init')
+main_map.controlMove('empty', 'empty', 'init')
 main_map.controlTime(0)
 mainClock = pygame.time.Clock()
 
@@ -74,7 +74,7 @@ def main():
         highlighted = []
         for x in range(8):
             for y in range(8):
-                target = [x,y]
+                target = (x,y)
                 targetenv = env.createTarget('hero', target, move) 
                 if env.testRequire(targetenv) == True:
                     highlighted.append([x,y])
@@ -83,7 +83,7 @@ def main():
     #definitions    
     tile = pygame.Rect(( 0, 0 ), ( 49, 49 ))
     selection = {'x': 0, 'y': 0, "xmax": 7, "ymax": 7}
-    inport = udebs.battleStart("rpg.xml", init=False)
+    inport = udebs.battleStart("rpg.xml")
     active_selection = False
     battle = []
     win = False
@@ -103,7 +103,7 @@ def main():
         
         for mob in battle[:]:
             message("BATTLE ENGAGED!!!")
-            inport.controlScript('init')
+            inport.controlMove("empty", "empty", 'init')
             
             inport = subBattle(inport)
             main_map.controlMove("hero", mob, "KO")
@@ -116,10 +116,10 @@ def main():
             
         if win:
             message("Level Complete!!!")
-            main_map.controlScript('finish')
-            inport.controlScript('finish')
-            main_map.controlScript('init')
-            main_map.controlTime(0)
+            main_map.controlMove("empty", "empty", 'finish')
+            inport.controlMove("empty", "empty", 'finish')
+            main_map.controlMove('empty', 'empty', 'init')
+            main_map.controlTime(1)
             highlighted = high_update('travel', main_map)
             win = False
             selection['x'] = 0
@@ -128,12 +128,12 @@ def main():
         
         if boss:
             message("Engaging Boss Monster")
-            inport.controlScript('boss')
+            inport.controlMove("empty", "empty", 'recruit_boss')
             inport = subBattle(inport)
-            main_map.controlMove("hero", boss, "KO")
             
             #you win game is over.
             message("You Win! Game Over!")
+            pygame.quit()
             sys.exit()
         
         for event in pygame.event.get():
@@ -146,14 +146,15 @@ def main():
                 
                 #selection target
                 if event.key == K_RETURN:
-                    trgt = [selection['x'], selection['y']]
+                    trgt = (selection['x'], selection['y'])
                     main_map.controlMove('hero', trgt, 'travel')
                     #move enemies
-                    for unit in main_map.getActiveUnits():
+                    for unit in main_map.getGroup("mob"):
+                        if unit == "hero":
+                            continue
                         loc = main_map.getLocation(unit)
                         if loc:
-                            loc[0] = loc[0] + random.randint(-1, 1)
-                            loc[1] = loc[1] + random.randint(-1, 1)
+                            loc = (loc[0]+random.randint(-1, 1), loc[1]+random.randint(-1, 1))
                             main_map.controlMove(unit, loc, 'travel')
                         if main_map.getDistance('hero', unit, 'pinf') <= 1:
                             battle.append(unit)
@@ -172,16 +173,6 @@ def main():
                 if event.key == K_q:
                     inport = menuScreen(inport)
                     
-#                if event.key == K_DELETE:
-#                    #exit selection mode, and revert. (go back a turn)
-#                    highlighted = []
-#                    main_map.controlRevert(2)
-#                    
-#                if event.key == K_r:
-#                    #exit selection mode, and revert. (reset)
-#                    highlighted = []
-#                    main_map.controlRevert(1)
-                                        
         #redraw the Unit board 
         mainSurface.fill((0, 0, 0))
         for x in range(8):
@@ -251,12 +242,13 @@ def menuScreen(inport):
                         if transferItem in ['potion', 'mana']:
                             inport.controlMove(transferChar, transferChar, transferItem)
                             inport.controlTime(0)
+                        
                         #change equipment
                         else:
                             #unequip old item
                             if oldItem:
-                                inport.controlList(inport.getGroupType(transferChar, "TEMPLATE"), "equip", oldItem, "remove")
-                                inport.controlList("party", "inventory", oldItem)
+                                inport.controlList(inport.getListGroup(transferChar, "group", "TEMPLATE"), "equip", oldItem, "remove")
+                                inport.controlList("party", "inventory", oldItem, 'add')
                             
                             #requip new item
                             if transferItem:
@@ -264,7 +256,7 @@ def menuScreen(inport):
                                     weapon = "sword"
                                 else:
                                     weapon = "staff"
-                                if inport.controlList(inport.getGroupType(transferChar, "TEMPLATE"), 'equip', transferItem):
+                                if inport.controlList(inport.getListGroup(transferChar, "group", "TEMPLATE"), 'equip', transferItem, 'add'):
                                     inport.controlList("party", "inventory", transferItem, "remove")
                         
                         #cleanup
@@ -274,7 +266,7 @@ def menuScreen(inport):
         #clear and reprint static                        
         mainSurface.fill((255, 255, 255))
         char = ["fighter", "wmage", "bmage"][selection['y']]
-        chargroup = inport.getGroupType(char, "TEMPLATE")
+        chargroup = inport.getListGroup(char, "group", "TEMPLATE")
         strhp = str(inport.getStat(char, "HP")) + "/" + str(inport.getStat(chargroup, "HP"))
         strmp = str(inport.getStat(char, "MP")) + "/" + str(inport.getStat(chargroup, "MP"))
         
@@ -385,7 +377,12 @@ def subBattle(battle_map):
     while True:
         #checks for active units.
         if unitIndex >= len(activeUnits):
-            activeUnits = battle_map.getActiveUnits()
+            
+            activeUnits = []
+            for unit in battle_map.getGroup("party", False) + battle_map.getGroup("monster", False):
+                if battle_map.getStat(unit, "ACT") >= 2:
+                    activeUnits.append(unit)
+            
             if len(activeUnits) > 0:
                 mode = "active"
             else:

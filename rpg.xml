@@ -1,68 +1,41 @@
 <udebs>
 
-<name>Sub Battle</name>
-<tick>TARGET CHANGE ACT [TARGET STAT SPD * time]</tick>
+<config>
+    <name>Sub Battle</name>
+</config>
 
 <definitions>   
     <stats>
-        <item>ACT</item> <!-- Number of action points -->
-        <item>SPD</item> <!-- How many action points are gained each tick -->
-        <item>HP</item>  <!-- Hit points -->
-        <item>MP</item>  <!-- Magic points -->
-        <item>MEL</item> <!-- Mellee Damage -->
-        <item>MGK</item> <!-- Magic Damage -->
-        <item>FIRE</item> <!-- Fire weakness -->
-        <item>WATER</item> <!-- Water weakness -->
-        <item>DEF</item> <!-- physical defense -->
-        <item>MDEF</item> <!-- magical defense -->
-        <item>LVL</item> <!-- Recruiter Level -->
-        <item>r</item>   <!-- Red -->
-        <item>g</item>   <!-- Green -->
-        <item>b</item>   <!-- Blue -->
+        <ACT /> <!-- Number of action points -->
+        <SPD /> <!-- How many action points are gained each tick -->
+        <HP />  <!-- Hit points -->
+        <MP />  <!-- Magic points -->
+        <MEL /> <!-- Mellee Damage -->
+        <MGK /> <!-- Magic Damage -->
+        <FIRE /> <!-- Fire weakness -->
+        <WATER /> <!-- Water weakness -->
+        <DEF /> <!-- physical defense -->
+        <MDEF /> <!-- magical defense -->
+        <LVL /> <!-- Recruiter Level -->
+        <r />   <!-- Red -->
+        <g />   <!-- Green -->
+        <b />   <!-- Blue -->
     </stats>
 
     <strings>
-        <item>DESC</item> <!-- Printed Descriptions -->
-        <item>skip</item>
+        <DESC /> <!-- Printed Descriptions -->
+        <skip />
     </strings>
 
     <lists>
-        <item rlist='rlist' slist='status'>status</item> <!-- Status effects, effects stats -->
-        <item rlist='rlist' slist='equip_item'>equip</item> <!-- Equip effects, effects stats -->
-        <item>inventory</item> <!-- Place for storing items, party only -->
-        <item>monsters</item>  <!-- List of spawnable monsters, recruiter only -->
-        <item>yesequip</item>  <!-- List of people that can equip this item. Equipable items only -->
+        <status rlist='' slist='status' /> <!-- Status effects, effects stats -->
+        <equip rlist='' slist='equip_item' /> <!-- Equip effects, effects stats -->
+        <inventory /> <!-- Place for storing items, party only -->
+        <monsters />  <!-- List of spawnable monsters, recruiter only -->
+        <yesequip />  <!-- List of people that can equip this item. Equipable items only -->
+        <movelist />
     </lists>
 </definitions>
-
-<scripts>
-    
-    <tick>
-        <item>TARGET CHANGE ACT [TARGET STAT SPD * time]</item>
-    </tick>
-
-    <init>
-        <item>recruiter CAST recruitBattle</item>
-        <item>fighter CHANGE ACT [-[fighter STAT ACT] + 1]</item>
-        <item>bmage CHANGE ACT [-[bmage STAT ACT] + 1]</item>
-        <item>wmage CHANGE ACT [-[wmage STAT ACT]+ 1]</item>
-    </init>
-
-    <finish>
-        <item>recruiter CHANGE LVL 1</item>
-        <item>treasure CHANGE LVL 1</item>
-    </finish>
-    
-    <recruit>
-        <item>TARGET CHANGE SPD 1</item>
-    </recruit>
-    
-    <boss>
-        <item>boss MOVE travel (1,1)</item>
-        <item>boss CHANGE SPD 2</item>
-    </boss>
-    
-</scripts>
 
 <map>
     <row>bmage, empty</row>
@@ -71,1194 +44,1083 @@
 </map>
 
 <entities>
-    <!-- meta moves -->
-    <entity>
-        <ID>recruitBattle</ID>
+    <!-- Script-->
+    <tick>
         <effect>
-            <item>[recruiter S monsters SUB [DICE 4 -1 + recruiter S LVL * 3]] RECRUIT (1,0)</item>
-            <item>[recruiter S monsters SUB [DICE 4 -1 + recruiter S LVL * 3]] RECRUIT (1,1)</item>
-            <item>[recruiter S monsters SUB [DICE 4 -1 + recruiter S LVL * 3]] RECRUIT (1,2)</item>
+            <i>CAST (ALL party) atb</i>
+            <i>CAST (ALL monster) atb</i>
         </effect>
-        <require>
-            <item>TARGET == recruiter</item>
-        </require>
-    </entity>
+    </tick>
     
-    <entity>
-        <ID>get_item</ID>
+    <atb>
+        <effect>CHANGE T ACT (S T SPD)</effect>
+    </atb>
+
+    <init>
         <effect>
-            <item>TARGET GETS inventory [CASTER S inventory SUB [DICE 6 - 1 + CASTER S LVL * 6]]</item>
+            <i>CAST recruiter recruitBattle</i>
+            <i>CHANGE fighter ACT (-(STAT fighter ACT)+ 1)</i>
+            <i>CHANGE bmage ACT (-(STAT bmage ACT)+ 1)</i>
+            <i>CHANGE wmage ACT (-(STAT wmage ACT)+ 1)</i>
         </effect>
-        <require>
-            <item>CASTER == treasure</item>
-        </require>
-    </entity>
+    </init>
+
+    <finish>
+        <effect>
+            <i>CHANGE recruiter LVL 1</i>
+            <i>CHANGE treasure LVL 1</i>
+        </effect>
+    </finish>
+    
+    <recruit>
+        <effect>CHANGE target SPD 1</effect>
+    </recruit>
+    
+    <recruit_boss>
+        <effect>
+            <i>boss TRAVEL (1,1)</i>
+            <i>GETS boss group monster</i>
+        </effect>
+    </recruit_boss>
+
+    <!-- meta moves -->
+    <recruitBattle>
+        <effect>
+            <i>RECRUIT ((S recruiter monsters)[(DICE 3 + S recruiter LVL * 3)]) (1,0)</i>
+            <i>GETS (1,0) group monster</i>
+            <i>RECRUIT ((S recruiter monsters)[(DICE 3 + S recruiter LVL * 3)]) (1,1)</i>
+            <i>GETS (1,1) group monster</i>
+            <i>RECRUIT ((S recruiter monsters)[(DICE 3 + S recruiter LVL * 3)]) (1,2)</i>
+            <i>GETS (1,2) group monster</i>
+        </effect>
+        <require>target.name == 'recruiter'</require>
+    </recruitBattle>
+    
+    <get_item>
+        <effect>GETS T inventory ((S C inventory)[(DICE 5 + S C LVL * 6)])</effect>
+        <require>caster.name == 'treasure'</require>
+    </get_item>
     
     <!-- move groups -->
-    <entity>
+    <status>
         <DESC>status and buff</DESC>
-        <ID>status</ID>
         <require>
-            <item>SELF not in TARGET STAT status</item>
+            <i>move.name not in S T status</i>
         </require>
-    </entity>
+    </status>
     
-    <entity>
+    <damage>
         <DESC>Damaging moves</DESC>
-        <ID>damage</ID>
         <effect>
-            <item>TARGET CAST KO DELAY 0</item>
+            <i>DELAY (CAST target KO) 0</i>
         </effect>
-    </entity>
+    </damage>
     
-    <entity>
+    <health>
         <DESC>Healing moves</DESC>
-        <ID>health</ID>
         <effect>
-            <item>TARGET CAST OVERHEAL DELAY 0</item>
+            <i>DELAY (CAST target OVERHEAL) 0</i>
         </effect>
-    </entity>
+    </health>
     
-    <entity>
+    <regen>
         <DESC>Mana Regen Moves</DESC>
-        <ID>regen</ID>
         <effect>
-            <item>TARGET CAST OVERMANA DELAY 0</item>
-        </effect>
-    </entity>
+            <i>DELAY (CAST target OVERMANA) 0</i>
+       </effect>
+    </regen>
     
-    <entity>
+    <active>
         <DESC>Actives Moves</DESC>
-        <ID>active</ID>
         <require>
-            <item>CASTER STAT ACT >= 2</item>
-            <item>SELF in CASTER STAT movelist</item>
+            <i>STAT caster ACT >= 2</i>
+            <i>move.name in STAT caster movelist</i>
         </require>
         <effect>
-            <item>CASTER CHANGE ACT -2</item>
+            <i>CHANGE caster ACT -2</i>
         </effect>
-    </entity>
+    </active>
     
-    <entity>
-        <ID>globe</ID> 
+    <globe>
         <DESC>Almost all moves are in this class</DESC>
         <require>
-            <item>KO not in CASTER STAT status</item>
-            <item>KO not in TARGET STAT status</item>
+            <i>'KO' not in STAT caster status</i>
+            <i>'KO' not in STAT target status</i>
         </require>
-    </entity>
+    </globe>
     
 <!-- Status Effects and chaincasts -->
-    <entity>
-        <ID>KO</ID>
+    <KO>
         <DESC>Character's HP has dropped to 0</DESC>
         <require>
-            <item>TARGET STAT HP &lt;= 0</item>
+            <i>STAT target HP &lt;= 0</i>
         </require>
         <effect>
-            <item>TARGET CHANGE HP -[TARGET STAT HP]</item>
-            <item>TARGET GETS status SELF</item>
+            <i>CHANGE target HP -(STAT target HP)</i>
+            <i>GETS target status move</i>
+            <i>LOSES T group monster</i>
         </effect>
         <group>
-            <item>globe</item>
-            <item>status</item>
+            <i>globe</i>
+            <i>status</i>
         </group>
-        <stats>
-            <SPD>-1</SPD>
-        </stats>
-    </entity>
+        <SPD>-1</SPD>
+    </KO>
     
-    <entity>
-        <ID>SACRIFICE</ID>
+    <SACRIFICE>
         <DESC>White Mage has been sacrificed and cannot return to the fight</DESC>
         <group>
-            <item>globe</item>
-            <item>status</item>
+            <i>globe</i>
+            <i>status</i>
         </group>
-        <stats>
-            <SPD>-1</SPD>
-        </stats>
-    </entity>
+        <SPD>-1</SPD> 
+    </SACRIFICE>
     
-    <entity>
-        <ID>DEFEND</ID>
+    <DEFEND>
         <DESC>Increased def on fighter, and he guerenteed takes the next hit</DESC>
         <group>
-            <item>globe</item>
-            <item>status</item>
-        </group>
-        <stats>
-            <def>50</def>
-            <mdef>30</mdef>
-        </stats>
-    </entity>
+            <i>globe</i>
+            <i>status</i>
+        </group> 
+        <def>50</def>
+        <mdef>30</mdef>
+    </DEFEND>
     
-    <entity>
-        <ID>CHARGE</ID>
+    <CHARGE>
         <DESC>Decreases fighter def, but charges up for a huge hit</DESC>
         <group>
-            <item>globe</item>
-            <item>status</item>
+            <i>globe</i>
+            <i>status</i>
         </group>
-        <stats>
-            <def>-50</def>
-            <mdef>-30</mdef>
-        </stats>
-    </entity>
+        <def>-50</def>
+        <mdef>-30</mdef>    
+    </CHARGE>
  
-    <entity>
+    <POISON>
         <DESC>POISON</DESC>
-        <ID>POISON</ID>
         <group>
-            <item>status</item>
-            <item>globe</item>
+            <i>status</i>
+            <i>globe</i>
         </group>
-        <stats>
-            <r>-30</r>
-            <g>-30</g>
-            <b>-30</b>
-        </stats>
-    </entity>
+        <r>-30</r>
+        <g>-30</g>
+        <b>-30</b>      
+    </POISON>
     
 <!-- Active components -->
-    <entity>
-        <ID>POISON_CHECK</ID>
+    <POISON_CHECK>
         <DESC>DROPS THE CHARACTERS HEALTH ONCE USING A DELAYED CHAIN MOVE</DESC>
         <require>
-            <item>DICE 5 > 2</item>
+            <i>DICE 5 > 2</i>
         </require>
         <effect>
-            <item>TARGET CAST POISON_ACTIVE DELAY 2</item>
-            <item>TARGET GETS status POISON</item>
+            <i>DELAY (CAST target POISON_ACTIVE) 2</i>
+            <i>GETS target status POISON</i>
         </effect>
         <group>
-            <item>globe</item>
+            <i>globe</i>
         </group>
-    </entity>
+    </POISON_CHECK>
     
-    <entity>
-        <ID>OVERHEAL</ID>
+    <OVERHEAL>
         <DESC>A check to make sure character hasn't overhealed</DESC>
         <require>
-            <item>TARGET STAT HP >= TARGET CLASS TEMPLATE STAT HP</item>
-            <item>party in TARGET STAT group</item>
+            <i>STAT target HP >= STAT (CLASS target TEMPLATE) HP</i>
+            <i>'party' in STAT target group</i>
         </require>
         <effect>
-            <item>TARGET CHANGE HP [TARGET CLASS TEMPLATE STAT HP - TARGET STAT HP]</item>
+            <i>CHANGE target HP (STAT (CLASS T TEMPLATE) HP - STAT T HP)</i>
         </effect>
-    </entity>
+    </OVERHEAL>
     
-    <entity>
-        <ID>OVERMANA</ID>
+    <OVERMANA>
         <DESC>A check to make sure character hasn't overmanad</DESC>
         <require>
-            <item>TARGET STAT MP >= TARGET CLASS TEMPLATE STAT MP</item>
-            <item>party in TARGET STAT group</item>
+            <i>STAT target MP >= STAT (CLASS target TEMPLATE) MP</i>
+            <i>'party' in STAT T group</i>
         </require>
         <effect>
-            <item>TARGET CHANGE MP [TARGET CLASS TEMPLATE STAT MP - TARGET STAT MP]</item>
+            <i>CHANGE target MP (STAT (CLASS target TEMPLATE ) MP - STAT target MP)</i>
         </effect>
-    </entity>
+    </OVERMANA>
     
-    <entity>
+    <POISON_ACTIVE>
         <DESC>Toxic Spit Active Part</DESC>
-        <ID>POISON_ACTIVE</ID>
         <effect>
-            <item>TARGET CHANGE HP -[5+ DICE 5]</item>
-            <item>TARGET CAST POISON_ACTIVE DELAY 2</item>
+            <i>CHANGE target HP -(5+ DICE 5)</i>
+            <i>DELAY (CAST target POISON_ACTIVE) 2</i>
         </effect>
         <require>
-            <item>POISON in TARGET STAT status</item>
+            <i>'POISON' in STAT target status</i>
         </require>
         <group>
-            <item>damage</item>
-            <item>globe</item>
+            <i>damage</i>
+            <i>globe</i>
         </group>
-    </entity>
+    </POISON_ACTIVE>
     
-    <entity>
+    <CHARGE_ACTIVE>
         <DESC>Charge Active Component</DESC>
-        <ID>CHARGE_ACTIVE</ID>
         <effect>
-            <item>TARGET CHANGE HP -[[C S MEL + DICE 10] * 2 * [1 - T S DEF / 100]]</item>
-            <item>CASTER LOSES status CHARGE</item>
+            <i>CHANGE target HP -((S C MEL + DICE 10) * 2 * (1 - S T DEF / 100))</i>
+            <i>LOSES caster status CHARGE</i>
         </effect>
         <group>
-            <item>damage</item>
-            <item>globe</item>
+            <i>damage</i>
+            <i>globe</i>
         </group>
-    </entity>
+    </CHARGE_ACTIVE>
 
-    <entity>
+    <DEFEND_ACTIVE>
         <DESC>Defend Active Component</DESC>
-        <ID>DEFEND_ACTIVE</ID>
         <effect>
-            <item>TARGET LOSES status DEFEND</item>
+            <i>LOSES target status DEFEND</i>
         </effect>
         <group>
-            <item>globe</item>
+            <i>globe</i>
         </group>
-    </entity>
+    </DEFEND_ACTIVE>
     
-    <entity>
+    <SACRIFICE_ACTIVE>
         <DESC>Sacrifice Active Component</DESC>
-        <ID>SACRIFICE_ACTIVE</ID>
         <effect>
-            <item>TARGET CHANGE HP [TARGET CLASS TEMPLATE STAT HP - TARGET STAT HP]</item>
-            <item>TARGET CHANGE MP [TARGET CLASS TEMPLATE STAT MP - TARGET STAT MP]</item>
-            <item>TARGET LOSES status KO</item>
+            <i>CHANGE target HP (STAT (CLASS target TEMPLATE) HP - STAT target HP)</i>
+            <i>CHANGE target MP (STAT (CLASS target TEMPLATE) MP - STAT target MP)</i>
+            <i>LOSES target status KO</i>
         </effect>
         <require>
-            <item>SACRIFICE not in TARGET STAT status</item>
+            <i>'SACRIFICE' not in STAT target status</i>
         </require>
-    </entity>
-    
-    
+    </SACRIFICE_ACTIVE>
         
     <!-- global moves -->
-    <entity>
+    <attack>
         <DESC>Attack</DESC>
-        <ID>attack</ID>
         <effect>
-            <item>TARGET CHANGE HP -[[C S MEL + DICE 10] * [1 - T S DEF / 100]]</item>
-            <item>TARGET ACTIVATE weapon</item>
+            <i>CHANGE target HP -((S C MEL + DICE 10) * (1 - S T DEF / 100))</i>
+            <i>ACTIVATE target equip weapon</i>
         </effect>
         <group>
-            <item>damage</item>
-            <item>active</item>
-            <item>globe</item>
+            <i>damage</i>
+            <i>active</i>
+            <i>globe</i>
         </group> 
-    </entity>
+    </attack>
     
-    <entity>
+    <pass>
         <DESC>Pass</DESC> 
-        <ID>pass</ID>
         <skip>skip</skip>
         <group>
-            <item>active</item>
-            <item>globe</item>
+            <i>active</i>
+            <i>globe</i>
         </group>
-    </entity>
+    </pass>
     <!-- fighter moves -->
-    <entity>
+    <spit>
         <DESC>Toxic Spit</DESC>
-        <ID>spit</ID>
         <effect>
-            <item>TARGET CHANGE HP -[[C S MGK + DICE 10] * [1 - T S MDEF / 100]]</item>
-            <item>CASTER CHANGE MP -1</item>
-            <item>TARGET CAST POISON_CHECK</item>
+            <i>CHANGE target HP -((S C MGK + DICE 10) * (1 - S T MDEF / 100))</i>
+            <i>CHANGE caster MP -1</i>
+            <i>CAST target POISON_CHECK</i>
         </effect>
         <require>
-            <item>CASTER STAT MP >= 1</item>
+            <i>STAT caster MP >= 1</i>
         </require>
         <group>
-            <item>damage</item>
-            <item>active</item>
-            <item>globe</item>
+            <i>damage</i>
+            <i>active</i>
+            <i>globe</i>
         </group>
-    </entity>
+    </spit>
     
-    <entity>
+    <defend>
         <DESC>Defend</DESC>
-        <ID>defend</ID>
         <skip>skip</skip>
         <effect>
-            <item>CASTER CAST DEFEND_ACTIVE DELAY 2</item>
-            <item>CASTER GETS status DEFEND</item>
+            <i>DELAY (CAST caster DEFEND_ACTIVE) 2</i>
+            <i>GETS caster status DEFEND</i>
         </effect>
         <group>
-            <item>active</item>
-            <item>globe</item>
+            <i>active</i>
+            <i>globe</i>
         </group>
-    </entity>
+    </defend>
     
-    <entity>
+    <charge>
         <DESC>Store Energy</DESC>
-        <ID>charge</ID>
         <effect>
-            <item>CASTER GETS status CHARGE</item>
-            <item>TARGET CAST CHARGE_ACTIVE DELAY 2</item>
+            <i>GETS caster status CHARGE</i>
+            <i>DELAY (CAST target CHARGE_ACTIVE) 2</i>
         </effect>
         <group>
-            <item>active</item>
-            <item>globe</item>
+            <i>active</i>
+            <i>globe</i>
         </group>
-    </entity>
+    </charge>
     <!-- bmage moves -->
-    <entity>
+    <magic>
         <DESC>Magic Missiles</DESC>
-        <ID>magic</ID>
         <effect>
-            <item>TARGET CHANGE HP -[[C S MGK + DICE 10] * [1 - T S MDEF / 100]]</item>
-            <item>CASTER CHANGE MP -1</item>
+            <i>CHANGE target HP -((S C MGK + DICE 10) * (1 - S T MDEF / 100))</i>
+            <i>CHANGE caster MP -1</i>
         </effect> 
         <require>
-            <item>CASTER STAT MP  >= 1</item>
+            <i>STAT caster MP >= 1</i>
         </require>
         <group>
-            <item>damage</item>
-            <item>active</item>
-            <item>globe</item>
+            <i>damage</i>
+            <i>active</i>
+            <i>globe</i>
         </group>
-    </entity>
+    </magic>
     
-    <entity>
+    <fire>
         <DESC>Fireball</DESC>
-        <ID>fire</ID>
         <effect>
-            <item>TARGET CHANGE HP -[[C S MGK + DICE 10] * [1 - T S MDEF / 100] * [T S FIRE / 2]]</item>
-            <item>CASTER CHANGE MP -2</item>
+            <i>CHANGE target HP -((S C MGK + DICE 10) * (1 - S T MDEF / 100) * (S T FIRE / 2))</i>
+            <i>CHANGE caster MP -2</i>
         </effect> 
         <require>
-            <item>CASTER STAT MP  >= 2</item>
+            <i>STAT caster MP  >= 2</i>
         </require>
         <group>
-            <item>damage</item>
-            <item>active</item>
-            <item>globe</item>
+            <i>damage</i>
+            <i>active</i>
+            <i>globe</i>
         </group>
-    </entity>
+    </fire>
     
-    <entity>
+    <water>
         <DESC>Waterfall</DESC>
-        <ID>water</ID>
         <effect>
-            <item>TARGET CHANGE HP -[[C S MGK + DICE 10] * [1 - T S MDEF / 100] * [T S WATER / 2]]</item>
-            <item>CASTER CHANGE MP -2</item>
+            <i>CHANGE target HP -((S C MGK + DICE 10) * (1 - S T MDEF / 100) * (S T WATER / 2))</i>
+            <i>CHANGE caster MP -2</i>
         </effect> 
         <require>
-            <item>CASTER STAT MP  >= 2</item>
+            <i>STAT caster MP  >= 2</i>
         </require>
         <group>
-            <item>damage</item>
-            <item>active</item>
-            <item>globe</item>
+            <i>damage</i>
+            <i>active</i>
+            <i>globe</i>
         </group>
-    </entity>
+    </water>
     <!-- wmage moves -->
     
-    <entity>
+    <sacrifice>
         <DESC>Sacrifice</DESC>
-        <ID>sacrifice</ID>
         <skip>skip</skip>
         <effect>
-            <item>CASTER CHANGE HP -[CASTER STAT HP]</item>
-            <item>CASTER CHANGE MP -[CASTER STAT MP]</item>
-            <item>CASTER GETS status SACRIFICE</item>
-            <item>CASTER GETS status KO</item>
-            <item>ALL party CAST SACRIFICE_ACTIVE</item>
+            <i>CHANGE caster HP -(STAT caster HP)</i>
+            <i>CHANGE caster MP -(STAT caster MP)</i>
+            <i>GETS caster status SACRIFICE</i>
+            <i>GETS caster status KO</i>
+            <i>CAST (ALL party) SACRIFICE_ACTIVE</i>
         </effect>
         <group>
-            <item>active</item>
-            <item>globe</item>
+            <i>active</i>
+            <i>globe</i>
         </group>
-    </entity>
+    </sacrifice>
     
-    <entity>
+    <heal>
         <DESC>Heal</DESC>
-        <ID>heal</ID>
         <effect>
-            <item>TARGET CHANGE HP [CASTER STAT MGK + DICE 10]</item>
-            <item>CASTER CHANGE MP -1</item>
+            <i>CHANGE target HP (STAT caster MGK + DICE 10)</i>
+            <i>CHANGE caster MP -1</i>
         </effect>
         <require>
-            <item>CASTER STAT MP >= 1</item>
+            <i>STAT caster MP >= 1</i>
         </require>
         <group>
-            <item>health</item>
-            <item>active</item>
-            <item>globe</item>
+            <i>health</i>
+            <i>active</i>
+            <i>globe</i>
         </group>
-    </entity>
+    </heal>
     
-    <entity>
+    <antidote>
         <DESC>Antidote</DESC>
-        <ID>antidote</ID>
         <effect>
-            <item>TARGET LOSES status POISON</item>
-            <item>CASTER CHANGE MP -1</item>
+            <i>LOSES target status POISON</i>
+            <i>CHANGE caster MP -1</i>
         </effect>
         <require>
-            <item>CASTER STAT MP >= 1</item>
+            <i>STAT caster MP >= 1</i>
         </require>
         <group>
-            <item>active</item>
-            <item>globe</item>
+            <i>active</i>
+            <i>globe</i>
         </group>
-    </entity>
+    </antidote>
     
     <!-- nova -->
     
-    <entity>
+    <doomsday>
         <DESC>Doomsday</DESC>
-        <ID>doomsday</ID>
         <effect>
-            <item>TARGET CAST DOOM_ACTIVE DELAY 4</item>
-            <item>CASTER CHANGE MP -1</item>
-            <item>CASTER CHANGE ACT -2</item>
+            <i>DELAY (CAST target DOOM_ACTIVE) 4</i>
+            <i>CHANGE caster MP -1</i>
+            <i>CHANGE caster ACT -2</i>
         </effect>
         <require>
-            <item>CASTER STAT MP >= 1</item>
+            <i>STAT caster MP >= 1</i>
         </require>
         <group>
-            <item>active</item>
-            <item>globe</item>
+            <i>active</i>
+            <i>globe</i>
         </group>
-    </entity>
+    </doomsday>
     
-    <entity>
+    <DOOM_ACTIVE>
         <DESC>Doomsday Active Component</DESC>
-        <ID>DOOM_ACTIVE</ID>
         <effect>
-            <item>TARGET CHANGE HP -[TARGET STAT HP]</item>
+            <i>CHANGE target HP -(STAT target HP)</i>
         </effect>
         <group>
-            <item>damage</item>
-            <item>globe</item>
+            <i>damage</i>
+            <i>globe</i>
         </group>
-    </entity>
+    </DOOM_ACTIVE>
     
     <!-- Big Boss -->
     
-    <entity>
-        <ID>barrier</ID>
+    <barrier>
         <DESC>Barrier change</DESC>
         <group>
-            <item>active</item>
-            <item>globe</item>
+            <i>active</i>
+            <i>globe</i>
         </group>
         <effect>
-            <item>CASTER CHANGE MP -1</item>
-            <item>CASTER LOSES status [self.getListGroup('boss', 'status', 'current_barrier')]</item>
-            <item>CASTER GETS status [CASTER S inventory SUB [DICE 5 -1]]</item>
+            <i>CHANGE caster MP -1</i>
+            <i>LOSES caster status (self.getListGroup('boss', 'status', 'current_barrier'))</i>
+            <i>GETS caster status ((S C inventory)[(DICE 5 -1)])</i>
         </effect>
-    </entity>
+    </barrier>
     
-    <entity>
-        <ID>current_barrier</ID>
-    </entity>
+    <current_barrier />
     
-    <entity>
-        <ID>red</ID>
+    <red>
         <group>
-            <item>status</item>
-            <item>current_barrier</item>
+            <i>status</i>
+            <i>current_barrier</i>
         </group>
-        <stats>
-            <MDEF>0</MDEF>
-            <DEF>40</DEF>
-            <FIRE>0</FIRE>
-            <WATER>4</WATER>
-            <r>255</r>
-            <g>30</g>
-            <b>30</b>
-        </stats>       
-    </entity>
+        <MDEF>0</MDEF>
+        <DEF>40</DEF>
+        <FIRE>0</FIRE>
+        <WATER>4</WATER>
+        <r>255</r>
+        <g>30</g>
+        <b>30</b>
+    </red>
     
-    <entity>
-        <ID>blue</ID>
+    <blue>
         <group>
-            <item>status</item>
-            <item>current_barrier</item>
+            <i>status</i>
+            <i>current_barrier</i>
         </group>
-        <stats>
-            <MDEF>0</MDEF>
-            <DEF>40</DEF>
-            <FIRE>2</FIRE>
-            <WATER>-2</WATER>
-            <r>30</r>
-            <g>30</g>
-            <b>255</b>
-        </stats> 
-    </entity>
+        <MDEF>0</MDEF>
+        <DEF>40</DEF>
+        <FIRE>2</FIRE>
+        <WATER>-2</WATER>
+        <r>30</r>
+        <g>30</g>
+        <b>255</b>
+    </blue>
     
-    <entity>
-        <ID>white</ID>
+    <white>
         <group>
-            <item>status</item>
-            <item>current_barrier</item>
+            <i>status</i>
+            <i>current_barrier</i>
         </group>
-        <stats>
-            <MDEF>60</MDEF>
-            <DEF>-30</DEF>
-            <FIRE>-1</FIRE>
-            <WATER>-1</WATER>
-            <r>255</r>
-            <g>255</g>
-            <b>255</b>
-        </stats> 
-    </entity>
+        <MDEF>60</MDEF>
+        <DEF>-30</DEF>
+        <FIRE>-1</FIRE>
+        <WATER>-1</WATER>
+        <r>255</r>
+        <g>255</g>
+        <b>255</b>
+    </white>
     
-    <entity>
-        <ID>black</ID>
+    <black>
         <group>
-            <item>status</item>
-            <item>current_barrier</item>
+            <i>status</i>
+            <i>current_barrier</i>
         </group>
-        <stats>
-            <r>30</r>
-            <g>30</g>
-            <b>30</b>
-        </stats> 
-    </entity>
+        <r>30</r>
+        <g>30</g>
+        <b>30</b>
+    </black>
     
-    <entity>
-        <ID>yellow</ID>
+    <yellow>
         <group>
-            <item>status</item>
-            <item>current_barrier</item>
+            <i>status</i>
+            <i>current_barrier</i>
         </group>
-        <stats>
-            <MEL>40</MEL>
-            <MGK>40</MGK>
-            <MDEF>-40</MDEF>
-            <DEF>-40</DEF>
-            <FIRE>1</FIRE>
-            <WATER>1</WATER>
-            <r>255</r>
-            <g>255</g>
-            <b>30</b>
-        </stats> 
-    </entity>
+        <MEL>40</MEL>
+        <MGK>40</MGK>
+        <MDEF>-40</MDEF>
+        <DEF>-40</DEF>
+        <FIRE>1</FIRE>
+        <WATER>1</WATER>
+        <r>255</r>
+        <g>255</g>
+        <b>30</b>
+    </yellow>
         
     <!-- Consumables -->
-    <entity>
-        <DESC>ONE use consumable items</DESC>
-        <ID>one_use</ID>
+    <one_use>
+        <DESC>ONE use consumable is</DESC>
         <effect>
-            <item>party LOSES inventory SELF</item>
+            <i>LOSES party inventory move</i>
         </effect>
         <require>
-            <item>SELF in party STAT inventory</item>
-            <item>SACRIFICE not in TARGET STAT status</item>
+            <i>move.name in STAT party inventory</i>
+            <i>'SACRIFICE' not in STAT target status</i>
         </require>
-    </entity>
+    </one_use>
     
-    <entity>
+    <potion>
         <DESC>An HP potion</DESC>
-        <ID>potion</ID>
         <group>
-            <item>one_use</item>
-            <item>health</item>
+            <i>one_use</i>
+            <i>health</i>
         </group>
         <effect>
-            <item>TARGET CHANGE HP 50</item>
-            <item>TARGET LOSES status KO</item>
-            <item>TARGET LOSES status POISON</item>
+            <i>CHANGE target HP 50</i>
+            <i>LOSES target status KO</i>
+            <i>LOSES target status POISON</i>
         </effect>
-    </entity>
+    </potion>
     
-    <entity>
+    <mana>
         <DESC>An MP Potion</DESC>
-        <ID>mana</ID>
         <group>
-            <item>one_use</item>
-            <item>regen</item>
+            <i>one_use</i>
+            <i>regen</i>
         </group>
         <effect>
-            <item>TARGET CHANGE MP 10</item>
-            <item>TARGET LOSES status POISON</item>
+            <i>CHANGE target MP 10</i>
+            <i>LOSES target status POISON</i>
         </effect>
-    </entity>
+    </mana>
     
     <!-- equipable -->
-    <entity>
-        <DESC>equipable items</DESC>
-        <ID>equip_item</ID>
+    <equipable />
+    
+    <equip_item>
+        <DESC>equipable is</DESC>
         <require>
-            <item>TARGET in SELF STAT yesequip</item>
-            <item>SELF CLASS equipable not in TARGET LISTSTAT equip group</item>
+            <i>target.name in STAT move yesequip</i>
+            <i>CLASS move equipable not in LISTSTAT target equip group</i>
         </require>
-    </entity>
+    </equip_item>
     
-    <entity>
+    <weapon>
         <DESC>General weapon Class</DESC>
-        <ID>weapon</ID>
-    </entity>
+    </weapon>
     
-    <entity>
-        <DESC>sword class for items</DESC>
-        <ID>sword</ID>
-        <type>equipable</type>
-        <stats>
-            <MEL>1</MEL>
-        </stats>
+    <sword>
+        <DESC>sword class for is</DESC>
+        <MEL>1</MEL>
         <yesequip>
-            <item>tfighter</item>
+            <i>tfighter</i>
         </yesequip>
-    </entity>
+        <group>
+            <i>equipable</i>
+        </group>
+    </sword>
     
-    <entity>
-        <DESC>staff class for items</DESC>
-        <ID>staff</ID>
-        <type>equipable</type>
+    <staff>
+        <DESC>staff class for is</DESC>
         <yesequip>
-            <item>twmage</item>
-            <item>tbmage</item>
+            <i>twmage</i>
+            <i>tbmage</i>
         </yesequip>
-    </entity>
+        <group>
+            <i>equipable</i>
+        </group>
+    </staff>
 
-    <entity>
-        <DESC>hat class for items.</DESC>
-        <ID>hat</ID>
-        <type>equipable</type>
-        <stats>
-            <HP>10</HP>
-        </stats>
+    <hat>
+        <DESC>hat class for is.</DESC>
+        <HP>10</HP>
         <yesequip>
-            <item>tfighter</item>
-            <item>twmage</item>
-            <item>tbmage</item>
+            <i>tfighter</i>
+            <i>twmage</i>
+            <i>tbmage</i>
         </yesequip>
-    </entity>
+        <group>
+            <i>equipable</i>
+        </group>
+    </hat>
     
     <!-- hats!! -->
-    <entity>
+    <bor_hat>
         <DESC>A boring hat</DESC>
-        <ID>bor_hat</ID>
-            <stats>
-                <HP>10</HP>
-                <DEF>10</DEF>
-                <MDEF>10</MDEF>
-            </stats>
+        <HP>10</HP>
+        <DEF>10</DEF>
+        <MDEF>10</MDEF>
         <group>
-            <item>hat</item>
-            <item>equip_item</item>
+            <i>hat</i>
+            <i>equip_item</i>
         </group>
-    </entity>
-    <entity>
+    </bor_hat>
+    <med_hat>
         <DESC>A mediocre hat</DESC>
-        <ID>med_hat</ID>
-            <stats>
-                <HP>20</HP>
-                <DEF>20</DEF>
-                <MDEF>20</MDEF>
-            </stats>
+        <HP>20</HP>
+        <DEF>20</DEF>
+        <MDEF>20</MDEF>
         <group>
-            <item>hat</item>
-            <item>equip_item</item>
+            <i>hat</i>
+            <i>equip_item</i>
         </group>
-    </entity>
-    <entity>
+    </med_hat>
+    <metal_hat>
         <DESC>A metal hat</DESC>
-        <ID>metal_hat</ID>
-            <stats>
-                <HP>30</HP>
-                <DEF>30</DEF>
-                <MDEF>30</MDEF>
-            </stats>
+        <HP>30</HP>
+        <DEF>30</DEF>
+        <MDEF>30</MDEF>
         <group>
-            <item>hat</item>
-            <item>equip_item</item>
+            <i>hat</i>
+            <i>equip_item</i>
         </group>
-    </entity>
-    <entity>
+    </metal_hat>
+    <fancy_hat>
         <DESC>A fancy hat</DESC>
-        <ID>fancy_hat</ID>
-            <stats>
-                <HP>20</HP>
-                <DEF>20</DEF>
-                <MDEF>20</MDEF>
-                <MGK>20</MGK>
-            </stats>
+        <HP>20</HP>
+        <DEF>20</DEF>
+        <MDEF>20</MDEF>
+        <MGK>20</MGK>
         <group>
-            <item>hat</item>
-            <item>equip_item</item>
+            <i>hat</i>
+            <i>equip_item</i>
         </group>
-    </entity>
+    </fancy_hat>
     <!-- swords -->
-    <entity>
+    <wood_sword>
         <DESC>A wooden Sword</DESC>
-        <ID>wood_sword</ID>
         <group>
-            <item>sword</item>
-            <item>equip_item</item>
-            <item>weapon</item>
+            <i>sword</i>
+            <i>equip_item</i>
+            <i>weapon</i>
         </group>
-        <stats>
-            <MEL>10</MEL>
-        </stats>
-    </entity>
-    <entity>
+        <MEL>10</MEL>
+    </wood_sword>
+    <metal_sword>
         <DESC>A metal Sword</DESC>
-        <ID>metal_sword</ID>
         <group>
-            <item>sword</item>
-            <item>equip_item</item>
-            <item>weapon</item>
+            <i>sword</i>
+            <i>equip_item</i>
+            <i>weapon</i>
         </group>
-        <stats>
-            <MEL>20</MEL>
-        </stats>
-    </entity>
-    <entity>
+        <MEL>20</MEL>
+    </metal_sword>
+    <shiny_sword>
         <DESC>A shiny Sword</DESC>
-        <ID>shiny_sword</ID>
         <group>
-            <item>sword</item>
-            <item>equip_item</item>
-            <item>weapon</item>
+            <i>sword</i>
+            <i>equip_item</i>
+            <i>weapon</i>
         </group>
-        <stats>
-            <MEL>30</MEL>
-        </stats>
+        <MEL>30</MEL>
         <effect>
-            <item>TARGET CHANGE HP -[DICE 10 + 5]</item>
+            <i>CHANGE target HP -(DICE 10 + 5)</i>
         </effect>
-    </entity>
+    </shiny_sword>
     <!-- staffs -->
-    <entity>
+    <wood_staff>
         <DESC>A wooden Staff</DESC>
-        <ID>wood_staff</ID>
         <group>
-            <item>staff</item>
-            <item>equip_item</item>
-            <item>weapon</item>
+            <i>staff</i>
+            <i>equip_item</i>
+            <i>weapon</i>
         </group>
-        <stats>
-            <MGK>10</MGK>
-            <MP>5</MP>
-        </stats>
-    </entity>
-    <entity>
+        <MGK>10</MGK>
+        <MP>5</MP>
+    </wood_staff>
+    <metal_staff>
         <DESC>A metal Staff</DESC>
-        <ID>metal_staff</ID>
         <group>
-            <item>staff</item>
-            <item>equip_item</item>
-            <item>weapon</item>
+            <i>staff</i>
+            <i>equip_item</i>
+            <i>weapon</i>
         </group>
-        <stats>
-            <MGK>20</MGK>
-            <MP>10</MP>
-        </stats>
-    </entity>
-    <entity>
+        <MGK>20</MGK>
+        <MP>10</MP>
+    </metal_staff>
+    <shiny_staff>
         <DESC>A shiny staff</DESC>
-        <ID>shiny_staff</ID>
         <group>
-            <item>staff</item>
-            <item>equip_item</item>
-            <item>weapon</item>
+            <i>staff</i>
+            <i>equip_item</i>
+            <i>weapon</i>
         </group>
-        <stats>
+        
             <MGK>30</MGK>
             <MP>15</MP>
-        </stats>
+        
         <effect>
-            <item>TARGET CHANGE HP -[DICE 10 + 5]</item>
+            <i>CHANGE target HP -(DICE 10 + 5)</i>
         </effect>
-    </entity>
-    
-</entities>
-
-<units>    
+    </shiny_staff>
+        
     <!-- Recruiter -->
-    <unit>
+    <recruiter>
         <DESC>The board recruiter</DESC>
-        <ID>recruiter</ID>
         <monsters>
-            <item>zombie</item>
-            <item>ghost</item>
-            <item>zombie</item>
-            <item>druid</item>
-            <item>golem</item>
-            <item>golem</item>
-            <item>fire_golem</item>
-            <item>wisp</item>
-            <item>Wisp</item>
-            <item>nova</item>
+            <i>zombie</i>
+            <i>ghost</i>
+            <i>zombie</i>
+            <i>druid</i>
+            <i>golem</i>
+            <i>golem</i>
+            <i>fire_golem</i>
+            <i>wisp</i>
+            <i>Wisp</i>
+            <i>nova</i>
         </monsters>
-    </unit>
+    </recruiter>
     
-    <unit>
-        <ID>treasure</ID>
+    <treasure>
         <DESC>Unit that hands out treasure</DESC>
         <sprite>T</sprite>
         <inventory>
-            <item>bor_hat</item>
-            <item>wood_sword</item>
-            <item>wood_staff</item>
-            <item>potion</item>
-            <item>mana</item>
-            <item>potion</item>
-            <item>med_hat</item>
-            <item>metal_staff</item>
-            <item>metal_sword</item>
-            <item>potion</item>
-            <item>mana</item>
-            <item>mana</item>
-            <item>metal_hat</item>
-            <item>fancy_hat</item>
-            <item>shiny_sword</item>
-            <item>shiny_staff</item>
-            <item>potion</item>
-            <item>mana</item>
+            <i>bor_hat</i>
+            <i>wood_sword</i>
+            <i>wood_staff</i>
+            <i>potion</i>
+            <i>mana</i>
+            <i>potion</i>
+            <i>med_hat</i>
+            <i>metal_staff</i>
+            <i>metal_sword</i>
+            <i>potion</i>
+            <i>mana</i>
+            <i>mana</i>
+            <i>metal_hat</i>
+            <i>fancy_hat</i>
+            <i>shiny_sword</i>
+            <i>shiny_staff</i>
+            <i>potion</i>
+            <i>mana</i>
         </inventory>
-    </unit>
-   
-    <unit>
+    </treasure>
+    
+    <meta />
+    
+    <party>
         <DESC>heroes main class</DESC>
-        <ID>party</ID>
-        <type>meta</type>
         <movelist>
-            <item>attack</item>
-            <item>pass</item>
+            <i>attack</i>
+            <i>pass</i>
         </movelist>
         <inventory>
-            <item>potion</item>
-            <item>potion</item>
-            <item>mana</item>
+            <i>potion</i>
+            <i>potion</i>
+            <i>mana</i>
         </inventory>
-    </unit>
+        <group>
+            <i>meta</i>
+        </group>
+    </party>
+    
+    <TEMPLATE />
     
     <!-- Fighter -->
-    <unit>
+    <fighter>
         <DESC>Fighter the Brave</DESC>
-        <ID>fighter</ID>
         <group>
-            <item>party</item>
-            <item>tfighter</item>
+            <i>party</i>
+            <i>tfighter</i>
         </group>
-        <stats>
-            <SPD>1</SPD>
-        </stats>
-    </unit>
-    <unit>
+        <SPD>1</SPD>
+    </fighter>
+
+    <tfighter>
         <DESC>Template for Fighter the Brave</DESC>
-        <type>TEMPLATE</type>
-        <ID>tfighter</ID>
-        <stats>
-            <HP>130</HP>
-            <MP>1</MP> 
-            <MEL>45</MEL>
-            <MGK>10</MGK>
-            <DEF>20</DEF>
-            <FIRE>2</FIRE>
-            <WATER>2</WATER>
-            <r>255</r>
-            <g>75</g>
-            <b>75</b>  
-        </stats>
+        <HP>130</HP>
+        <MP>1</MP> 
+        <MEL>45</MEL>
+        <MGK>10</MGK>
+        <DEF>20</DEF>
+        <FIRE>2</FIRE>
+        <WATER>2</WATER>
+        <r>255</r>
+        <g>75</g>
+        <b>75</b>  
         <movelist>
-            <item>spit</item>
-            <item>defend</item>
-            <item>charge</item>
+            <i>spit</i>
+            <i>defend</i>
+            <i>charge</i>
         </movelist>
-    </unit>
+        <group>
+            <i>TEMPLATE</i>
+        </group>
+    </tfighter>
     
     <!-- Black Mage -->
-    <unit>
+    <bmage>
         <DESC>Black Mage the Evil</DESC>
-        <ID>bmage</ID>
         <group>
-            <item>party</item>
-            <item>tbmage</item>
+            <i>party</i>
+            <i>tbmage</i>
         </group>
-        <stats>
-            <SPD>1</SPD>
-        </stats>
-    </unit>
-    <unit>
+        <SPD>1</SPD>
+    </bmage>
+    
+    <tbmage>
         <DESC>Template for Black Mage the Evil</DESC>
-        <type>TEMPLATE</type>
-        <ID>tbmage</ID>
-        <stats>
-            <HP>130</HP>
-            <MP>15</MP> 
-            <MEL>10</MEL>
-            <MGK>45</MGK>
-            <MDEF>20</MDEF>
-            <FIRE>2</FIRE>
-            <WATER>2</WATER>
-            <r>75</r>
-            <g>75</g>
-            <b>75</b>
-        </stats>
+        <HP>130</HP>
+        <MP>15</MP> 
+        <MEL>10</MEL>
+        <MGK>45</MGK>
+        <MDEF>20</MDEF>
+        <FIRE>2</FIRE>
+        <WATER>2</WATER>
+        <r>75</r>
+        <g>75</g>
+        <b>75</b>
         <movelist>
-            <item>magic</item>
-            <item>fire</item>
-            <item>water</item>
+            <i>magic</i>
+            <i>fire</i>
+            <i>water</i>
         </movelist>
-    </unit>
+        <group>
+            <i>TEMPLATE</i>
+        </group>
+    </tbmage>
     
     <!-- White Mage -->
-    <unit>
+    <wmage>
         <DESC>White Mage the Good</DESC>
-        <ID>wmage</ID>
         <group>
-            <item>party</item>
-            <item>twmage</item>
+            <i>party</i>
+            <i>twmage</i>
         </group>
-        <stats>
-            <SPD>1</SPD>
-        </stats>
-    </unit>
-    <unit>
+        <SPD>1</SPD>
+    </wmage>
+    
+    <twmage>
         <DESC>Template for White Mage the Good</DESC>
-        <type>TEMPLATE</type>
-        <ID>twmage</ID>
-        <stats>
-            <HP>130</HP>, 
-            <MP>10</MP> 
-            <MEL>25</MEL>
-            <MGK>45</MGK>
-            <MDEF>20</MDEF>
-            <FIRE>2</FIRE>
-            <WATER>2</WATER>
-            <r>255</r>
-            <g>255</g>
-            <b>255</b>
-        </stats>
+        <HP>130</HP>, 
+        <MP>10</MP> 
+        <MEL>25</MEL>
+        <MGK>45</MGK>
+        <MDEF>20</MDEF>
+        <FIRE>2</FIRE>
+        <WATER>2</WATER>
+        <r>255</r>
+        <g>255</g>
+        <b>255</b>
         <movelist>
-            <item>heal</item>
-            <item>antidote</item>
-            <item>sacrifice</item>
+            <i>heal</i>
+            <i>antidote</i>
+            <i>sacrifice</i>
         </movelist>
-    </unit>
+        <group>
+            <i>TEMPLATE</i>
+        </group>
+    </twmage>
     <!-- Monsters -->
     
-    <unit>
+    <monster>
         <DESC>Monster main class</DESC>
-        <ID>monster</ID>
-    </unit>
+    </monster>
     
     <!-- Monster Clonables -->
-    <unit>
+    <zombie>
         <DESC>A Hoard of Zombies</DESC>
-        <ID>zombie</ID>
-        <stats>
-            <HP>100</HP>
-            <MP>1</MP>
-            <MEL>30</MEL>
-            <MGK>10</MGK>
-            <MDEF>0</MDEF>
-            <DEF>0</DEF>
-            <FIRE>3</FIRE>
-            <WATER>2</WATER>
-            <r>30</r>
-            <g>255</g>
-            <b>30</b>
-        </stats>
+        <HP>100</HP>
+        <MP>1</MP>
+        <MEL>30</MEL>
+        <MGK>10</MGK>
+        <MDEF>0</MDEF>
+        <DEF>0</DEF>
+        <FIRE>3</FIRE>
+        <WATER>2</WATER>
+        <SPD>1</SPD>
+        <r>30</r>
+        <g>255</g>
+        <b>30</b>
         <movelist>
-            <item>attack</item>
-            <item>spit</item>
+            <i>attack</i>
+            <i>spit</i>
         </movelist>
-        <group>
-            <item>monster</item>
-        </group>
-    </unit>
-    <unit>
+    </zombie>
+    
+    <ghost>
         <DESC>A magical ghost</DESC>
-        <ID>ghost</ID>
-        <stats>
-            <HP>30</HP>
-            <MP>10</MP>
-            <MEL>0</MEL>
-            <MGK>40</MGK>
-            <MDEF>0</MDEF>
-            <DEF>90</DEF>
-            <FIRE>2</FIRE>
-            <WATER>2</WATER>
-            <r>255</r>
-            <g>255</g>
-            <b>255</b>
-        </stats>
+        <HP>30</HP>
+        <MP>10</MP>
+        <MEL>0</MEL>
+        <MGK>40</MGK>
+        <MDEF>0</MDEF>
+        <DEF>90</DEF>
+        <FIRE>2</FIRE>
+        <WATER>2</WATER>
+        <SPD>1</SPD>
+        <r>255</r>
+        <g>255</g>
+        <b>255</b>
         <movelist>
-            <item>magic</item>
-            <item>heal</item>
+            <i>magic</i>
+            <i>heal</i>
         </movelist>
-        <group>
-            <item>monster</item>
-        </group>
-    </unit>
-    <unit>
+    </ghost>
+    
+    <golem>
         <DESC>A Berserking monster</DESC>
-        <ID>golem</ID>
-        <stats>
-            <HP>150</HP>
-            <MP>0</MP>
-            <MEL>35</MEL>
-            <MGK>0</MGK>
-            <MDEF>0</MDEF>
-            <DEF>0</DEF>
-            <FIRE>2</FIRE>
-            <WATER>2</WATER>
-            <r>30</r>
-            <g>30</g>
-            <b>30</b>
-        </stats>
+        <HP>150</HP>
+        <MP>0</MP>
+        <MEL>35</MEL>
+        <MGK>0</MGK>
+        <MDEF>0</MDEF>
+        <DEF>0</DEF>
+        <FIRE>2</FIRE>
+        <WATER>2</WATER>
+        <SPD>1</SPD>
+        <r>30</r>
+        <g>30</g>
+        <b>30</b>
         <movelist>
-            <item>attack</item>
+            <i>attack</i>
         </movelist>
-        <group>
-            <item>monster</item>
-        </group>
-    </unit>
+    </golem>
     
-    <unit>
+    <fire_golem>
         <DESC>A flaming berserking monster</DESC>
-        <ID>fire_golem</ID>
-        <stats>
-            <HP>200</HP>
-            <MP>1000</MP>
-            <MEL>45</MEL>
-            <MGK>0</MGK>
-            <MDEF>0</MDEF>
-            <DEF>30</DEF>
-            <FIRE>2</FIRE>
-            <WATER>4</WATER>
-            <r>255</r>
-            <g>30</g>
-            <b>30</b>
-        </stats>
+        <HP>200</HP>
+        <MP>1000</MP>
+        <MEL>45</MEL>
+        <MGK>0</MGK>
+        <MDEF>0</MDEF>
+        <DEF>30</DEF>
+        <FIRE>2</FIRE>
+        <WATER>4</WATER>
+        <SPD>1</SPD>
+        <r>255</r>
+        <g>30</g>
+        <b>30</b>
         <movelist>
-            <item>attack</item>
-            <item>charge</item>
+            <i>attack</i>
+            <i>charge</i>
         </movelist>
-        <group>
-            <item>monster</item>
-        </group>
-    </unit>
+    </fire_golem>
     
-    <unit>
+    <druid>
         <DESC>A healing Druid</DESC>
-        <ID>druid</ID>
-        <stats>
-            <HP>100</HP>
-            <MP>20</MP>
-            <MEL>40</MEL>
-            <MGK>40</MGK>
-            <MDEF>0</MDEF>
-            <DEF>0</DEF>
-            <FIRE>2</FIRE>
-            <WATER>3</WATER>
-            <r>200</r>
-            <g>200</g>
-            <b>200</b>
-        </stats>
+        <HP>100</HP>
+        <MP>20</MP>
+        <MEL>40</MEL>
+        <MGK>40</MGK>
+        <MDEF>0</MDEF>
+        <DEF>0</DEF>
+        <FIRE>2</FIRE>
+        <WATER>3</WATER>
+        <SPD>1</SPD>
+        <r>200</r>
+        <g>200</g>
+        <b>200</b>
         <movelist>
-            <item>attack</item>
-            <item>magic</item>
-            <item>spit</item>
-            <item>heal</item>
+            <i>attack</i>
+            <i>magic</i>
+            <i>spit</i>
+            <i>heal</i>
         </movelist>
-        <group>
-            <item>monster</item>
-        </group>
-    </unit>
+    </druid>
     
-    <unit>
+    <wisp>
         <DESC>Wisp weak to something</DESC>
-        <ID>wisp</ID>
-        <stats>
-            <HP>100</HP>
-            <MP>20</MP>
-            <MEL>0</MEL>
-            <MGK>60</MGK>
-            <MDEF>50</MDEF>
-            <DEF>70</DEF>
-            <FIRE>0</FIRE>
-            <WATER>8</WATER>
-            <r>255</r>
-            <g>30</g>
-            <b>255</b>
-        </stats>
+        <HP>100</HP>
+        <MP>20</MP>
+        <MEL>0</MEL>
+        <MGK>60</MGK>
+        <MDEF>50</MDEF>
+        <DEF>70</DEF>
+        <FIRE>0</FIRE>
+        <WATER>8</WATER>
+        <SPD>1</SPD>
+        <r>255</r>
+        <g>30</g>
+        <b>255</b>
         <movelist>
-            <item>fire</item>
-            <item>water</item>
+            <i>fire</i>
+            <i>water</i>
         </movelist>
-        <group>
-            <item>monster</item>
-        </group>
-    </unit>
+    </wisp>
     
-    <unit>
+    <Wisp>
         <DESC>Wisp weak to something</DESC>
-        <ID>Wisp</ID>
-        <stats>
-            <HP>100</HP>
-            <MP>20</MP>
-            <MEL>0</MEL>
-            <MGK>60</MGK>
-            <MDEF>50</MDEF>
-            <DEF>70</DEF>
-            <FIRE>8</FIRE>
-            <WATER>0</WATER>
-            <r>255</r>
-            <g>30</g>
-            <b>255</b>
-        </stats>
+        <HP>100</HP>
+        <MP>20</MP>
+        <MEL>0</MEL>
+        <MGK>60</MGK>
+        <MDEF>50</MDEF>
+        <DEF>70</DEF>
+        <FIRE>8</FIRE>
+        <WATER>0</WATER>
+        <SPD>1</SPD>
+        <r>255</r>
+        <g>30</g>
+        <b>255</b>
         <movelist>
-            <item>fire</item>
-            <item>water</item>
+            <i>fire</i>
+            <i>water</i>
         </movelist>
-        <group>
-            <item>monster</item>
-        </group>
-    </unit>
+    </Wisp>
     
-    <unit>
+    <nova>
         <DESC>Super Nova</DESC>
-        <ID>nova</ID>
-        <stats>
-            <HP>200</HP>
-            <MP>10</MP>
-            <MEL>0</MEL>
-            <MGK>0</MGK>
-            <MDEF>0</MDEF>
-            <DEF>0</DEF>
-            <FIRE>2</FIRE>
-            <WATER>2</WATER>
-            <r>255</r>
-            <g>255</g>
-            <b>0</b>
-        </stats>
+        <HP>200</HP>
+        <MP>10</MP>
+        <MEL>0</MEL>
+        <MGK>0</MGK>
+        <MDEF>0</MDEF>
+        <DEF>0</DEF>
+        <FIRE>2</FIRE>
+        <WATER>2</WATER>
+        <SPD>1</SPD>
+        <r>255</r>
+        <g>255</g>
+        <b>0</b>
         <movelist>
-            <item>doomsday</item>
+            <i>doomsday</i>
         </movelist>
-        <group>
-            <item>monster</item>
-        </group>
-    </unit>
+    </nova>
     
-    <unit>
+    <boss>
         <DESC>The Big Boss</DESC>
-        <ID>boss</ID>
-        <stats>
-            <HP>1000</HP>
-            <MP>1000</MP>
-            <DEF>10</DEF>
-            <MDEF>20</MDEF>
-            <MEL>60</MEL>
-            <MGK>60</MGK>
-            <FIRE>2</FIRE>
-            <WATER>2</WATER>
-        </stats>
+        <HP>1000</HP>
+        <MP>1000</MP>
+        <DEF>10</DEF>
+        <MDEF>20</MDEF>
+        <MEL>60</MEL>
+        <MGK>60</MGK>
+        <FIRE>2</FIRE>
+        <WATER>2</WATER>
+        <SPD>2</SPD>
         <status>
-            <item>black</item>
+            <i>black</i>
         </status>
         <movelist>
-            <item>attack</item>
-            <item>charge</item>
-            <item>heal</item>
-            <item>spit</item>
-            <item>water</item>
-            <item>fire</item>
-            <item>barrier</item>
-            <item>barrier</item>
+            <i>attack</i>
+            <i>charge</i>
+            <i>heal</i>
+            <i>spit</i>
+            <i>water</i>
+            <i>fire</i>
+            <i>barrier</i>
+            <i>barrier</i>
         </movelist>
-        <group>
-            <item>monster</item>
-        </group>
         <inventory>
-            <item>red</item>
-            <item>blue</item>
-            <item>white</item>
-            <item>black</item>
-            <item>yellow</item>
+            <i>red</i>
+            <i>blue</i>
+            <i>white</i>
+            <i>black</i>
+            <i>yellow</i>
         </inventory>
-    </unit>
-</units>
+    </boss>
+</entities>
 
 </udebs>
