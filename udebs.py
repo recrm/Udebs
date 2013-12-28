@@ -1126,13 +1126,12 @@ def interpret(string, debug=False):
     def ACTIVATE(list_, i):
         f = "controlMove"
         g = "getListGroup"
+        caster = "caster"
         target = list_[i +1]
         slist_ = list_[i +2]
         group = list_[i +3]
-        
-        if i == 0:
-            caster = "caster" 
-            caster= list_[i-1]
+        if i != 0:
+            caster = list_[i-1]
             list_[i-1] = ""
             
         move = call(g, s(caster), s(slist_), s(group))
@@ -1260,6 +1259,14 @@ def interpret(string, debug=False):
         list_[i] = call(f, s(target), s(slist), s(stat))
         erase(list_, i, (1,2,3))
     
+    def LISTGROUP(list_, i):
+        f = "getListGroup"
+        target = list_[i+1]
+        stat = list_[i+2]
+        group = list_[i+3]
+        list_[i] = call(f, s(target), s(stat), s(group))
+        erase(list_, i, (1,2,3))
+        
     #shortcuts
     
     keyword = {
@@ -1283,6 +1290,7 @@ def interpret(string, debug=False):
         'DICE': DICE,
         "REPLACE": REPLACE,
         'FILL': FILL,
+        'LISTGROUP': LISTGROUP,
     }
     
     def recursive(string, debug=False):

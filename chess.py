@@ -3,7 +3,7 @@ from pygame.locals import *
 
 #initialize pygame and udebs
 pygame.init()
-main_map = udebs.battleStart("chess.xml")
+main_map = udebs.battleStart("xml/chess.xml")
 main_map.controlMove('empty', 'empty', 'init')
 mainClock = pygame.time.Clock()
 

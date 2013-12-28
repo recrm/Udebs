@@ -4,7 +4,7 @@ from pygame.locals import *
 #initialize pygame and udebs
 pygame.mixer.pre_init(44100, -16, 2, 2048)
 pygame.init()
-main_map = udebs.battleStart("zanar2.xml")
+main_map = udebs.battleStart("xml/zanar2.xml")
 main_map.controlMove('empty', 'empty', 'init')
 main_map.controlTime(0)
 mainClock = pygame.time.Clock()
@@ -75,15 +75,15 @@ def main():
         for x in range(8):
             for y in range(8):
                 target = (x,y)
-                targetenv = env.createTarget('hero', target, move) 
+                targetenv = env.createTarget('hero', target, move)
                 if env.testRequire(targetenv) == True:
                     highlighted.append([x,y])
-        return highlighted        
+        return highlighted
     
-    #definitions    
+    #definitions
     tile = pygame.Rect(( 0, 0 ), ( 49, 49 ))
     selection = {'x': 0, 'y': 0, "xmax": 7, "ymax": 7}
-    inport = udebs.battleStart("rpg.xml")
+    inport = udebs.battleStart("xml/rpg.xml")
     active_selection = False
     battle = []
     win = False
@@ -142,7 +142,7 @@ def main():
                 sys.exit()
             
             if event.type == KEYDOWN:
-                arrow_update(event, selection)                              
+                arrow_update(event, selection)
                 
                 #selection target
                 if event.key == K_RETURN:
@@ -168,19 +168,19 @@ def main():
                         boss = True
                     main_map.controlTime(0)
                     main_map.controlTime(1)
-                    highlighted = high_update('travel', main_map)              
+                    highlighted = high_update('travel', main_map)
                  
                 if event.key == K_q:
                     inport = menuScreen(inport)
                     
-        #redraw the Unit board 
+        #redraw the Unit board
         mainSurface.fill((0, 0, 0))
         for x in range(8):
             for y in range(8):
                 tile.topleft = (50*x, 50*y)
                 colour = WHITE
                 if [x,y] in highlighted:
-                    colour = GREEN                
+                    colour = GREEN
                 if x == selection['x'] and y == selection['y']:
                     colour = RED
                 pygame.draw.rect(mainSurface, colour, tile)
@@ -191,10 +191,10 @@ def main():
                     mainSurface.blit(basicFont.render(sprite_symbol, True, sprite_colour, colour), (x*50+10, y*50+10))
         
         drawText("Level " + str(inport.getStat("recruiter", "LVL")), basicFont, 200,450, GREEN, BLACK)
-        pygame.display.update()  
+        pygame.display.update()
         mainClock.tick(60)
 
-def menuScreen(inport):    
+def menuScreen(inport):
     #definitions
     mode = "equip"
     selectBoxMenu = pygame.Rect( 125, 0, 100, 25 )
@@ -209,7 +209,7 @@ def menuScreen(inport):
                 sys.exit()
             
             #key inputs for menu
-            if event.type == KEYDOWN:    
+            if event.type == KEYDOWN:
                 if mode == "equip":
                     arrow_update(event, selection)
                 elif mode == "inventory":
@@ -263,7 +263,7 @@ def menuScreen(inport):
                         mode = "equip"
                         del oldItem, transferItem, transferChar
         
-        #clear and reprint static                        
+        #clear and reprint static
         mainSurface.fill((255, 255, 255))
         char = ["fighter", "wmage", "bmage"][selection['y']]
         chargroup = inport.getListGroup(char, "group", "TEMPLATE")
@@ -290,12 +290,12 @@ def menuScreen(inport):
         drawText("hat", smallFont, 332, 137, BLACK, WHITE)
 
         #print green indicator
-        if mode == "equip":        
+        if mode == "equip":
             selectBoxMenu.centerx = 133*selection['x'] + 199
             selectBoxMenu.centery = 75*selection['y'] + 212
         elif mode == "inventory":
             selectBoxMenu.centerx = 100*selectItem['x'] + 50
-            selectBoxMenu.centery = 50*selectItem['y'] + 425      
+            selectBoxMenu.centery = 50*selectItem['y'] + 425
         pygame.draw.rect(mainSurface, (0,255,0), selectBoxMenu)
         
         #print equipment
@@ -349,7 +349,7 @@ def subBattle(battle_map):
     #initialize selection boxes
     selectBoxMenu = pygame.Rect( 125, 0, 150, 20 )
     selectBoxTarget = pygame.Rect(0, 0, 20, 20)
-    fun = battle_map.getStat  
+    fun = battle_map.getStat
     
     #initialize state variables
     mode = "wait"
@@ -394,14 +394,14 @@ def subBattle(battle_map):
             if activeUnits[unitIndex] in [monster1, monster2, monster3]:
                 #select move to cast
                 caster = activeUnits[unitIndex]
-                moveList = battle_map.getStat(caster, 'movelist')    
+                moveList = battle_map.getStat(caster, 'movelist')
                 moveList_possible = []
                 for entry in moveList:
                     test = battle_map.createTarget(caster, 'empty', entry)
                     if battle_map.testRequire(test):
                         moveList_possible.append(entry)
                 if len(moveList_possible) == 0:
-                    print(activeUnits[unitIndex], "can't attack")  
+                    print(activeUnits[unitIndex], "can't attack")
                 else:
                     mindex = random.randint(0, len(moveList_possible)-1)
                     move = moveList_possible[mindex]
@@ -413,9 +413,9 @@ def subBattle(battle_map):
                     targets_possible = []
                     for unit in targets:
                         user_status = battle_map.getStat(unit, "status")
-                        if "KO" not in user_status: 
+                        if "KO" not in user_status:
                             if'SACRIFICE' not in user_status:
-                                targets_possible.append(unit)            
+                                targets_possible.append(unit)
                 
                     etarget = targets[random.randint(0, len(targets)-1)]
                     if 'DEFEND' in battle_map.getStat('fighter', 'status'):
@@ -544,7 +544,7 @@ def subBattle(battle_map):
                 color[unit] = [int(fun(unit, "r")), int(fun(unit,"g")), int(fun(unit,"b"))]
         
         if "KO" not in battle_map.getStat("fighter", "status"):
-            pygame.draw.rect(mainSurface, color['fighter'], pygame.Rect((50, 250), (10, 10))) 
+            pygame.draw.rect(mainSurface, color['fighter'], pygame.Rect((50, 250), (10, 10)))
         wmage_status = battle_map.getStat("wmage", "status")
         if "KO" not in wmage_status and 'SACRIFICE' not in wmage_status:
             pygame.draw.rect(mainSurface, color['wmage'], pygame.Rect(( 50, 350 ), ( 10, 10 )))

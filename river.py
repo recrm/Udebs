@@ -3,7 +3,7 @@ from pygame.locals import *
 
 #initialize pygame and udebs
 pygame.init()
-field = udebs.battleStart("river.xml")
+field = udebs.battleStart("xml/river.xml")
 field.controlMove('empty', 'empty', 'init')
 
 #definitions

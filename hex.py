@@ -4,7 +4,7 @@ from pygame.locals import *
 #initialize pygame and udebs
 pygame.init()
 mainClock = pygame.time.Clock()
-main_map = udebs.battleStart("hex.xml")
+main_map = udebs.battleStart("xml/hex.xml")
 main_map.controlMove('empty', 'empty', 'init')
 
 #definitions
