@@ -56,39 +56,52 @@ class instance:
         except KeyError:
             raise UndefinedEntityError(string)
     
-    def getTarget(self, target, single=False):
+    def getTarget(self, *targets, multi=False):
         """Returns entity object based on given selector.
         
         target - Any entity selector.
-        single - Boolean, guerenteed to only return one object if true.
+        multi - Boolean, allows lists of targets.
         
         """
-        ttype = type(target)
-        if ttype is entity:
-            return target
-        elif ttype is str:
-            return self.getObject(target)
-        elif ttype is tuple:
-            if len(target) < 3:
-                target = (target[0], target[1], "map")
-            name = self.getMap(target)
-            if name is False:
-                return self.getObject("empty")
-            unit = self.getObject(name)
-            if not unit.immutable:
-                return unit
-            loc_entity = copy.copy(unit)
-            loc_entity.loc = target
-            return loc_entity
-        elif ttype is list:
-            if single:
-                return self.getTarget(target[0], True)
+        value = []
+        for target in targets:
+            ttype = type(target)
+            if ttype is entity:
+                value.append(target)
+                
+            elif ttype is bool:
+                value.append(self.getObject('empty'))
+            
+            elif ttype is str:
+                value.append(self.getObject(target))
+                
+            elif ttype is list:
+                if multi:
+                    value.append(self.getTarget(*target))
+                else:
+                    value.append(self.getTarget(target[0]))
+
+            elif ttype is tuple:
+                if len(target) < 3:
+                    target = (target[0], target[1], "map")
+                name = self.getMap(target)
+                if not name:
+                    raise UndefinedSelectorError(target)
+                    continue
+                unit = self.getObject(name)
+                if not unit.immutable:
+                    value.append(unit)
+                    continue
+                loc_entity = copy.copy(unit)
+                loc_entity.loc = target
+                value.append(loc_entity)
+            
             else:
-                return [self.getTarget(unit, True) for unit in target]
-        elif ttype is bool:
-            return self.getObject('empty')
-        else:
-            raise UndefinedSelectorError(target)
+                raise UndefinedSelectorError(target)
+        
+        if len(value) == 1:
+            return value[0]
+        return value
     
             
     def getStat(self, target, stat, maps=True):
@@ -99,7 +112,7 @@ class instance:
         
         """ 
         #This function is a bottleneck
-        target = self.getTarget(target, True)
+        target = self.getTarget(target)
         
         if stat == 'group':
             return target.group
@@ -193,7 +206,7 @@ class instance:
         
     def getLocation(self, target):
         """Returns location of entity selector."""
-        return self.getTarget(target, True).loc
+        return self.getTarget(target).loc
     
     def getDistance(self, one, two, method):
         """Returns distance between two entity selectors.
@@ -204,9 +217,8 @@ class instance:
         
         """
         #Note: Dictonary switch method doubles this functions run time.
-        
-        one = self.getTarget(one, True).loc
-        two = self.getTarget(two, True).loc
+        one, two = self.getTarget(one, two)
+        one, two = one.loc, two.loc
         
         if False in {one, two}:
             return float("inf")  
@@ -225,89 +237,29 @@ class instance:
         elif method == "pinf":
             return max(abs(one[0] - two[0]), abs(one[1] - two[1]))
         elif method in self.getObject():
-            return self.getFill(one, method, two, True)
+            count = 0
+            for i in pathAdjacent(one, method):
+                if two in i:
+                    return count
+                count +=1
+            else:
+                return float("inf")            
+            
         else:
             print("Unknown distance metric")
             raise TypeError             
-            
-        #starting at center gets all attached nodes that move can cast on.
-    def getFill(self, center, move='empty', target=float("inf"), returnd=False):        
-        """Returns list of locations castable by move and connected to center.
         
-        Note: target and returnd wrapped by getDistance. Internal use only.
-        
-        center - Entity selector (Begining of search.)
-        move - Entity selector (Move to use in testRequire.)
-        target - Entity selector (Stop when selector is reached.)
-        returnd - Boolean (return number of iterations instead of list of locations)
-        
-        """
-        
-        hexmap = self.hex
-        center = self.getTarget(center, True)
-        if isinstance(target, (int, float)):
-            distance = target
-            target = False
-        else:
-            target = self.getTarget(target, True).loc
-            distance = float('inf')
-        
-        if distance == 0 or center.loc == False:
-            return []
-        
-        def adjacent(location):
-            x = location[0]
-            y = location[1]
-            map_ = location[2]
-            yield (x -1, y, map_)
-            yield (x, y +1, map_)
-            yield (x +1, y, map_)
-            yield (x, y -1, map_)
-            if hexmap:
-                yield (x -1, y +1, map_)
-                yield (x +1, y -1, map_)
-            if hexmap == "diag":
-                yield (x +1, y +1, map_)
-                yield (x -1, y -1, map_)
-            return
-            
-        def recursive(check, searched, found, counter):
-            new = set()
-            for node in check:
-                if not self.getMap(node):
-                    continue
-                env = self.createTarget(center, node, move)
-                if self.testRequire(env) == True:
-                    new.add(node)
-                    
-            found.update(new)
-            searched.update(check)
-            counter +=1
-            if len(new) == 0 or counter >= distance or target in found:
-                if returnd:
-                    return counter
-                return found
-            
-            next = set().union(*[adjacent(node) for node in new])
-            next.difference_update(searched)
-            return recursive(next, searched, found, counter)
-        
-        test = recursive(adjacent(center.loc), set(), set(), 0)
-        if isinstance(test, set):
-            test = list(test)
-            random.shuffle(test)
-        return test
-    
     def getGroup(self, group, inc_self=True):
         """Return all objects belonging to group."""
-        group = self.getTarget(group, True).name
+        group = self.getTarget(group)
+        
         
         found = []
         for unit in self.getObject():
-            if group in self.getStat(unit, 'group'):
+            if group.name in self.getStat(unit, 'group'):
                 found.append(unit)
         if not inc_self:
-            found.remove(group)
+            found.remove(group.name)
         return found
         
     #returns combined stat for all elements in a list
@@ -319,7 +271,7 @@ class instance:
         stat - String representing defined stat.
         
         """
-        target = self.getTarget(target, True)
+        target = self.getTarget(target)
         start = self.getStat(target.name, lst)
         
         if stat in self.stats:
@@ -351,8 +303,7 @@ class instance:
         group - Entity selector representing group.
         
         """
-        target = self.getTarget(target, True)
-        group = self.getTarget(group, True)
+        target, group = self.getTarget(target, group)
         start = self.getStat(target, lst)
         for item in start:
             if group.name in self.getStat(item, 'group'):
@@ -431,7 +382,7 @@ class instance:
         increment - integer to change stat by.
         
         """
-        targets = self.getTarget(targets)
+        targets = self.getTarget(targets, multi=True)
         increment = int(increment)
         flag = False
         if increment == 0:
@@ -460,7 +411,7 @@ class instance:
         increment - String to change stat to.
         
         """
-        targets = self.getTarget(targets)   
+        targets = self.getTarget(targets, multi=True)   
         flag = False
         
         for target in targets:
@@ -485,7 +436,7 @@ class instance:
         
         """
         flag = False
-        targets = self.getTarget(targets)
+        targets = self.getTarget(targets, multi=True)
         if isinstance(entry, entity):
             entry = entry.name
         
@@ -524,8 +475,8 @@ class instance:
             
     
     def controlRecruit(self, clone, positions=[None], tick=False):
-        positions=self.getTarget(positions)
-        clone = self.getTarget(clone, True)
+        positions = self.getTarget(positions, multi=True)
+        clone = self.getTarget(clone)
         new_unit = None
         
         if clone.immutable:
@@ -562,8 +513,7 @@ class instance:
             target = caster
             caster = 'empty'
         
-        caster = self.getTarget(caster, True)
-        target = self.getTarget(target, True)    
+        caster, target = self.getTarget(caster, target)
         
         #check if targetLoc is valid
         if not target.loc:
@@ -615,9 +565,8 @@ class instance:
         return True
 
     def controlMove(self, caster, targets , moves):
-        caster = self.getTarget(caster, True)
-        targets = self.getTarget(targets)
-        moves = self.getTarget(moves)
+        caster = self.getTarget(caster)
+        targets, moves = self.getTarget(targets, moves, multi=True)
         flag = False
         
         for target in targets:
@@ -657,18 +606,98 @@ class instance:
 
     
     #---------------------------------------------------
-    #                 Other Functions                  -
+    #                 Pathing Functions                -
     #---------------------------------------------------
-                
-    #Make this similar to getFill, not just empty, arbitrary requires.
     
-    def testBlock(self, start, finish, path ):
+    def adjacent(self, location):
+        x = location[0]
+        y = location[1]
+        map_ = location[2]
+        yield (x -1, y, map_)
+        yield (x, y +1, map_)
+        yield (x +1, y, map_)
+        yield (x, y -1, map_)
+        if self.hex:
+            yield (x -1, y +1, map_)
+            yield (x +1, y -1, map_)
+        if self.hex == "diag":
+            yield (x +1, y +1, map_)
+            yield (x -1, y -1, map_)
+        return
+        
+    def pathAdjacent(center, move="empty"):
+        center, move = self.getTarget(center, move)
+        
+        if not center.loc:
+            yield set()
+            return
+        
+        new = {center.loc}
+        searched = {center.loc}
+        next = set(self.adjacent(center.loc))
+        next.difference_update(searched)
+        
+        while len(new) > 0:
+            yield new
+            new = set()
+            for node in next:        
+                if not self.getMap(node):
+                    continue
+                env = self.createTarget(center, node, move)
+                if self.testRequire(env) == True:
+                    new.add(node)
+            
+            searched.update(next)
+            next = set().union(*[self.adjacent(node) for node in new])
+            next.difference_update(searched)
+      
+    def getFill(self, center, move='empty', distance=float("inf")):        
+        center, move = self.getTarget(center, move)
+        
+        found = []
+        count = 0
+        for i in pathAdjacent(center, move):
+            found.extend(i)
+            if count >= distance:
+                break
+            count +=1
+        random.shuffle(found)
+        return found
+        
+    def testBlock(self, start, finish, move):
+        #I'd really like to incorporate this directly into new testBlock.
+        if move in {"x", "y", "diag"}:
+            return self.testBlockOld(start, finish, move)
+        
+        start, finish, move = self.getTarget(start, finish, move)
+        
+        for i in self.pathAdjacent(start, move):
+            if finish in i:
+                return True
+        return False
+        
+    def pathTowards(self, start, finish, move):
+        start, finish, move = self.getTarget(start, finish, move)
+        
+        end = set()
+        for i in pathAdjacent(start, move):
+            end = i
+        #function not completed.
+        
+        
+        
+        
+    
+    
+    
+        
+    def testBlockOld(self, start, finish, path ):
         check = []
         
         #accepted paths (x, y, diag)
         
-        start = self.getTarget(start, True).loc
-        finish = self.getTarget(finish, True).loc
+        start = self.getTarget(start).loc
+        finish = self.getTarget(finish).loc
  
         if start == False or finish == False:
             return False
@@ -757,9 +786,7 @@ class instance:
     
     def createTarget(self, caster, target, move, add={}):
         
-        caster = self.getTarget(caster, True)
-        target = self.getTarget(target, True)
-        move = self.getTarget(move, True)
+        caster, target, move = self.getTarget(caster, target, move)
         
         environment = {
             "caster": caster,

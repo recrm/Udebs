@@ -220,6 +220,15 @@ class TestInstanceClass(unittest.TestCase):
         with self.assertRaises(udebs.UndefinedEntityError):
             self.env.getObject("error")
             
+    def test_testTarget(self):
+        test = self.env.getObject("unit1")
+        t = self.env.getTarget
+        self.assertEqual(t(test), test)
+        self.assertEqual(t("unit1"), test)
+        self.assertEqual(t((0,0,"two")), test)
+        self.assertEqual(t(["unit1", "unit1"], multi=True), [test, test])
+        self.assertEqual(t((0,0)).loc, (0,0, 'map'))
+    
     def test_getStat(self):
         self.assertEqual(self.env.getStat("unit1", "ACT"), 15)
         self.env.map["one"].insert("move1", (0,0))
@@ -227,15 +236,6 @@ class TestInstanceClass(unittest.TestCase):
         self.assertEqual(len(self.env.getStat("unit1", "equipment")), 3)
         with self.assertRaises(udebs.UndefinedStatError):
             self.env.getStat('unit1', "Not Defined")
-            
-    def test_testTarget(self):
-        test = self.env.getObject("unit1")
-        t = self.env.getTarget
-        self.assertEqual(t(test), test)
-        self.assertEqual(t("unit1"), test)
-        self.assertEqual(t((0,0,"two")), test)
-        self.assertEqual(t(["unit1"]), [test])
-        self.assertEqual(t((0,0)).loc, (0,0, 'map'))
        
     def test_controlTravel(self):
         self.env.controlTravel("unit1", (0,0, "one"))
