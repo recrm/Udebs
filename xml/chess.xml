@@ -1,422 +1,439 @@
 <udebs>
 
+<config>
+    <revert>100</revert>
+    <hex>diag</hex>
+</config>
+
 <definitions>
     <lists>
-        <colour />
         <status />
         <movelist />
     </lists>
     <stats>
         <ACT />
-        <SPD />
         <FLP />
     </stats>
     <strings>
+        <colour />
         <sprite />
     </strings>
 </definitions>
 
-<map>
-    <dim>
-        <x>8</x>
-        <y>8</y>
-    </dim>
-</map>
+<maps>
+    <board>
+        <dim>
+            <x>10</x>
+            <y>10</y>
+        </dim>
+    </board>
+    <map>
+        <dim>
+            <x>8</x>
+            <y>8</y>
+        </dim>
+    </map>
+</maps>
 
 <entities>
     
-    <!-- fill -->
+    <!-- tiles -->
+    <topleft immutable="">
+        <sprite>TL</sprite>
+    </topleft>
+    <topright immutable="">
+        <sprite>TR</sprite>
+    </topright>
+    <bottomleft immutable="">
+        <sprite>BL</sprite>
+    </bottomleft>
+    <bottomright immutable="">
+        <sprite>BR</sprite>
+    </bottomright>
+    <top immutable="">
+        <sprite>T</sprite>
+    </top>
+    <bottom immutable="">
+        <sprite>B</sprite>
+    </bottom>
+    <left immutable="">
+        <sprite>L</sprite>
+    </left>
+    <right immutable="">
+        <sprite>R</sprite>
+    </right>
+    <white_square immutable="">
+        <sprite>white</sprite>
+    </white_square>
+    <black_square immutable="">
+        <sprite>black</sprite>
+    </black_square>
     
-    <fill_pawn>
-        <require>
-            <item>DISTANCE 'y' == 0</item>
-        </require>
-    </fill_pawn>
+    <!-- fill -->
+    <fill_horizontal>
+        <require>DISTANCE 'y' == 0</require>
+    </fill_horizontal>
+    
+    <fill_vertical>
+        <require>DISTANCE 'x' == 0</require>
+    </fill_vertical>
+    
+    <fill_diag>
+        <require>(target.x + target.y) % 2 == 0</require>
+    </fill_diag>
+    
+    <diagonal>
+        <require>DISTANCE x == DISTANCE y</require>
+    </diagonal>
     
     <nonempty>
-        <require>
-            <item>target.name != 'empty'</item>
-        </require>
+        <require>target.name != 'empty'</require>
     </nonempty>
     
-    <!-- scripts -->
+    <isempty>
+        <require>target.name == 'empty'</require>
+    </isempty>
     
+    <blockx>
+        <require>
+            <i>target.name == 'empty'</i>
+            <i>DISTANCE x * DISTANCE y == 0</i>
+        </require>
+    </blockx>
+    
+    <blockdiag>
+        <require>
+            <i>target.name == 'empty'</i>
+            <i>DISTANCE x == DISTANCE y</i>
+        </require>
+    </blockdiag>
+    
+    
+    <!-- init -->
     <init>
         <effect>
-            <item>'black' CAST 'empty' 'brecruit'</item>
-            <item>'white' CAST 'empty' 'wrecruit'</item>
+            <i>CAST empty boardrecruit</i>
+            <i>CAST empty brecruit</i>
+            <i>CAST empty wrecruit</i>
         </effect>
     </init>
-
+    
+    <boardrecruit>
+        <effect>
+            <i>MOVE black_square (FILL (4,4,"board") isempty)</i>
+            <i>MOVE white_square (FILL (4,4,"board") fill_diag)</i>
+            <i>MOVE top (FILL (0,0,"board") fill_horizontal)</i>
+            <i>MOVE bottom (FILL (9,9,"board") fill_horizontal)</i>
+            <i>MOVE left (FILL (0,0,"board") fill_vertical)</i>
+            <i>MOVE right (FILL (9,9,"board") fill_vertical)</i>
+            <i>MOVE topleft (0,0,"board")</i>
+            <i>MOVE topright (9,0,"board")</i>
+            <i>MOVE bottomleft (0,9,"board")</i>
+            <i>MOVE bottomright (9,9,"board")</i>
+        </effect>
+    </boardrecruit>
+    
     <brecruit>
         <effect>
-            <item>RECRUIT 'pawn' (FILL (0,1) 'fill_pawn')</item>
-            <item>RECRUIT 'rook' (0,0)</item>
-            <item>RECRUIT 'rook' (7,0)</item>
-            <item>RECRUIT 'knight' (1,0)</item>
-            <item>RECRUIT 'knight' (6,0)</item>
-            <item>RECRUIT 'bishop' (2,0)</item>
-            <item>RECRUIT 'bishop' (5,0)</item>
-            <item>RECRUIT 'king' (3,0)</item>
-            <item>RECRUIT 'queen' (4,0)</item>
-            <item>GETS (FILL (0,1) 'nonempty') 'group' 'black'</item>
+            <i>RECRUIT pawn (FILL (0,1) fill_horizontal)</i>
+            <i>RECRUIT rook (0,0)</i>
+            <i>RECRUIT rook (7,0)</i>
+            <i>RECRUIT knight (1,0)</i>
+            <i>RECRUIT knight (6,0)</i>
+            <i>RECRUIT bishop (2,0)</i>
+            <i>RECRUIT bishop (5,0)</i>
+            <i>RECRUIT king (4,0)</i>
+            <i>RECRUIT queen (3,0)</i>
+            <i>GETS (FILL (0,1) nonempty) group black</i>
         </effect>
     </brecruit>
     
     <wrecruit>
         <effect>
-            <item>RECRUIT 'pawn' (FILL (0,6) 'fill_pawn')</item>
-            <item>RECRUIT 'rook' (0,7)</item>
-            <item>RECRUIT 'rook' (7,7)</item>
-            <item>RECRUIT 'knight' (1,7)</item>
-            <item>RECRUIT 'knight' (6,7)</item>
-            <item>RECRUIT 'bishop' (2,7)</item>
-            <item>RECRUIT 'bishop' (5,7)</item>
-            <item>RECRUIT 'king' (3,7)</item>
-            <item>RECRUIT 'queen' (4,7)</item>
-            <item>GETS (FILL (0,6) 'nonempty') 'group' 'white'</item>
+            <i>RECRUIT pawn (FILL (0,6) fill_horizontal)</i>
+            <i>RECRUIT rook (0,7)</i>
+            <i>RECRUIT rook (7,7)</i>
+            <i>RECRUIT knight (1,7)</i>
+            <i>RECRUIT knight (6,7)</i>
+            <i>RECRUIT bishop (2,7)</i>
+            <i>RECRUIT bishop (5,7)</i>
+            <i>RECRUIT king (4,7)</i>
+            <i>RECRUIT queen (3,7)</i>
+            <i>GETS (FILL (0,6) nonempty) group white</i>
         </effect>
     </wrecruit>
+
     
-    <!-- commented out items force players to take turns. -->
-    <tick>
-       <!-- 
-       <require>
-            <item>'tick' in STAT group target</item>
-        </require>
-        <effect>
-            <item>CHANGE ACT (STAT SPD target) target</item>
-        </effect> -->
-    </tick>
-    
-    <!-- statuses effects -->
-    
+    <!-- statuses groups-->
     <status_group>
-        <require>
-            <item>move.name not in STAT target 'status'</item>
-        </require>
-        <effect>
-            <item>GETS target 'status' move.name</item>
-        </effect>
+        <require>move.name not in STAT target status</require>
+        <effect>GETS target status move.name</effect>
     </status_group>
     
+    <!-- statuses -->
     <moved_once>
-        <group>
-            <item>status_group</item>
-        </group>
+        <group>status_group</group>
     </moved_once>
     
-    <passant_danger>
-        <effect>
-            <item>DELAY (CAST target 'passant_remove') 2</item>
-        </effect>
-        <group>
-            <item>status_group</item>
-        </group>
-    </passant_danger>
-    
-    <promoted>
-        <group>
-            <item>status_group</item>
-        </group>
-    </promoted>
-    
-    <captured>
-        <require>
-            <item>target.name != 'empty'</item>
-        </require>
-        <group>
-            <item>status_group</item>
-        </group>
-    </captured>
-    
-    <!-- chain casts -->
-    
     <promote>
-        <require>
-            <item>caster.loc[1] in [0,7]</item>
-        </require>
+        <require>caster.y in [0,7]</require>
         <effect>
-            <item>new = RECRUIT 'queen' caster</item>
-            <item>GETS var.new 'group' (CLASS caster 'tick')</item>
-            <item>GETS caster 'status' 'promoted'</item>
+            <i>new = RECRUIT queen caster</i>
+            <i>GETS var.new group (CLASS caster tick)</i>
         </effect>
+        <group>status_group</group>
     </promote>
     
-    <passant_remove>
-        <effect>
-            <item>LOSES target status passant_danger</item>
-        </effect>
-    </passant_remove>
+    <passant_danger>
+        <effect>DELAY (LOSES target status passant_danger) 2</effect>
+        <group>status_group</group>
+    </passant_danger>
+    
+    <captured>
+        <require>target.name != 'empty'</require>
+        <group>status_group</group>
+    </captured>
     
     <!-- moves groups -->
 
     <time>
-        <!--<require>
-            <item>STAT C ACT &gt;= 2</item>
-        </require>
-        <effect>
-            <item>CHANGE (CLASS C tick) ACT -(STAT C ACT)</item>
-        </effect>-->
-    </time>
-        
-    <player_move>
         <require>
-            <item>CLASS caster 'tick' not in STAT target 'group'</item>
+            <i>STAT C ACT &gt;= 2</i>
+            <i>FUTURE (check((FILTER kings (CLASS caster tick)), (CLASS caster tick), self))</i>
         </require>
         <effect>
-            <item>CAST caster 'moved_once'</item>
-            <item>CAST target 'captured'</item>
+            <i>CHANGE (CLASS C tick) ACT -(STAT C ACT)</i>
+            <i>CAST caster moved_once</i>
         </effect>
-    </player_move>
+    </time>
+    
+    <normal>
+        <require>
+            <i>CLASS caster tick not in STAT target group</i>
+        </require>
+        <effect>
+            <i>TRAVEL target</i>
+            <i>CAST target captured</i>
+        </effect>
+    </normal>
 
     <pawn_move>
-        <require>
-            <item>(target.loc[1] * STAT C 'FLP') &lt; (caster.loc[1] * STAT C 'FLP')</item>
-        </require>
-        <effect>
-            <item>TRAVEL target</item>
-            <item>CAST caster 'promote'</item>
-        </effect>
+        <require>(target.y * STAT C FLP) &lt; (caster.y * STAT C FLP)</require>
+        <effect>CAST caster promote</effect>
     </pawn_move>
     
     <king_castle>
         <require>
-            <item>CLASS caster 'tick' in STAT target 'group'</item>
-            <item>'rook' in target.name</item>
-            <item>'moved_once' not in STAT caster 'status'</item>
-            <item>'moved_once' not in STAT target 'status'</item>
-            <item>BLOCK 'x'</item>
+            <i>CLASS caster tick in STAT target group</i>
+            <i>'moved_once' not in STAT caster status</i>
+            <i>'moved_once' not in STAT target status</i>
+            <i>BLOCK blockx</i>
+            <i>check(caster.name, (CLASS caster tick), self)</i> 
         </require>
-        <effect>
-            <item>CAST caster 'moved_once'</item>
-            <item>CAST target 'moved_once'</item>
-        </effect>
+        <effect>CAST target moved_once</effect>
     </king_castle>
     
     <!-- moves -->
 
     <pawn_travel>
         <require>
-            <item>DISTANCE 'y' == 1</item>
-            <item>DISTANCE 'x' == 0</item>
-            <item>target.name == 'empty'</item>            
+            <i>DISTANCE 'y' == 1</i>
+            <i>DISTANCE 'x' == 0</i>
+            <i>target.name == 'empty'</i>            
         </require>
         <group>
-            <item>player_move</item>
-            <item>time</item>
-            <item>pawn_move</item>
+            <i>normal</i>
+            <i>pawn_move</i>
+            <i>time</i>
         </group>
     </pawn_travel>
 
     <pawn_double>
         <require>
-            <item>'moved_once' not in STAT caster 'status'</item>
-            <item>DISTANCE 'x' == 0</item>
-            <item>DISTANCE 'y' == 2</item>
-            <item>target.name == 'empty'</item>
-            <item>BLOCK 'y'</item>
+            <i>'moved_once' not in STAT caster 'status'</i>
+            <i>DISTANCE 'x' == 0</i>
+            <i>DISTANCE 'y' == 2</i>
+            <i>target.name == 'empty'</i>
+            <i>BLOCK blockx</i>
         </require>
-        <effect>
-            <item>CAST caster 'passant_danger'</item>
-        </effect>
+        <effect>CAST caster 'passant_danger'</effect>
         <group>
-            <item>player_move</item>
-            <item>pawn_move</item>
-            <item>time</item>
+            <i>normal</i>
+            <i>pawn_move</i>
+            <i>time</i>
         </group>
     </pawn_double>
     
     <pawn_capture>
         <require>
-            <item>DISTANCE 'pinf' == 1</item>
-            <item>DISTANCE 'x' == DISTANCE 'y'</item>
-            <item>target.name != 'empty'</item>
+            <i>DISTANCE x == DISTANCE y == 1</i>
+            <i>target.name != 'empty'</i>
         </require>
         <group>
-            <item>player_move</item>
-            <item>pawn_move</item>
-            <item>time</item>
+            <i>normal</i>
+            <i>pawn_move</i>
+            <i>time</i>
         </group>
     </pawn_capture>
 
     <pawn_passant>
         <require>
-            <item>'passant_danger' in STAT target 'status'</item>
-            <item>DISTANCE 'x' == 1</item>
-            <item>DISTANCE 'y' == 0</item>
+            <i>CLASS caster tick not in STAT target group</i>
+            <i>'passant_danger' in STAT target status</i>
+            <i>DISTANCE x == 1</i>
+            <i>DISTANCE y == 0</i>
         </require>
         <effect>
-            <item>TRAVEL (target.loc[0], caster.loc[1] - STAT C 'FLP')</item>
-            <item>target TRAVEL bump</item>
+            <i>TRAVEL (target.x, caster.y - STAT C FLP)</i>
+            <i>target TRAVEL bump</i>
+            <i>CAST target captured</i>
         </effect>
         <group>
-            <item>player_move</item>
-            <item>time</item>
+            <i>time</i>
         </group>
     </pawn_passant>
     
-    <king_qcastle>
-        <require>
-            <item>target.loc[0] &gt; caster.loc[0]</item>
-        </require>
-        <effect>
-            <item>TRAVEL (caster.loc[0] +2, caster.loc[1])</item>
-            <item>target TRAVEL (target.loc[0] -3, caster.loc[1])</item>
-        </effect>
-        <group>
-            <item>king_castle</item>
-            <item>time</item>
-        </group>
-    </king_qcastle>
-    
-    <king_kcastle>
-        <require>
-            <item>target.loc[0] &lt; caster.loc[0]</item>
-        </require>
-        <effect>
-            <item>TRAVEL (caster.loc[0] - 2, caster.loc[1])</item>
-            <item>target TRAVEL (target.loc[0] +2, caster.loc[1])</item>
-        </effect>
-        <group>
-            <item>king_castle</item>
-            <item>time</item>
-        </group>
-    </king_kcastle>
-    
     <rook_travel>
         <require>
-            <item>(DISTANCE 'p1' == DISTANCE 'x') or (DISTANCE 'p1' == DISTANCE 'y')</item>
-            <item>BLOCK 'x'</item>
+            <i>DISTANCE x * DISTANCE y == 0</i>
+            <i>BLOCK blockx</i>
         </require>
-        <effect>
-            <item>TRAVEL target</item>
-        </effect>
         <group>
-            <item>player_move</item>
-            <item>time</item>
+            <i>normal</i>
+            <i>time</i>
         </group>
     </rook_travel>
     
-    <bishop_travel>
-        <require>
-            <item>DISTANCE 'pinf' == DISTANCE 'x'</item>
-            <item>DISTANCE 'pinf' == DISTANCE 'y'</item>
-            <item>BLOCK 'diag'</item>
-        </require>
-        <effect>
-            <item>TRAVEL target</item>
-        </effect>
-        <group>
-            <item>player_move</item>
-            <item>time</item>
-        </group>
-    </bishop_travel>
-    
     <knight_travel>
-        <require>
-            <item>DISTANCE 'x' == 2 and DISTANCE 'y' == 1 or DISTANCE 'x' == 1 and DISTANCE 'y' == 2</item>
+        <require>D
+            <i>DISTANCE p1 == 3</i>
+            <i>DISTANCE x > 0</i>
+            <i>DISTANCE y > 0</i>
         </require>
-        <effect>
-            <item>TRAVEL target</item>
-        </effect>
         <group>
-            <item>player_move</item>
-            <item>time</item>
+            <i>normal</i>
+            <i>time</i>
         </group>
     </knight_travel>
     
-    <king_travel>
+    <bishop_travel>
         <require>
-            <item>DISTANCE 'pinf' == 1</item>
+            <i>DISTANCE y == DISTANCE x</i>
+            <i>BLOCK blockdiag</i>
         </require>
-        <effect>
-            <item>TRAVEL target</item>
-        </effect>
         <group>
-            <item>player_move</item>
-            <item>time</item>
+            <i>normal</i>
+            <i>time</i>
+        </group>
+    </bishop_travel>
+    
+    <king_travel>
+        <require>DISTANCE 'pinf' == 1</require>
+        <group>
+            <i>normal</i>
+            <i>time</i>
         </group>
     </king_travel>
     
-    <!-- units -->
+    <king_kcastle>
+        <require>
+            <i>'rook' in target.name</i>
+            <i>target.x &gt; caster.x</i>
+            <i>check((caster.x+1, caster.y), (CLASS caster tick), self)</i>
+        </require>
+        <effect>
+            <i>caster TRAVEL (caster.x +2, caster.y)</i>
+            <i>target TRAVEL (target.x -2, caster.y)</i>
+        </effect>
+        <group>
+            <i>king_castle</i>
+            <i>time</i>
+        </group>
+    </king_kcastle>
+    
+    <king_qcastle>
+        <require>
+            <i>'rook' in target.name</i>
+            <i>target.x &lt; caster.x</i>
+            <i>check((caster.x-1, caster.y), (CLASS caster tick), self)</i>
+        </require>
+        <effect>
+            <i>TRAVEL (caster.x - 2, caster.y)</i>
+            <i>target TRAVEL (target.x +3, caster.y)</i>
+        </effect>
+        <group>
+            <i>king_castle</i>
+            <i>time</i>
+        </group>
+    </king_qcastle>
+    
+    <!-- unit groups -->
 
+    <tick>
+        <effect>CHANGE (ALL tick) ACT 1</effect>
+    </tick>
+    
+    <kings />
+    
+    <!-- units -->
+    
     <pawn>
         <movelist>
-            <item>pawn_travel</item>
-            <item>pawn_double</item>
-            <item>pawn_capture</item>
-            <item>pawn_passant</item>
+            <i>pawn_travel</i>
+            <i>pawn_double</i>
+            <i>pawn_capture</i>
+            <i>pawn_passant</i>
         </movelist>
         <sprite>P</sprite>
     </pawn>
     
-    <bishop>
-        <movelist>
-            <item>bishop_travel</item>
-        </movelist>
-        <sprite>B</sprite>
-    </bishop>
-    
     <rook>
-        <movelist>
-            <item>rook_travel</item>
-        </movelist>
+        <movelist>rook_travel</movelist>
         <sprite>R</sprite>
     </rook>
     
+    <knight>
+        <movelist>knight_travel</movelist>
+        <sprite>N</sprite>
+    </knight>
+    
+    <bishop>
+        <movelist>bishop_travel</movelist>
+        <sprite>B</sprite>
+    </bishop>
+    
     <queen>
         <movelist>
-            <item>bishop_travel</item>
-            <item>rook_travel</item>
+            <i>bishop_travel</i>
+            <i>rook_travel</i>
         </movelist>
         <sprite>Q</sprite>
     </queen>
     
     <king>
         <movelist>
-            <item>king_kcastle</item>
-            <item>king_qcastle</item>
-            <item>king_travel</item>
+            <i>king_kcastle</i>
+            <i>king_qcastle</i>
+            <i>king_travel</i>
         </movelist>
         <sprite>K</sprite>
+        <group>kings</group>
     </king>
     
-    <knight>
-        <movelist>
-            <item>knight_travel</item>
-        </movelist>
-        <sprite>N</sprite>
-    </knight>
-
     <!-- Tick -->
-    <tick />>
+    
     <black>
         <ACT>1</ACT>
-        <SPD>1</SPD>
         <FLP>-1</FLP>
-        <colour>
-            <item>3</item>
-            <item>100</item>
-            <item>3</item>
-        </colour>
-        <group>
-            <item>tick</item>
-        </group>
+        <colour>B</colour>
+        <group>tick</group>
     </black>
     
     <white>
         <ACT>2</ACT>
-        <SPD>1</SPD>
         <FLP>1</FLP>
-        <colour>
-            <item>100</item>
-            <item>3</item>
-            <item>100</item>
-        </colour>
-        <group>
-            <item>tick</item>
-        </group>
+        <colour>W</colour>
+        <group>tick</group>
     </white>
 </entities>
 

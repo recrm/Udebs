@@ -1,4 +1,9 @@
-import pygame, sys, udebs, random, math
+import pygame
+import sys
+import udebs
+import random
+import math
+import static
 from pygame.locals import *
 
 #initialize pygame and udebs
@@ -27,8 +32,12 @@ def createHex(center, length):
 
 #variables
 selection = {'x': 0, 'y': 0}
-highlighted = main_map.getFill('token1', 'suptravel', main_map.getStat('token', 'ACT'))
-
+highlighted = main_map.getFill(
+    'token1', 
+    'suptravel', 
+    main_map.getStat('token', 'ACT')
+)
+print(highlighted)
 #game loop
 while True:
   
@@ -40,8 +49,16 @@ while True:
         if event.type == KEYDOWN:
         
             if event.key == K_RETURN:
-                main_map.controlMove('token1', (selection['x'], selection['y']), 'travel')
-                highlighted = main_map.getFill('token1', 'suptravel', main_map.getStat('token', 'ACT'))
+                main_map.controlMove(
+                    'token1', 
+                    (selection['x'], selection['y']), 
+                    'travel'
+                )
+                highlighted = main_map.getFill(
+                    'token1', 
+                    'suptravel', 
+                    main_map.getStat('token', 'ACT')
+                )
  
         
         #selection right/left
@@ -73,7 +90,7 @@ while True:
         for x in range(8):                      
             
             colour = WHITE
-            if (x,y) in highlighted:
+            if (x,y, 'map') in highlighted:
                 colour = GREEN
             if selection == {'x': x, 'y': y}:
                 colour = RED

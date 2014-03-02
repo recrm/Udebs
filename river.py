@@ -42,8 +42,8 @@ while True:
     #redraw the board
     surface.fill((0,0,0))
     i = 0    
-    for y in range(len(field.map)):
-        for x in range(len(field.map[0])):                      
+    for y in range(field.getMap().y()):
+        for x in range(field.getMap().x()):                      
             colour = colours[field.getStat((x,y), 'colour')]
             pygame.draw.polygon(surface, colour, createHex((x*35+30 + i,y*30 + 30), 20), 0)
             pygame.draw.polygon(surface, (0,0,0), createHex((x*35+30 + i,y*30 + 30), 20), 1)
