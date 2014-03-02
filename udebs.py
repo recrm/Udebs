@@ -20,6 +20,7 @@ class instance:
         self.hex = False
         self.name = 'Unknown'
         self.logging = True
+        self.revert = 1
         
         #definitions
         self.lists = {'group', 'effect', 'require'}
@@ -34,14 +35,25 @@ class instance:
         self.delay = []
         self.map = {}
         self.log = []
+        self.state = []
         
         #needs to be adjusted manually.
         self.variables = {}
         
         #internal use only.
         self.data = {}
-               
+        
         super(instance, self).__init__(*args, **kwargs)
+        
+    def __copy__(self):
+        new = instance()
+        new.__dict__.update(self.__dict__)
+        new.delay = copy.deepcopy(self.delay)
+        new.map = copy.deepcopy(self.map)
+        new.data = copy.deepcopy(self.data)
+        new.state = None
+        
+        return new
         
     #---------------------------------------------------
     #                 Get Functions                    -
@@ -73,7 +85,10 @@ class instance:
                 value.append(self.getObject('empty'))
             
             elif ttype is str:
-                value.append(self.getObject(target))
+                if target == "bump":
+                    value.append(self.getObject('empty'))
+                else:
+                    value.append(self.getObject(target))
                 
             elif ttype is list:
                 if multi:
@@ -94,6 +109,8 @@ class instance:
                     continue
                 loc_entity = copy.copy(unit)
                 loc_entity.loc = target
+                loc_entity.x = target[0]
+                loc_entity.y = target[1]
                 value.append(loc_entity)
             
             else:
@@ -103,7 +120,7 @@ class instance:
             return value[0]
         return value
     
-            
+    
     def getStat(self, target, stat, maps=True):
         """Returns stat of entity object plus linked group objects.
         
@@ -137,7 +154,7 @@ class instance:
                     if map_ != current:
                         unit = self.getMap(map_).get(target.loc)
                         yield self.getObject(unit)
-                    
+        
         if stat in self.strings:
             for item in itertools.chain(classes(target), rlist(target)):
                 base = getattr(item, stat)
@@ -160,7 +177,7 @@ class instance:
                 for item in rmap(target):
                     count +=self.getStat(item, stat, False)
             return count
-            
+        
         elif stat in self.lists:    
             lst = []
             for item in classes(target):
@@ -173,40 +190,6 @@ class instance:
             return lst
         else:
             raise UndefinedStatError(stat)
-    
-    def getLog(self):
-        """Returns list of log entries made since last call."""
-        test = copy.deepcopy(self.log)
-        self.controlLog(clear=True)
-        return test
-        
-    def getMap(self, target="map"):
-        """Returns first location for string in env.map."""
-        ttype = type(target)
-        if ttype is board:
-            return target
-        elif ttype is str:
-            try:
-                return self.map[target]
-            except:
-                raise UndefinedSelectorError(target)
-        
-        #down here kept for compatability reasons.
-        elif ttype is tuple:
-            try:
-                map_ = target[2]
-            except:
-                map_ = "map"
-            return self.getMap(map_).get(target)
-            
-        elif ttype is False:
-            return False
-        else:
-            raise UndefinedSelectorError(target)
-        
-    def getLocation(self, target):
-        """Returns location of entity selector."""
-        return self.getTarget(target).loc
     
     def getDistance(self, one, two, method):
         """Returns distance between two entity selectors.
@@ -238,7 +221,7 @@ class instance:
             return max(abs(one[0] - two[0]), abs(one[1] - two[1]))
         elif method in self.getObject():
             count = 0
-            for i in pathAdjacent(one, method):
+            for i in self.pathAdjacent(one, method):
                 if two in i:
                     return count
                 count +=1
@@ -248,11 +231,55 @@ class instance:
         else:
             print("Unknown distance metric")
             raise TypeError             
+    
+    def getLog(self):
+        """Returns list of log entries made since last call."""
+        test = copy.copy(self.log)
+        self.controlLog(clear=True)
+        return test
         
-    def getGroup(self, group, inc_self=True):
+    def getMap(self, target="map"):
+        """Returns first location for string in env.map."""
+        ttype = type(target)
+        if ttype is board:
+            return target
+        elif ttype is str:
+            try:
+                return self.map[target]
+            except:
+                raise UndefinedSelectorError(target)
+        
+        #down here kept for compatability reasons.
+        elif ttype is tuple:
+            try:
+                map_ = target[2]
+            except:
+                map_ = "map"
+            return self.getMap(map_).get(target)
+            
+        elif ttype is False:
+            return False
+        else:
+            raise UndefinedSelectorError(target)
+        
+    def getLocation(self, target):
+        """Returns location of entity selector."""
+        return self.getTarget(target).loc
+    
+    def getRevert(self, value=0):
+        storage = self.state
+        index = -(value +1)
+        try:
+            new = copy.copy(self.state[index])
+        except IndexError:
+            return False
+        new.state = self.state[:index+1]
+        return new
+    
+    
+    def getGroup(self, group, inc_self=False):
         """Return all objects belonging to group."""
         group = self.getTarget(group)
-        
         
         found = []
         for unit in self.getObject():
@@ -261,7 +288,7 @@ class instance:
         if not inc_self:
             found.remove(group.name)
         return found
-        
+    
     #returns combined stat for all elements in a list
     def getListStat(self, target, lst, stat):
         """Returns combination of all stats for objects in a units list.
@@ -279,7 +306,7 @@ class instance:
             for element in start:
                 inc = self.getStat(element, stat)
                 total +=inc
-            return total        
+            return total
         
         elif stat in self.lists:
             found = []
@@ -294,7 +321,7 @@ class instance:
         else:
             raise UndefinedStatError(stat)
         
-    #returns first element in list contained in group    
+    #returns first element in list contained in group
     def getListGroup(self, target, lst, group):
         """Returns first element in list that is a member of group.
         
@@ -309,7 +336,32 @@ class instance:
             if group.name in self.getStat(item, 'group'):
                 return item
         return False
-
+    
+    def getSearch(self, *args):
+        """Returns a list of objects contained in all groups.
+        *args - lists of groups.
+        ind - bool, only return first result if true."""
+        foundIter = iter(args)
+        first = foundIter.__next__()
+        found = set(self.getGroup(first))
+        for arg in args:
+            found = found.intersection(self.getGroup(arg))
+        return list(found)
+        
+    def getFill(self, center, move='empty', distance=float("inf")):        
+        center, move = self.getTarget(center, move)
+        
+        found = []
+        count = 0
+        for i in self.pathAdjacent(center, move):
+            found.extend(i)
+            if count >= distance:
+                break
+            count +=1
+        random.shuffle(found)
+        return found
+           
+        
     #---------------------------------------------------
     #               Control Functions                  -
     #---------------------------------------------------
@@ -333,6 +385,7 @@ class instance:
                         self.controlEffect(env, delay['STRING'])
                         self.delay.remove(delay)
                 if check:
+                    self.controlRevert()
                     self.controlLog()
                     return
         
@@ -353,6 +406,13 @@ class instance:
         if self.django:
             self.save()
         return True
+    
+    def controlRevert(self):
+        if self.revert > 1 and self.state:
+            clone = copy.copy(self) 
+            self.state.append(clone)
+            if len(self.state) > self.revert:
+                self.state = self.state[1:]
 
     def controlLog(self, *args, clear=False):
         """Adds entry to log.
@@ -373,7 +433,7 @@ class instance:
         self.log.append(log)
         print(log)
         return True
-
+    
     def controlStat(self, targets, stat, increment ):
         """Changes stored stat of target by increment.
         
@@ -402,7 +462,7 @@ class instance:
             flag = True
         
         return flag
-
+    
     def controlString(self, targets, strg, new):
         """Changes stored stat of target by increment.
         
@@ -411,7 +471,7 @@ class instance:
         increment - String to change stat to.
         
         """
-        targets = self.getTarget(targets, multi=True)   
+        targets = self.getTarget(targets, multi=True)
         flag = False
         
         for target in targets:
@@ -461,7 +521,7 @@ class instance:
 
                 env = self.createTarget('empty', target, entry)
                 check = self.testRequire(env)
-                if check != True:  
+                if check != True:
                     self.controlLog("Can't special add", entry, "to", lst, "because", check)
                     continue
                     
@@ -485,7 +545,7 @@ class instance:
         
         for position in positions:
            
-            new_unit = copy.deepcopy(clone)
+            new_unit = copy.copy(clone)
             if self.django:
                 new_unit.id = None
             
@@ -499,60 +559,54 @@ class instance:
             
             #add object to env
             new_unit.record(self)
-            self.controlLog(new_unit.name, "has been recruited")       
+            self.controlLog(new_unit.name, "has been recruited")
             
             #travel object to location
             if position is not None:
                 self.controlTravel(new_unit, position)
-                
+        
         return new_unit
+    
+    def controlTravel(self, caster, targets=False):
+        
+        caster = self.getTarget(caster)
+        targets = self.getTarget(targets, multi=True)
+        
+        for target in targets:
+
+            #check if targetLoc is valid
+            map_caster = self.getMap(caster.loc[2]) if caster.loc else False
+            map_target = self.getMap(target.loc[2]) if target.loc else False
             
-    def controlTravel(self, caster, target=False):    
-        
-        if not target or target == 'bump':
-            target = caster
-            caster = 'empty'
-        
-        caster, target = self.getTarget(caster, target)
-        
-        #check if targetLoc is valid
-        if not target.loc:
-            self.controlLog("Warning", caster.name, "trying to move off the stage.")
-            return False
-        mtarget = self.getMap(target.loc[2])    
-        
-        if caster.loc:    
-            mcaster = self.getMap(caster.loc[2])
-        else:
-            mcaster = False
-        
-        #move caster
-        if caster.loc:
-            mcaster.insert("empty", caster.loc)
-        mtarget.insert(caster.name, target.loc)
-        
-        target.update(self)
-        caster.update(self)
-   
-        #control Logs
-        if caster.name != 'empty':
-            self.controlLog(
-                caster.name, 
-                "has moved to", 
-                caster.loc
-            )
-            if self.django:
-                caster.save()
-        if not target.immutable: 
-            if target.name != caster.name:
+            if not caster.loc and not target.loc:
+                self.controlLog("Warning: tried to move offboard to offboard")
+                return False
+            
+            #move units
+            if target.loc:
+                map_target.insert(caster.name, target.loc)
+            if caster.loc:
+                map_caster.insert(map_caster.empty, caster.loc)
+            
+            #update units
+            target.update(self)
+            caster.update(self)
+            
+            #control Logs
+            if not caster.immutable:
+                self.controlLog(caster.name, "has moved to", caster.loc)
+                if self.django:
+                    caster.save()
+            if not target.immutable and target.name != caster.name: 
                 self.controlLog(target.name, "has been bumped")
                 if self.django:
                     target.save()
+            
         return True
          
     def controlDelay(self, caster, target, move, call_string, delay):
         new_delay = {
-            "DELAY": delay,  
+            "DELAY": delay,
             "STRING": call_string,
             "CASTER": caster,
             "TARGET": target,
@@ -563,8 +617,8 @@ class instance:
         if self.django:
             self.save()
         return True
-
-    def controlMove(self, caster, targets , moves):
+    
+    def controlMove(self, caster, targets , moves, force=False):
         caster = self.getTarget(caster)
         targets, moves = self.getTarget(targets, moves, multi=True)
         flag = False
@@ -572,44 +626,60 @@ class instance:
         for target in targets:
             for move in moves:
                 env = self.createTarget(caster, target, move)
-                check = self.testRequire(env)
-        
+                check = True if force else self.testRequire(env)
+                
                 if check != True:
                     self.controlLog(env['caster'].name, "cast", 
                                     env['move'].name,"on", 
                                     env['target'].name, "failed because", 
                                     check)
                     continue
-                        
+                 
                 self.controlLog(env['caster'].name, "uses", env['move'].name,
                                 "on", env['target'].name)
         
                 self.controlEffect(env)
                 flag = True
-                
+        
         return flag
         
-    def controlEffect(self, env, single=False):
+    def controlEffect(self, env, single=False, require=False):
+        command = "require" if require else "effect"
+        call = eval if require else exec
         
-        effects = [single] if single else self.getStat(env['move'], 'effect')
+        effects = [single] if single else self.getStat(env['move'], command)
         
         for effect in effects:
             if not isinstance(effect, script):
-                effect = script(effect, False)
+                effect = script(effect, require)
             try:
-                exec(effect.code, env)
+                if not call(effect.code, env):
+                    if require:
+                        return effect.raw
+                        
             except:
                 print("invalid\n\n", effect.raw, "\n\ninterpreted as\n\n", effect.interpret)
-                raise  
+                raise
         
         return True
-
+    
+    #---------------------------------------------------
+    #                 User only wrappers               -
+    #---------------------------------------------------
+    def castMove(self, caster, target , move, force=False):
+        self.controlMove(caster, target, move, force)
+        self.controlTime(0)
+        
+    def controlInit(self, move):
+        self.controlMove("empty", "empty", move)
+        self.controlTime(0)
     
     #---------------------------------------------------
     #                 Pathing Functions                -
     #---------------------------------------------------
     
     def adjacent(self, location):
+        """Iterates of adjacent tiles"""
         x = location[0]
         y = location[1]
         map_ = location[2]
@@ -625,7 +695,9 @@ class instance:
             yield (x -1, y -1, map_)
         return
         
-    def pathAdjacent(center, move="empty"):
+    def pathAdjacent(self, center, move="empty"):
+        """Iterates over concentric circles of adjacent tiles"""
+        
         center, move = self.getTarget(center, move)
         
         if not center.loc:
@@ -650,32 +722,7 @@ class instance:
             searched.update(next)
             next = set().union(*[self.adjacent(node) for node in new])
             next.difference_update(searched)
-      
-    def getFill(self, center, move='empty', distance=float("inf")):        
-        center, move = self.getTarget(center, move)
-        
-        found = []
-        count = 0
-        for i in pathAdjacent(center, move):
-            found.extend(i)
-            if count >= distance:
-                break
-            count +=1
-        random.shuffle(found)
-        return found
-        
-    def testBlock(self, start, finish, move):
-        #I'd really like to incorporate this directly into new testBlock.
-        if move in {"x", "y", "diag"}:
-            return self.testBlockOld(start, finish, move)
-        
-        start, finish, move = self.getTarget(start, finish, move)
-        
-        for i in self.pathAdjacent(start, move):
-            if finish in i:
-                return True
-        return False
-        
+            
     def pathTowards(self, start, finish, move):
         start, finish, move = self.getTarget(start, finish, move)
         
@@ -683,107 +730,42 @@ class instance:
         for i in pathAdjacent(start, move):
             end = i
         #function not completed.
-        
-        
-        
-        
+          
+    #---------------------------------------------------
+    #                 Test Functions                   -
+    #---------------------------------------------------
     
+    def testMove(self, unit, target, move, add={}, single=False):
+        env = self.createTarget(unit, target, move, add)
+        test = self.testRequire(env, single=single)
+        return True if test == True else False
+        
+    def testRequire(self, env, single=False):
+        return self.controlEffect(env, single, True)
     
-    
-        
-    def testBlockOld(self, start, finish, path ):
-        check = []
-        
-        #accepted paths (x, y, diag)
-        
-        start = self.getTarget(start).loc
-        finish = self.getTarget(finish).loc
- 
-        if start == False or finish == False:
-            return False
-        
-        def changeX(start):
-            new = copy.copy(start)
-            if start[0] < finish[0]:
-                n = 1
-            else:
-                n = -1
-            for i in range(n, finish[0] - start[0] + n, n):
-                new = (start[0] + i, start[1])
-                check.append(new)
-            return new
-        
-        def changeY( start):
-            new = copy.copy(start)
-            if start[1] < finish[1]:
-                n = 1
-            else:
-                n = -1
-            for i in range(n, finish[1] - start[1] + n, n):
-                new = (start[0], start[1] + i)
-                check.append(new)
-            return new
-            
-        if path == "x":
-            recent = changeX(start)
-            changeY(recent)
-                
-        elif path == "y":
-            recent = changeY(start)
-            changeX(recent)
-            
-        if path == "diag":
-            recent = start
-            i = 1
-        
-            if start[0] < finish[0]:
-                if start[1] < finish[1]:
-                    #downright
-                    while recent[0] < finish[0] and recent[1] < finish[1]:
-                        recent = (start[0] + i, start[1] + i)
-                        check.append(recent) 
-                        i +=1                
-                else:
-                    #upright
-                    while recent[0] < finish[0] and recent[1] > finish[1]:
-                        recent = (start[0] + i, start[1] - i)
-                        check.append(recent) 
-                        i +=1
-            else:
-                if start[1] < finish[1]:
-                    #downleft
-                    while recent[0] > finish[0] and recent[1] < finish[1]:
-                        recent = (start[0] - i, start[1] + i)
-                        check.append(recent) 
-                        i +=1
-                
-                else:
-                    #upleft
-                    while recent[0] > finish[0] and recent[1] > finish[1]:
-                        recent = (start[0] - i, start[1] - i)
-                        check.append(recent) 
-                        i +=1
-            recent = changeX(recent)
-            changeY(recent)
-        if len(check) > 0:
-            check.remove(check[-1])        
-        for spot in check:
-            if self.getMap(spot) != 'empty':
-                return False
-        return True
+    def testBlock(self, start, finish, move):
+        start, finish, move = self.getTarget(start, finish, move)
 
-    def testRequire(self, env):
-        for require in self.getStat(env['move'], 'require'):
-            if not isinstance(require, script):
-                require = script(require, True)
-            try:
-                if not eval(require.code, env):
-                    return require.raw
-            except:
-                print("invalid (", require.raw, ") interpreted as (", require.interpret, ")")
-                raise
-        return True
-    
+        for i in self.pathAdjacent(start, move):
+            for q in i:
+                if finish.loc in self.adjacent(q):
+                    return True
+        return False
+        
+    def testFuture(self, caster, target, move, string):
+        caster, target, move = self.getTarget(caster, target, move)
+        
+        #create test instance
+        clone = copy.copy(self)
+        clone.logging = False
+        
+        #convert instance targets into clone targets.
+        caster, target, move = clone.getTarget(caster.loc, target.loc, move.name)
+        
+        #test situation
+        clone.castMove(caster, target, move, force=True)
+        return clone.testMove(caster, target, move, single=string) 
+        
     def createTarget(self, caster, target, move, add={}):
         
         caster, target, move = self.getTarget(caster, target, move)
@@ -832,7 +814,8 @@ class entity:
     def __init__(self, field=instance(), name="empty", *args, **kwargs):
         self.name = name
         self.loc = False
-        self.map = False
+        self.x = False
+        self.y = False
         self.immutable = False
         for stat in field.stats:
             setattr(self, stat, 0)
@@ -849,6 +832,26 @@ class entity:
     
     def __iter__(self):
         yield self
+    
+    def __copy__(self):
+        new = entity()
+        for k, v in self.__dict__.items():
+            if isinstance(v, list):
+                setattr(new, k, copy.copy(v))
+            else:
+                setattr(new, k, v)
+        
+        return new
+    
+    def __add__(self, other):
+        new = entity()
+        for stat in field.stats:
+            setattr(new, stat, getattr(self, stat) + getattr(other, stat))
+        for lists in field.lists:
+            setattr(new, lists, getattr(self, stat) + getattr(other, stat))
+        for string in field.strings:
+            setattr(new, string, getattr(self, stat))
+        return new
             
     def update(self, env=instance()):
         if not self.immutable:      
@@ -856,8 +859,12 @@ class entity:
                 test = map_.find(self.name)
                 if test:
                     self.loc = test
+                    self.x = test[0]
+                    self.y = test[1]
                     return
         self.loc = False
+        self.x = False
+        self.y = False
         
     def record(self, field, name=False):
         if not name:
@@ -866,6 +873,7 @@ class entity:
         
 class script:
     def __init__(self, effect, require=False):
+        
         command = 'eval' if require else 'exec'
         
         self.raw = effect
@@ -879,7 +887,7 @@ class board:
     def __init__(self):
         self.map = []
         self.name = "unknown"
-
+        self.empty = "empty"
     
     def x(self):
         return len(self.map)
@@ -1066,6 +1074,10 @@ def battleStart(xml_file):
         name = config.findtext("name")
         if name is not None:
             field.name = name
+            
+        revert = config.findtext("revert")
+        if revert is not None:
+            field.revert = eval(revert) + 1
         
         django = config.findtext('django')
         if django is not None:
@@ -1077,7 +1089,10 @@ def battleStart(xml_file):
         
         logichex = config.findtext("hex")
         if logichex is not None:
-            field.hex = eval(logichex)
+            if logichex != "diag":
+                field.hex = eval(logichex)
+            else:
+                field.hex = logichex
                     
         logging = config.findtext('logging')
         if logging is not None:
@@ -1107,12 +1122,15 @@ def battleStart(xml_file):
     def addMap(field_map):
         new_map = board()
         new_map.name = field_map.tag
+        if field_map.get('empty') is not None:
+            new_map.empty = map_.get('empty')
+        
         dim_map = field_map.find("dim")
         if dim_map is not None:
             x = int(dim_map.find('x').text)
             y = int(dim_map.find('y').text)
             for element in range(y):
-                new_map.map.append(['empty' for i in range(x)])
+                new_map.map.append([new_map.empty for i in range(x)])
         else:
             temp = []
             for row in field_map:
@@ -1211,10 +1229,13 @@ def battleStart(xml_file):
         for item in entities:
             new_entity = addObject(item)
     
-    field.controlLog("INITIALIZING", field.name, "\n")
+    field.controlLog("INITIALIZING", field.name)
     if 'tick' not in field.getObject():
         field.controlLog("warning, no tick is defined.")
     
+    if field.revert > 1:
+        field.state.append(copy.copy(field))
+    print()    
     return field
      
 #---------------------------------------------------
@@ -1222,7 +1243,6 @@ def battleStart(xml_file):
 #---------------------------------------------------
 
 def interpret(string, debug=False):
-    
     #utility
     def s(string):
         if string[0] in {"'", '"', "{"}:
@@ -1238,7 +1258,6 @@ def interpret(string, debug=False):
     def erase(list_, index, range_):
         for i in range_:
             list_[i+index] = ""
-        return list_
     
     def call(function, *args, env=True):
         value = ("self." if env else "")+function+"{"
@@ -1270,6 +1289,13 @@ def interpret(string, debug=False):
         group = list_[i +1]
         list_[i] = call(f, s(group))
         erase(list_, i, (1,))
+        
+    def FILTER(list_, i):
+        f = "getSearch"
+        group1 = list_[i+1]
+        group2 = list_[i+2]
+        list_[i] = call(f, s(group1), s(group2))
+        erase(list_, i, (1,2))
         
     def FILL(list_, i):
         f = "getFill"
@@ -1392,6 +1418,12 @@ def interpret(string, debug=False):
         dtype = list_[i + 1]
         list_[i] = call(f, 'caster', 'target', s(dtype))
         erase(list_, i, (1,))
+    
+    def FUTURE(list_, i):
+        f = "testFuture"
+        string = "'"+list_[i +1].replace("'", "\\'")+"'"
+        list_[i] = call(f, 'caster', 'target', 'move', string)
+        erase(list_, i, (1,))   
         
     def DICE(list_, i):
         f = "randint"
@@ -1447,6 +1479,8 @@ def interpret(string, debug=False):
         "REPLACE": REPLACE,
         'FILL': FILL,
         'LISTGROUP': LISTGROUP,
+        'FUTURE': FUTURE,
+        'FILTER': FILTER,
     }
     
     def recursive(string, debug=False):

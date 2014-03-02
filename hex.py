@@ -1,4 +1,9 @@
-import pygame, sys, udebs, random, math
+import pygame
+import sys
+import udebs
+import random
+import math
+import static
 from pygame.locals import *
 
 #initialize pygame and udebs
