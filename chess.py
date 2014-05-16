@@ -1,7 +1,8 @@
 import pygame
-import udebs
 import sys
 import traceback
+from udebs import loadxml
+from udebs.interpret import importModule
 from pygame.locals import *
 
 ts = 32
@@ -46,13 +47,10 @@ def eventLoad():
         "mouse": False,
         "surface": pygame.display.set_mode((ts*10, ts*10), 0, 32),
         "mainClock": pygame.time.Clock(),
-        "main_map": udebs.battleStart("xml/chess.xml"),
+        "main_map": loadxml.battleStart("xml/chess.xml"),
         "board": {},
         "sprites": {"B": {}, "W": {}},
     }
-    
-    S["main_map"].variables.update({"check": check})
-    
     
     board = pygame.image.load("texture/wood.png").convert_alpha()
     token = pygame.image.load("texture/chess_3.png").convert_alpha()
@@ -168,6 +166,11 @@ def eventRevert(S):
         eventEscape(S)
         S["main_map"] = test
 
+module = {"check": {
+    "f": "check",
+    "args": ["$1", "$2", "self"],
+}}
+importModule(module, {"check": check})
 S = eventLoad()
     
 #game loop

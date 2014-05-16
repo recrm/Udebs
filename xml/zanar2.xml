@@ -43,19 +43,19 @@
     
     <init>
         <effect>
-            <item>'hero' TRAVEL (0,0)</item>
-            <item>'goal' TRAVEL (7,7)</item>
-            <item>'treasure' TRAVEL (DICE 5 +2 , DICE 5 +2)</item>
-            <item>CHANGE 'recruiter' 'ACT' 4</item>
-            <item>CAST 'recruiter' 'recruit'</item>
-            <item>CAST 'recruiter' 'boss_recruit'</item>
+            <item>hero TRAVEL (0 0)</item>
+            <item>goal TRAVEL (7 7)</item>
+            <item>treasure TRAVEL ((DICE.5 + 2) (DICE.5 + 2 ))</item>
+            <item>CHANGE recruiter ACT 4</item>
+            <item>CAST recruiter recruit</item>
+            <item>CAST recruiter boss_recruit</item>
         </effect>
     </init>
 
     <finish>
         <effect>
-            <item>CHANGE 'recruiter' LVL 1</item>
-            <item>CHANGE 'recruiter' ACT (STAT recruiter LVL)</item>
+            <item>CHANGE recruiter LVL 1</item>
+            <item>CHANGE recruiter ACT (STAT recruiter LVL)</item>
             <item>CAST (ALL mob) KO</item>
         </effect>
     </finish>
@@ -64,12 +64,12 @@
 
     <recruit>
         <effect>
-            <item>RECRUIT baddie (DICE 5 +2 , DICE 5 +2)</item>
+            <item>RECRUIT baddie ((DICE.5 + 2) (DICE.5 + 2))</item>
             <item>CHANGE recruiter ACT -1</item>
             <item>DELAY (CAST recruiter recruit) 0</item>
         </effect>
         <require>
-            <item>STAT recruiter ACT &gt;= 1</item>
+            <item>(STAT recruiter ACT0 &gt;= 1</item>
         </require>
     </recruit>
 
@@ -77,9 +77,9 @@
     
     <travel>
         <require>
-            <item>STAT caster ACT &gt;=1</item>
-            <item>DISTANCE pinf &lt;= 1</item>
-            <item>(target.name == caster.name) or (target.name == 'empty') or (target.name == False)</item>
+            <item>(STAT $caster ACT) &gt;= 1</item>
+            <item>(DISTANCE pinf) &lt;= 1</item>
+            <item>or (NAME.$T == NAME.$C) (NAME.$T == empty)</item>
         </require>
         <effect>
             <item>CHANGE C ACT -1</item>
@@ -93,7 +93,7 @@
         </require>
         
         <effect>
-            <item>target TRAVEL bump</item>
+            <item>$target TRAVEL bump</item>
             <item>CHANGE T ACT -(STAT T ACT)</item>
             <item>GETS T status move</item>
         </effect>
@@ -104,10 +104,10 @@
     
     <boss_recruit>
         <require>
-            <item>STAT recruiter LVL == 2</item>
+            <item>(STAT recruiter LVL) == 2</item>
         </require>
         <effect>
-            <item>boss TRAVEL (7,7)</item>
+            <item>boss TRAVEL (7 7)</item>
         </effect>
     </boss_recruit>
 

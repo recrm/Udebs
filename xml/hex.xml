@@ -23,26 +23,30 @@
     
     <!-- scripts -->
     
+    <notempty>
+        <require>NAME.$T == empty</require>
+    </notempty>
+    
     <init>
         <effect>
-            <item>RECRUIT 'token' (0,0)</item>
-            <item>CAST (DICE 7 , DICE 7) 'earthquake'</item>
+            <item>RECRUIT token (0 0)</item>
+            <item>CAST (DICE.7 DICE.7) earthquake</item>
         </effect>
     </init>
 
     <suptravel>
         <require>
-            <item>target.name == 'empty'</item>
-            <item>DISTANCE 'hex' &lt;= (STAT caster 'ACT')</item>
+            <item>NAME.$T == empty</item>
+            <item>(DISTANCE hex) &lt;= (STAT $caster ACT)</item>
         </require>
     </suptravel>
     
     <travel>
         <effect>
-            <item>TRAVEL target</item>
+            <item>MOVE $caster $target</item>
         </effect>
         <require>
-            <item>DISTANCE 'suptravel' &lt;= (STAT caster 'ACT')</item>
+            <item>(DISTANCE suptravel) &lt;= (STAT $caster ACT)</item>
         </require>
         <group>
             <item>suptravel</item>
@@ -51,14 +55,14 @@
     
     <ridge>
         <require>
-            <item>DISTANCE 'x' &lt;= 2</item>
-            <item>DISTANCE 'y' == 0</item>
+            <item>(DISTANCE x) &lt;= 2</item>
+            <item>(DISTANCE y) == 0</item>
         </require>
     </ridge>
     
     <earthquake>
         <effect>
-            <item>RECRUIT 'earth' (FILL target 'ridge')</item>
+            <item>RECRUIT earth (FILL $target ridge)</item>
         </effect>
     </earthquake>    
 

@@ -1,10 +1,11 @@
-import pygame, sys, udebs, random
+import pygame, sys, random
+from udebs import xml
 from pygame.locals import *
 
 #initialize pygame and udebs
 pygame.mixer.pre_init(44100, -16, 2, 2048)
 pygame.init()
-main_map = udebs.battleStart("xml/zanar2.xml")
+main_map = xml.battleStart("xml/zanar2.xml")
 main_map.controlMove('empty', 'empty', 'init')
 main_map.controlTime(0)
 mainClock = pygame.time.Clock()
@@ -83,7 +84,7 @@ def main():
     #definitions
     tile = pygame.Rect(( 0, 0 ), ( 49, 49 ))
     selection = {'x': 0, 'y': 0, "xmax": 7, "ymax": 7}
-    inport = udebs.battleStart("xml/rpg.xml")
+    inport = xml.battleStart("xml/rpg.xml")
     active_selection = False
     battle = []
     win = False

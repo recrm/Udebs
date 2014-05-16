@@ -36,78 +36,85 @@
 </maps>
 
 <entities>
-    
     <!-- tiles -->
     <topleft immutable="">
         <sprite>TL</sprite>
     </topleft>
+    
     <topright immutable="">
         <sprite>TR</sprite>
     </topright>
+    
     <bottomleft immutable="">
         <sprite>BL</sprite>
     </bottomleft>
+    
     <bottomright immutable="">
         <sprite>BR</sprite>
     </bottomright>
+    
     <top immutable="">
         <sprite>T</sprite>
     </top>
+    
     <bottom immutable="">
         <sprite>B</sprite>
     </bottom>
+    
     <left immutable="">
         <sprite>L</sprite>
     </left>
+    
     <right immutable="">
         <sprite>R</sprite>
     </right>
+    
     <white_square immutable="">
         <sprite>white</sprite>
     </white_square>
+    
     <black_square immutable="">
         <sprite>black</sprite>
     </black_square>
     
     <!-- fill -->
     <fill_horizontal>
-        <require>DISTANCE 'y' == 0</require>
+        <require>(DISTANCE y) == 0</require>
     </fill_horizontal>
     
     <fill_vertical>
-        <require>DISTANCE 'x' == 0</require>
+        <require>(DISTANCE x) == 0</require>
     </fill_vertical>
     
     <fill_diag>
-        <require>(target.x + target.y) % 2 == 0</require>
+        <require>((XLOC.$T + YLOC.$T) % 2) == 0</require>
     </fill_diag>
     
     <diagonal>
-        <require>DISTANCE x == DISTANCE y</require>
+        <require>(DISTANCE x) == (DISTANCE y)</require>
     </diagonal>
     
     <nonempty>
-        <require>target.name != 'empty'</require>
+        <require>(NAME $T) != empty</require>
     </nonempty>
     
     <isempty>
-        <require>target.name == 'empty'</require>
+        <require>(NAME $T) == empty</require>
     </isempty>
     
     <blockx>
         <require>
-            <i>target.name == 'empty'</i>
-            <i>DISTANCE x * DISTANCE y == 0</i>
+            <i>(NAME $T) == empty</i>
+            <i>((DISTANCE x) * (DISTANCE y)) == 0</i>
         </require>
     </blockx>
     
     <blockdiag>
         <require>
-            <i>target.name == 'empty'</i>
-            <i>DISTANCE x == DISTANCE y</i>
+            <i>(NAME $T) == empty</i>
+            <i>(DISTANCE x) == (DISTANCE y)</i>
         </require>
     </blockdiag>
-    
     
     <!-- init -->
     <init>
@@ -120,54 +127,54 @@
     
     <boardrecruit>
         <effect>
-            <i>MOVE black_square (FILL (4,4,"board") isempty)</i>
-            <i>MOVE white_square (FILL (4,4,"board") fill_diag)</i>
-            <i>MOVE top (FILL (0,0,"board") fill_horizontal)</i>
-            <i>MOVE bottom (FILL (9,9,"board") fill_horizontal)</i>
-            <i>MOVE left (FILL (0,0,"board") fill_vertical)</i>
-            <i>MOVE right (FILL (9,9,"board") fill_vertical)</i>
-            <i>MOVE topleft (0,0,"board")</i>
-            <i>MOVE topright (9,0,"board")</i>
-            <i>MOVE bottomleft (0,9,"board")</i>
-            <i>MOVE bottomright (9,9,"board")</i>
+            <i>MOVE black_square (FILL (4 4 board) isempty)</i>
+            <i>MOVE white_square (FILL (4 4 board) fill_diag)</i>
+            <i>MOVE top (FILL (0 0 board) fill_horizontal)</i>
+            <i>MOVE bottom (FILL (9 9 board) fill_horizontal)</i>
+            <i>MOVE left (FILL (0 0 board) fill_vertical)</i>
+            <i>MOVE right (FILL (9 9 board) fill_vertical)</i>
+            <i>MOVE topleft (0 0 board)</i>
+            <i>MOVE topright (9 0 board)</i>
+            <i>MOVE bottomleft (0 9 board)</i>
+            <i>MOVE bottomright (9 9 board)</i>
         </effect>
     </boardrecruit>
     
     <brecruit>
         <effect>
-            <i>RECRUIT pawn (FILL (0,1) fill_horizontal)</i>
-            <i>RECRUIT rook (0,0)</i>
-            <i>RECRUIT rook (7,0)</i>
-            <i>RECRUIT knight (1,0)</i>
-            <i>RECRUIT knight (6,0)</i>
-            <i>RECRUIT bishop (2,0)</i>
-            <i>RECRUIT bishop (5,0)</i>
-            <i>RECRUIT king (4,0)</i>
-            <i>RECRUIT queen (3,0)</i>
-            <i>GETS (FILL (0,1) nonempty) group black</i>
+            <i>RECRUIT pawn (FILL (0 1) fill_horizontal)</i>
+            <i>RECRUIT rook (0 0)</i>
+            <i>RECRUIT rook (7 0)</i>
+            <i>RECRUIT knight (1 0)</i>
+            <i>RECRUIT knight (6 0)</i>
+            <i>RECRUIT bishop (2 0)</i>
+            <i>RECRUIT bishop (5 0)</i>
+            <i>RECRUIT king (4 0)</i>
+            <i>RECRUIT queen (3 0)</i>
+            <i>GETS (FILL (0 1) nonempty) group black</i>
         </effect>
     </brecruit>
     
     <wrecruit>
         <effect>
-            <i>RECRUIT pawn (FILL (0,6) fill_horizontal)</i>
-            <i>RECRUIT rook (0,7)</i>
-            <i>RECRUIT rook (7,7)</i>
-            <i>RECRUIT knight (1,7)</i>
-            <i>RECRUIT knight (6,7)</i>
-            <i>RECRUIT bishop (2,7)</i>
-            <i>RECRUIT bishop (5,7)</i>
-            <i>RECRUIT king (4,7)</i>
-            <i>RECRUIT queen (3,7)</i>
-            <i>GETS (FILL (0,6) nonempty) group white</i>
+            <i>RECRUIT pawn (FILL (0 6) fill_horizontal)</i>
+            <i>RECRUIT rook (0 7)</i>
+            <i>RECRUIT rook (7 7)</i>
+            <i>RECRUIT knight (1 7)</i>
+            <i>RECRUIT knight (6 7)</i>
+            <i>RECRUIT bishop (2 7)</i>
+            <i>RECRUIT bishop (5 7)</i>
+            <i>RECRUIT king (4 7)</i>
+            <i>RECRUIT queen (3 7)</i>
+            <i>GETS (FILL (0 6) nonempty) group white</i>
         </effect>
     </wrecruit>
 
     
     <!-- statuses groups-->
     <status_group>
-        <require>move.name not in STAT target status</require>
-        <effect>GETS target status move.name</effect>
+        <require>(NAME $move) not-in (STAT $target status)</require>
+        <effect>GETS $target status (NAME $move)</effect>
     </status_group>
     
     <!-- statuses -->
@@ -176,21 +183,21 @@
     </moved_once>
     
     <promote>
-        <require>caster.y in [0,7]</require>
+        <require>(Y $caster) in (0 7)</require>
         <effect>
-            <i>new = RECRUIT queen caster</i>
-            <i>GETS var.new group (CLASS caster tick)</i>
+            <i>new = (RECRUIT queen $caster)</i>
+            <i>GETS $new group (CLASS $caster tick)</i>
         </effect>
         <group>status_group</group>
     </promote>
     
     <passant_danger>
-        <effect>DELAY (LOSES target status passant_danger) 2</effect>
+        <effect>DELAY (LOSES $target status passant_danger) 2</effect>
         <group>status_group</group>
     </passant_danger>
     
     <captured>
-        <require>target.name != 'empty'</require>
+        <require>(NAME $T) != empty</require>
         <group>status_group</group>
     </captured>
     
@@ -198,48 +205,37 @@
 
     <time>
         <require>
-            <i>STAT C ACT &gt;= 2</i>
-            <i>FUTURE (check((FILTER kings (CLASS caster tick)), (CLASS caster tick), self))</i>
+            <i>STAT.$C.ACT &gt;= 2</i>
+            <i>FUTURE (check (FILTER kings CLASS.$caster.tick) CLASS.$caster.tick) 1</i>
         </require>
         <effect>
-            <i>CHANGE (CLASS C tick) ACT -(STAT C ACT)</i>
-            <i>CAST caster moved_once</i>
+            <i>CHANGE CLASS.$C.tick ACT -(STAT.$C.ACT)</i>
+            <i>CAST $caster moved_once</i>
         </effect>
     </time>
     
     <normal>
         <require>
-            <i>CLASS caster tick not in STAT target group</i>
+            <i>(CLASS $caster tick) not-in (STAT $target group)</i>
         </require>
         <effect>
-            <i>TRAVEL target</i>
-            <i>CAST target captured</i>
+            <i>TRAVEL $target</i>
+            <i>CAST $target captured</i>
         </effect>
     </normal>
 
     <pawn_move>
-        <require>(target.y * STAT C FLP) &lt; (caster.y * STAT C FLP)</require>
-        <effect>CAST caster promote</effect>
+        <require>(YLOC.$T * STAT.$C.FLP) &lt; (YLOC.$C * STAT.$C.FLP)</require>
+        <effect>CAST $caster promote</effect>
     </pawn_move>
-    
-    <king_castle>
-        <require>
-            <i>CLASS caster tick in STAT target group</i>
-            <i>'moved_once' not in STAT caster status</i>
-            <i>'moved_once' not in STAT target status</i>
-            <i>BLOCK blockx</i>
-            <i>check(caster.name, (CLASS caster tick), self)</i> 
-        </require>
-        <effect>CAST target moved_once</effect>
-    </king_castle>
     
     <!-- moves -->
 
     <pawn_travel>
         <require>
-            <i>DISTANCE 'y' == 1</i>
-            <i>DISTANCE 'x' == 0</i>
-            <i>target.name == 'empty'</i>            
+            <i>(DISTANCE y) == 1</i>
+            <i>(DISTANCE x) == 0</i>
+            <i>(NAME $T) == empty</i>            
         </require>
         <group>
             <i>normal</i>
@@ -250,13 +246,13 @@
 
     <pawn_double>
         <require>
-            <i>'moved_once' not in STAT caster 'status'</i>
-            <i>DISTANCE 'x' == 0</i>
-            <i>DISTANCE 'y' == 2</i>
-            <i>target.name == 'empty'</i>
+            <i>moved_once not-in (STAT $caster status)</i>
+            <i>(DISTANCE x) == 0</i>
+            <i>(DISTANCE y) == 2</i>
+            <i>(NAME $T) == empty</i>
             <i>BLOCK blockx</i>
         </require>
-        <effect>CAST caster 'passant_danger'</effect>
+        <effect>CAST $caster passant_danger</effect>
         <group>
             <i>normal</i>
             <i>pawn_move</i>
@@ -266,8 +262,8 @@
     
     <pawn_capture>
         <require>
-            <i>DISTANCE x == DISTANCE y == 1</i>
-            <i>target.name != 'empty'</i>
+            <i>== (DISTANCE x) (DISTANCE y) 1</i>
+            <i>(NAME $T) != empty</i>
         </require>
         <group>
             <i>normal</i>
@@ -278,15 +274,15 @@
 
     <pawn_passant>
         <require>
-            <i>CLASS caster tick not in STAT target group</i>
-            <i>'passant_danger' in STAT target status</i>
-            <i>DISTANCE x == 1</i>
-            <i>DISTANCE y == 0</i>
+            <i>(CLASS $caster tick) not-in (STAT $target group)</i>
+            <i>passant_danger in (STAT $target status)</i>
+            <i>(DISTANCE x) == 1</i>
+            <i>(DISTANCE y) == 0</i>
         </require>
         <effect>
-            <i>TRAVEL (target.x, caster.y - STAT C FLP)</i>
-            <i>target TRAVEL bump</i>
-            <i>CAST target captured</i>
+            <i>TRAVEL (XLOC.$T (YLOC.$C + -STAT.$C.FLP))</i>
+            <i>$target TRAVEL bump</i>
+            <i>CAST $target captured</i>
         </effect>
         <group>
             <i>time</i>
@@ -295,7 +291,7 @@
     
     <rook_travel>
         <require>
-            <i>DISTANCE x * DISTANCE y == 0</i>
+            <i>((DISTANCE x) * (DISTANCE y)) == 0</i>
             <i>BLOCK blockx</i>
         </require>
         <group>
@@ -306,9 +302,9 @@
     
     <knight_travel>
         <require>D
-            <i>DISTANCE p1 == 3</i>
-            <i>DISTANCE x > 0</i>
-            <i>DISTANCE y > 0</i>
+            <i>(DISTANCE p1) == 3</i>
+            <i>(DISTANCE x) > 0</i>
+            <i>(DISTANCE y) > 0</i>
         </require>
         <group>
             <i>normal</i>
@@ -318,7 +314,7 @@
     
     <bishop_travel>
         <require>
-            <i>DISTANCE y == DISTANCE x</i>
+            <i>(DISTANCE y) == (DISTANCE x)</i>
             <i>BLOCK blockdiag</i>
         </require>
         <group>
@@ -328,7 +324,7 @@
     </bishop_travel>
     
     <king_travel>
-        <require>DISTANCE 'pinf' == 1</require>
+        <require>(DISTANCE pinf) == 1</require>
         <group>
             <i>normal</i>
             <i>time</i>
@@ -337,32 +333,42 @@
     
     <king_kcastle>
         <require>
-            <i>'rook' in target.name</i>
-            <i>target.x &gt; caster.x</i>
-            <i>check((caster.x+1, caster.y), (CLASS caster tick), self)</i>
+            <i>rook in (NAME $T)</i>
+            <i>(CLASS $caster tick) in (STAT $target group)</i>
+            <i>moved_once not-in (STAT $caster status)</i>
+            <i>moved_once not-in (STAT $target status)</i>
+            <i>BLOCK blockx</i>
+            <i>XLOC.$T &gt; XLOC.$C</i>
+            <i>check NAME.$C (CLASS $caster tick)</i>
+            <i>check ((XLOC.$C + 1) YLOC.$C) CLASS.$C.tick</i>
         </require>
         <effect>
-            <i>caster TRAVEL (caster.x +2, caster.y)</i>
-            <i>target TRAVEL (target.x -2, caster.y)</i>
+            <i>CAST $target moved_once</i>
+            <i>$caster TRAVEL ((XLOC.$C + 2) YLOC.$C)</i>
+            <i>$target TRAVEL ((XLOC.$T + -2) YLOC.$C)</i>
         </effect>
         <group>
-            <i>king_castle</i>
             <i>time</i>
         </group>
     </king_kcastle>
     
     <king_qcastle>
         <require>
-            <i>'rook' in target.name</i>
-            <i>target.x &lt; caster.x</i>
-            <i>check((caster.x-1, caster.y), (CLASS caster tick), self)</i>
+            <i>rook in (NAME $T)</i>
+            <i>(CLASS $caster tick) in (STAT $target group)</i>
+            <i>moved_once not-in (STAT $caster status)</i>
+            <i>moved_once not-in (STAT $target status)</i>
+            <i>BLOCK blockx</i>
+            <i>XLOC.$T &lt; XLOC.$C</i>
+            <i>check NAME.$C (CLASS $caster tick)</i>
+            <i>check ((XLOC.$C + -1) YLOC.$C) (CLASS $caster tick)</i>
         </require>
         <effect>
-            <i>TRAVEL (caster.x - 2, caster.y)</i>
-            <i>target TRAVEL (target.x +3, caster.y)</i>
+            <i>CAST $target moved_once</i>
+            <i>TRAVEL ((XLOC.$C + -2) YLOC.$C)</i>
+            <i>$target TRAVEL ((XLOC.$T + 3) YLOC.$C)</i>
         </effect>
         <group>
-            <i>king_castle</i>
             <i>time</i>
         </group>
     </king_qcastle>

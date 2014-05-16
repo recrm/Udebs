@@ -10,6 +10,7 @@
         <W />
         <D />
         <S />
+        <hardness />
     </stats>
     <lists>
         <change />
@@ -30,55 +31,84 @@
     <!-- scripts -->
     <init>
         <effect>
-            <i>RECRUIT 'land' (FILL (0,0) 'empty')</i>
-            <i>MOVE 'source' (0,8)</i>
-            <i>MOVE 'pit' (15,8)</i>
-            <i>CAST (FILL 'source' 'empty') 'terrain'</i>
+            <i>total = (FILL (0 0) empty)</i>
+            <i>RECRUIT land $total</i>
+            <i>CAST $total terrain</i>
+            <i>MOVE source (0 0)</i>
+            <i>MOVE pit (15 15)</i>
         </effect>
     </init>
     
     <terrain>
-        <effect>CHANGE T 'D' (DICE 10)</effect>
+        <effect>
+            <i>CHANGE $T hardness DICE.200</i>
+            <i>CHANGE $T D DICE.10</i>
+        </effect>
     </terrain>
     
     <tick>
         <effect>
-            <i>CHANGE 'source' 'W' 4</i>
-            <i>source CAST (FILL 'source' 'adjacent') 'flow'</i>
-            <i>CHANGE pit 'W' -1</i>
+            <i>LOSES tick change STAT.tick.change</i>
+            <i>CHANGE source W 1</i>
+            <i>CAST pit drain</i>
+            <i>outflow = FILL.source.adjacent</i>
+            <i>GAINS tick change $outflow</i>
+            <i>source CAST $outflow flow</i>
         </effect>
     </tick>
     
+    <drain>
+        <require>STAT.pit.W &gt; 500</require>
+        <effect>CHANGE pit W -((+ STAT.pit.W -500 1) / 2)</effect>
+    </drain>
+            
+    
     <adjacent>
-        <require>DISTANCE 'hex' == 1</require>
+        <require>
+            <i>DISTANCE.hex == 1</i>
+            <i>LOC.$T not-in STAT.tick.change</i>
+        </require>
     </adjacent>
         
     <!-- moves --> 
     
     <flow>
-        <require>(STAT T 'W' + STAT T 'D') &lt; (STAT C 'W' + STAT C 'D' - 1)</require> 
+        <require>
+            <i>difference = (+ STAT.$C.W STAT.$C.D -STAT.$T.W -STAT.$T.D)</i>
+            <i>|$difference &gt; 1</i>
+            <i>flowout = (? ($difference &gt; 0) $caster $target)</i>
+            <i>STAT.$flowout.W &gt; 0</i>
+            <i>flowin = (? ($difference &lt; 0) $caster $target)</i>
+        </require> 
         <effect>
-            <i>amount = min((STAT C 'W' + STAT C 'D' - STAT T 'W' - STAT T 'D' + 10)/10 , STAT C W)</i>
-            <i>CHANGE T 'W' amount</i>
-            <i>CHANGE C 'W' -amount</i>
-            <i>CHANGE C 'S' 1</i>
-            <i>CAST T 'colourchange'</i>
-            <i>CAST T 'erode'</i>
-            <i>target CAST (FILL target 'adjacent') 'flow'</i>
+            <i>amount = (min STAT.$flowout.W ((|$difference + 1) / 2))</i>
+            <i>CHANGE $flowin W $amount</i>
+            <i>CHANGE $flowout W -$amount</i>
+            <i>CHANGE $flowout S 1</i>
+            <i>CAST $flowout erode</i>
+            <i>CAST $target colourchange</i>
+            <i>inflow = (FILL $target adjacent)</i>
+            <i>GETS tick change $inflow</i>
+            <i>$target CAST $inflow flow</i>
         </effect>
     </flow> 
     
     <erode>
-        <require>STAT T 'S' >= 10</require>
+        <require>
+            <i>hard = STAT.$T.hardness</i>
+            <i>STAT.$T.S >= $hard</i>
+            <i>NAME.$T != source</i>
+        </require>
         <effect>
-            <i>CHANGE T 'S' -10</i>
-            <i>CHANGE T 'D' -1</i>
+            <i>CHANGE $T S -$hard</i>
+            <i>CHANGE $T D -1</i>
+            <i>CHANGE (FILL.$T.adjacent SUB DICE.5) D 1</i>
         </effect>
     </erode>
     
     <colourchange>
-        <require>target.name != 'pit'</require>
-        <effect>REPLACE T colour (S colourchange change)[min(int(STAT T 'W' / 10), 4)]</effect>
+        <require>NAME.$T != pit</require>
+        <effect>REPLACE $T colour (STAT.$move.change SUB (min (STAT.$T.W / 10) 4))</effect>
         <change>
             <i>sand</i>
             <i>dirt</i>

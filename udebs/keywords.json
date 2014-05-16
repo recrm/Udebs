@@ -1,0 +1,103 @@
+{
+    "DELAY": {
+        "f": "self.controlDelay",
+        "args": ["$caster", "$target", "$move", "$1", "$2"],
+        "string": ["$1"]
+    },
+    "CAST": {
+        "f": "self.controlMove",
+        "args": ["-$1", "$1", "$2"],
+        "default": {"-$1": "$caster"}
+    },
+    "GETS": {
+        "f": "self.controlList",
+        "args": ["$1", "$2", "$3", "add"]
+    },
+    "LOSES": {
+        "f": "self.controlList",
+        "args": ["$1", "$2", "$3", "remove"]
+    },
+    "CHANGE": {
+        "f": "self.controlStat",
+        "args": ["$1", "$2", "$3"]
+    },
+    "REPLACE": {
+        "f": "self.controlString",
+        "args": ["$1", "$2", "$3"]
+    },
+    "RECRUIT": {
+        "f": "self.controlRecruit",
+        "args": ["$1", "$2"]
+    },
+    "MOVE": {
+        "f": "self.controlTravel",
+        "args": ["$1", "$2"]
+    },
+    "TRAVEL": {
+        "f": "self.controlTravel",
+        "args": ["-$1", "$1"],
+        "default": {"-$1": "$caster"}
+    },
+    "CLASS": {
+        "f": "self.getListGroup",
+        "args": ["$1", "group", "$2"]
+    },
+    "LISTGROUP": {
+        "f": "self.getListGroup",
+        "args": ["$1", "$2", "$3"]
+    },
+    "ALL": {
+        "f": "self.getGroup",
+        "args": ["$1"]
+    },
+    "FILTER": {
+        "f": "self.getSearch",
+        "all": true
+    },
+    "FILL": {
+        "f": "self.getFill",
+        "args": ["$1", "$2"]
+    },
+    "DISTANCE": {
+        "f": "self.getDistance",
+        "args": ["$caster", "$target", "$1"]
+    },
+    "DICE": {
+        "f": "self.rand.randint",
+        "args": [0, "$1"]
+    },
+    "STAT": {
+        "f": "self.getStat",
+        "args": ["$1", "$2"]
+    },
+    "LISTSTAT": {
+        "f": "self.getListStat",
+        "args": ["$1", "$2", "$3"]
+    },
+    "FUTURE": {
+        "f": "self.testFuture",
+        "args": ["$caster", "$target", "$move", "$1", "$2"],
+        "default": {"$2": 0},
+        "string": ["$1"]
+    },
+    "BLOCK": {
+        "f": "self.testBlock",
+        "args": ["$caster", "$target", "$1"]
+    },
+    "XLOC": {
+        "f": "self.getX",
+        "args": ["$1"]
+    },
+    "YLOC": {
+        "f": "self.getY",
+        "args": ["$1"]
+    },
+    "LOC": {
+        "f": "self.getLoc",
+        "args": ["$1"]
+    },
+    "NAME": {
+        "f": "self.getName",
+        "args": ["$1"]
+    }
+}

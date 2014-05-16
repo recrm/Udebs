@@ -53,15 +53,15 @@
     </tick>
     
     <atb>
-        <effect>CHANGE T ACT (S T SPD)</effect>
+        <effect>CHANGE $T ACT S.$T.SPD</effect>
     </atb>
 
     <init>
         <effect>
             <i>CAST recruiter recruitBattle</i>
-            <i>CHANGE fighter ACT (-(STAT fighter ACT)+ 1)</i>
-            <i>CHANGE bmage ACT (-(STAT bmage ACT)+ 1)</i>
-            <i>CHANGE wmage ACT (-(STAT wmage ACT)+ 1)</i>
+            <i>CHANGE fighter ACT (-STAT.fighter.ACT + 1)</i>
+            <i>CHANGE bmage ACT (-STAT.bmage.ACT + 1)</i>
+            <i>CHANGE wmage ACT (-STAT.wmage.ACT + 1)</i>
         </effect>
     </init>
 
@@ -73,12 +73,12 @@
     </finish>
     
     <recruit>
-        <effect>CHANGE target SPD 1</effect>
+        <effect>CHANGE $target SPD 1</effect>
     </recruit>
     
     <recruit_boss>
         <effect>
-            <i>boss TRAVEL (1,1)</i>
+            <i>boss TRAVEL (1 1)</i>
             <i>GETS boss group monster</i>
         </effect>
     </recruit_boss>
@@ -86,66 +86,66 @@
     <!-- meta moves -->
     <recruitBattle>
         <effect>
-            <i>RECRUIT ((S recruiter monsters)[(DICE 3 + S recruiter LVL * 3)]) (1,0)</i>
-            <i>GETS (1,0) group monster</i>
-            <i>RECRUIT ((S recruiter monsters)[(DICE 3 + S recruiter LVL * 3)]) (1,1)</i>
-            <i>GETS (1,1) group monster</i>
-            <i>RECRUIT ((S recruiter monsters)[(DICE 3 + S recruiter LVL * 3)]) (1,2)</i>
-            <i>GETS (1,2) group monster</i>
+            <i>RECRUIT (S.recruiter.monsters SUB ((DICE.3 + S.recruiter.LVL) * 3)) (1 0)</i>
+            <i>GETS (1 0) group monster</i>
+            <i>RECRUIT (S.recruiter.monsters SUB ((DICE.3 + S.recruiter.LVL) * 3)) (1 1)</i>
+            <i>GETS (1 1) group monster</i>
+            <i>RECRUIT (S.recruiter.monsters SUB ((DICE.3 + S.recruiter.LVL0 * 3)) (1 2)</i>
+            <i>GETS (1 2) group monster</i>
         </effect>
-        <require>target.name == 'recruiter'</require>
+        <require> NAME.$T == recruiter</require>
     </recruitBattle>
     
     <get_item>
-        <effect>GETS T inventory ((S C inventory)[(DICE 5 + S C LVL * 6)])</effect>
-        <require>caster.name == 'treasure'</require>
+        <effect>GETS $T inventory (S$.C.inventory SUB ((DICE.5 + S.$C.LVL) * 6))</effect>
+        <require>NAME.$C == treasure</require>
     </get_item>
     
     <!-- move groups -->
     <status>
         <DESC>status and buff</DESC>
         <require>
-            <i>move.name not in S T status</i>
+            <i>NAME.$move not-in S.$T.status</i>
         </require>
     </status>
     
     <damage>
         <DESC>Damaging moves</DESC>
         <effect>
-            <i>DELAY (CAST target KO) 0</i>
+            <i>DELAY CAST.$target.KO 0</i>
         </effect>
     </damage>
     
     <health>
         <DESC>Healing moves</DESC>
         <effect>
-            <i>DELAY (CAST target OVERHEAL) 0</i>
+            <i>DELAY CAST.$target.OVERHEAL 0</i>
         </effect>
     </health>
     
     <regen>
         <DESC>Mana Regen Moves</DESC>
         <effect>
-            <i>DELAY (CAST target OVERMANA) 0</i>
+            <i>DELAY CAST.$target.OVERMANA 0</i>
        </effect>
     </regen>
     
     <active>
         <DESC>Actives Moves</DESC>
         <require>
-            <i>STAT caster ACT >= 2</i>
-            <i>move.name in STAT caster movelist</i>
+            <i>STAT.$caster.ACT >= 2</i>
+            <i>NAME.$move in STAT.$C.movelist</i>
         </require>
         <effect>
-            <i>CHANGE caster ACT -2</i>
+            <i>CHANGE $caster ACT -2</i>
         </effect>
     </active>
     
     <globe>
         <DESC>Almost all moves are in this class</DESC>
         <require>
-            <i>'KO' not in STAT caster status</i>
-            <i>'KO' not in STAT target status</i>
+            <i>KO not-in S.$C.status</i>
+            <i>KO not-in S.$T.status</i>
         </require>
     </globe>
     
@@ -153,12 +153,12 @@
     <KO>
         <DESC>Character's HP has dropped to 0</DESC>
         <require>
-            <i>STAT target HP &lt;= 0</i>
+            <i>S.$T.HP &lt;= 0</i>
         </require>
         <effect>
-            <i>CHANGE target HP -(STAT target HP)</i>
-            <i>GETS target status move</i>
-            <i>LOSES T group monster</i>
+            <i>CHANGE $target HP -S.$T.HP</i>
+            <i>GETS $target status move</i>
+            <i>LOSES $target group monster</i>
         </effect>
         <group>
             <i>globe</i>
@@ -211,11 +211,11 @@
     <POISON_CHECK>
         <DESC>DROPS THE CHARACTERS HEALTH ONCE USING A DELAYED CHAIN MOVE</DESC>
         <require>
-            <i>DICE 5 > 2</i>
+            <i>DICE.5 > 2</i>
         </require>
         <effect>
-            <i>DELAY (CAST target POISON_ACTIVE) 2</i>
-            <i>GETS target status POISON</i>
+            <i>DELAY (CAST $target POISON_ACTIVE) 2</i>
+            <i>GETS $target status POISON</i>
         </effect>
         <group>
             <i>globe</i>
@@ -225,33 +225,33 @@
     <OVERHEAL>
         <DESC>A check to make sure character hasn't overhealed</DESC>
         <require>
-            <i>STAT target HP >= STAT (CLASS target TEMPLATE) HP</i>
-            <i>'party' in STAT target group</i>
+            <i>S.$T.HP >= (STAT CLASS.$target.TEMPLATE HP)</i>
+            <i>party in S.$T.group</i>
         </require>
         <effect>
-            <i>CHANGE target HP (STAT (CLASS T TEMPLATE) HP - STAT T HP)</i>
+            <i>CHANGE $target HP ((STAT CLASS.$T.TEMPLATE HP) + -STAT.$T.HP)</i>
         </effect>
     </OVERHEAL>
     
     <OVERMANA>
-        <DESC>A check to make sure character hasn't overmanad</DESC>
+        <DESC>A check to make sure character hasnt overmanad</DESC>
         <require>
-            <i>STAT target MP >= STAT (CLASS target TEMPLATE) MP</i>
-            <i>'party' in STAT T group</i>
+            <i>S.$T.MP >= (STAT CLASS.$T.TEMPLATE MP)</i>
+            <i>party in STAT.$T.group</i>
         </require>
         <effect>
-            <i>CHANGE target MP (STAT (CLASS target TEMPLATE ) MP - STAT target MP)</i>
+            <i>CHANGE  $target MP ((STAT CLASS.$T.TEMPLATE MP) - (STAT $target MP))</i>
         </effect>
     </OVERMANA>
     
     <POISON_ACTIVE>
         <DESC>Toxic Spit Active Part</DESC>
         <effect>
-            <i>CHANGE target HP -(5+ DICE 5)</i>
-            <i>DELAY (CAST target POISON_ACTIVE) 2</i>
+            <i>CHANGE $target HP -(5 + DICE.5)</i>
+            <i>DELAY CAST.$T.POISON_ACTIVE 2</i>
         </effect>
         <require>
-            <i>'POISON' in STAT target status</i>
+            <i>POISON in S.$T.status</i>
         </require>
         <group>
             <i>damage</i>
@@ -259,11 +259,13 @@
         </group>
     </POISON_ACTIVE>
     
+    -((S C MEL + DICE 10) * 2 * (1 - S T DEF / 100))
+    
     <CHARGE_ACTIVE>
         <DESC>Charge Active Component</DESC>
         <effect>
-            <i>CHANGE target HP -((S C MEL + DICE 10) * 2 * (1 - S T DEF / 100))</i>
-            <i>LOSES caster status CHARGE</i>
+            <i>CHANGE $target HP -(* 2 (S.$C.MEL + DICE.10) (100 - S.$T.DEF) /100)</i>
+            <i>LOSES $caster status CHARGE</i>
         </effect>
         <group>
             <i>damage</i>
@@ -274,7 +276,7 @@
     <DEFEND_ACTIVE>
         <DESC>Defend Active Component</DESC>
         <effect>
-            <i>LOSES target status DEFEND</i>
+            <i>LOSES $target status DEFEND</i>
         </effect>
         <group>
             <i>globe</i>
@@ -284,20 +286,21 @@
     <SACRIFICE_ACTIVE>
         <DESC>Sacrifice Active Component</DESC>
         <effect>
-            <i>CHANGE target HP (STAT (CLASS target TEMPLATE) HP - STAT target HP)</i>
-            <i>CHANGE target MP (STAT (CLASS target TEMPLATE) MP - STAT target MP)</i>
-            <i>LOSES target status KO</i>
+            <i>CHANGE $target HP (STAT CLASS.$target.TEMPLATE (HP + -S.$T.HP))</i>
+            <i>CHANGE $target MP (STAT CLASS.$target.TEMPLATE (MP + -S.$T.MP))</i>
+            <i>LOSES $target status KO</i>
         </effect>
         <require>
-            <i>'SACRIFICE' not in STAT target status</i>
+            <i>SACRIFICE not-in S.$T.status</i>
         </require>
     </SACRIFICE_ACTIVE>
         
     <!-- global moves -->
+    -((S C MEL + DICE 10) * (1 - S T DEF / 100))
     <attack>
         <DESC>Attack</DESC>
         <effect>
-            <i>CHANGE target HP -((S C MEL + DICE 10) * (1 - S T DEF / 100))</i>
+            <i>CHANGE $target HP -(* (S.$C.MEL + DICE.10) (100 - S.$T.DEF) /100)</i>
         </effect>
         <group>
             <i>damage</i>
@@ -318,12 +321,12 @@
     <spit>
         <DESC>Toxic Spit</DESC>
         <effect>
-            <i>CHANGE target HP -((S C MGK + DICE 10) * (1 - S T MDEF / 100))</i>
-            <i>CHANGE caster MP -1</i>
-            <i>CAST target POISON_CHECK</i>
+            <i>CHANGE $target HP -(* (S.$C.MGK + DICE.10) (100 - S.$T.MDEF) /100)</i>
+            <i>CHANGE $caster MP -1</i>
+            <i>CAST $target POISON_CHECK</i>
         </effect>
         <require>
-            <i>STAT caster MP >= 1</i>
+            <i>STAT.$caster.MP >= 1</i>
         </require>
         <group>
             <i>damage</i>
@@ -336,8 +339,8 @@
         <DESC>Defend</DESC>
         <skip>skip</skip>
         <effect>
-            <i>DELAY (CAST caster DEFEND_ACTIVE) 2</i>
-            <i>GETS caster status DEFEND</i>
+            <i>DELAY (CAST $caster DEFEND_ACTIVE) 2</i>
+            <i>GETS $caster status DEFEND</i>
         </effect>
         <group>
             <i>active</i>
@@ -348,8 +351,8 @@
     <charge>
         <DESC>Store Energy</DESC>
         <effect>
-            <i>GETS caster status CHARGE</i>
-            <i>DELAY (CAST target CHARGE_ACTIVE) 2</i>
+            <i>GETS $caster status CHARGE</i>
+            <i>DELAY (CAST $target CHARGE_ACTIVE) 2</i>
         </effect>
         <group>
             <i>active</i>
@@ -360,11 +363,11 @@
     <magic>
         <DESC>Magic Missiles</DESC>
         <effect>
-            <i>CHANGE target HP -((S C MGK + DICE 10) * (1 - S T MDEF / 100))</i>
-            <i>CHANGE caster MP -1</i>
+            <i>CHANGE $target HP -(* (S.$C.MGK + DICE.10) (100 - S.$T.MDEF) /100)</i>
+            <i>CHANGE $caster MP -1</i>
         </effect> 
         <require>
-            <i>STAT caster MP >= 1</i>
+            <i>STAT  $caster MP >= 1</i>
         </require>
         <group>
             <i>damage</i>
@@ -376,11 +379,11 @@
     <fire>
         <DESC>Fireball</DESC>
         <effect>
-            <i>CHANGE target HP -((S C MGK + DICE 10) * (1 - S T MDEF / 100) * (S T FIRE / 2))</i>
-            <i>CHANGE caster MP -2</i>
+            <i>CHANGE  $target HP -(* (S.$C.MGK + DICE.10) (100 - S.$T.MDEF) S.$T.FIRE /200)</i>
+            <i>CHANGE  $caster MP -2</i>
         </effect> 
         <require>
-            <i>STAT caster MP  >= 2</i>
+            <i>S.$C.MP >= 2</i>
         </require>
         <group>
             <i>damage</i>
@@ -392,11 +395,11 @@
     <water>
         <DESC>Waterfall</DESC>
         <effect>
-            <i>CHANGE target HP -((S C MGK + DICE 10) * (1 - S T MDEF / 100) * (S T WATER / 2))</i>
-            <i>CHANGE caster MP -2</i>
+            <i>CHANGE $target HP -(* (S.$C.MGK + DICE.10) (100 - S.$T.MDEF) S.$T.WATER /200)</i>
+            <i>CHANGE $caster MP -2</i>
         </effect> 
         <require>
-            <i>STAT caster MP  >= 2</i>
+            <i>S.$C.MP >= 2</i>
         </require>
         <group>
             <i>damage</i>
@@ -410,10 +413,10 @@
         <DESC>Sacrifice</DESC>
         <skip>skip</skip>
         <effect>
-            <i>CHANGE caster HP -(STAT caster HP)</i>
-            <i>CHANGE caster MP -(STAT caster MP)</i>
-            <i>GETS caster status SACRIFICE</i>
-            <i>GETS caster status KO</i>
+            <i>CHANGE $caster HP -(STAT $caster HP)</i>
+            <i>CHANGE $caster MP -(STAT $caster MP)</i>
+            <i>GETS $caster status SACRIFICE</i>
+            <i>GETS $caster status KO</i>
             <i>CAST (ALL party) SACRIFICE_ACTIVE</i>
         </effect>
         <group>
@@ -425,11 +428,11 @@
     <heal>
         <DESC>Heal</DESC>
         <effect>
-            <i>CHANGE target HP (STAT caster MGK + DICE 10)</i>
-            <i>CHANGE caster MP -1</i>
+            <i>CHANGE $target HP (S.$C.MGK + DICE.10)</i>
+            <i>CHANGE $caster MP -1</i>
         </effect>
         <require>
-            <i>STAT caster MP >= 1</i>
+            <i>S.$C.MP >= 1</i>
         </require>
         <group>
             <i>health</i>
@@ -441,11 +444,11 @@
     <antidote>
         <DESC>Antidote</DESC>
         <effect>
-            <i>LOSES target status POISON</i>
-            <i>CHANGE caster MP -1</i>
+            <i>LOSES $target status POISON</i>
+            <i>CHANGE $caster MP -1</i>
         </effect>
         <require>
-            <i>STAT caster MP >= 1</i>
+            <i>STAT $caster MP >= 1</i>
         </require>
         <group>
             <i>active</i>
@@ -458,12 +461,12 @@
     <doomsday>
         <DESC>Doomsday</DESC>
         <effect>
-            <i>DELAY (CAST target DOOM_ACTIVE) 4</i>
-            <i>CHANGE caster MP -1</i>
-            <i>CHANGE caster ACT -2</i>
+            <i>DELAY (CAST $target DOOM_ACTIVE) 4</i>
+            <i>CHANGE $caster MP -1</i>
+            <i>CHANGE $caster ACT -2</i>
         </effect>
         <require>
-            <i>STAT caster MP >= 1</i>
+            <i>S.$C.MP >= 1</i>
         </require>
         <group>
             <i>active</i>
@@ -474,7 +477,7 @@
     <DOOM_ACTIVE>
         <DESC>Doomsday Active Component</DESC>
         <effect>
-            <i>CHANGE target HP -(STAT target HP)</i>
+            <i>CHANGE $target HP -(STAT $target HP)</i>
         </effect>
         <group>
             <i>damage</i>
@@ -491,9 +494,9 @@
             <i>globe</i>
         </group>
         <effect>
-            <i>CHANGE caster MP -1</i>
-            <i>LOSES caster status (LISTGROUP boss status current_barrier)</i>
-            <i>GETS caster status ((S C inventory)[(DICE 5 -1)])</i>
+            <i>CHANGE $caster MP -1</i>
+            <i>LOSES $caster status (LISTGROUP boss status current_barrier)</i>
+            <i>GETS $caster status (S.$C.inventory SUB (DICE.5 + -1))</i>
         </effect>
     </barrier>
     
@@ -574,8 +577,8 @@
             <i>LOSES party inventory move</i>
         </effect>
         <require>
-            <i>move.name in STAT party inventory</i>
-            <i>'SACRIFICE' not in STAT target status</i>
+            <i>NAME.$move in S.party.inventory</i>
+            <i>SACRIFICE not-in S.$T.status</i>
         </require>
     </one_use>
     
@@ -586,9 +589,9 @@
             <i>health</i>
         </group>
         <effect>
-            <i>CHANGE target HP 50</i>
-            <i>LOSES target status KO</i>
-            <i>LOSES target status POISON</i>
+            <i>CHANGE $target HP 50</i>
+            <i>LOSES $target status KO</i>
+            <i>LOSES $target status POISON</i>
         </effect>
     </potion>
     
@@ -599,8 +602,8 @@
             <i>regen</i>
         </group>
         <effect>
-            <i>CHANGE target MP 10</i>
-            <i>LOSES target status POISON</i>
+            <i>CHANGE $target MP 10</i>
+            <i>LOSES $target status POISON</i>
         </effect>
     </mana>
     
@@ -610,8 +613,8 @@
     <equip_item>
         <DESC>equipable is</DESC>
         <require>
-            <i>target.name in STAT move yesequip</i>
-            <i>CLASS move equipable not in LISTSTAT target equip group</i>
+            <i>NAME.$T in S.move.yesequip</i>
+            <i>(CLASS move equipable) not-in (LISTSTAT $target equip group)</i>
         </require>
     </equip_item>
     
@@ -897,7 +900,7 @@
     
     <twmage>
         <DESC>Template for White Mage the Good</DESC>
-        <HP>130</HP>, 
+        <HP>130</HP>  
         <MP>10</MP> 
         <MEL>25</MEL>
         <MGK>45</MGK>

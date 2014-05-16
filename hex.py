@@ -1,27 +1,35 @@
 import pygame
 import sys
-import udebs
-import random
+from udebs import loadxml
 import math
-import static
 from pygame.locals import *
-
-#initialize pygame and udebs
 pygame.init()
-mainClock = pygame.time.Clock()
-main_map = udebs.battleStart("xml/hex.xml")
-main_map.controlMove('empty', 'empty', 'init')
 
 #definitions
+ts = 20
 BLACK = (0, 0, 0)
 GREEN = (0, 255, 0)
 WHITE = (255, 255, 255)
 RED = (255, 0, 0)
-basicFont = pygame.font.SysFont(None, 48)
-pygame.display.set_caption('A simple hex GUI')
-mainSurface = pygame.display.set_mode((425, 300), 0, 32)
+FONT = pygame.font.SysFont(None, 48)
+CLOCK = pygame.time.Clock()
 
-def createHex(center, length):
+def eventLoad():
+    S = {}
+    pygame.display.set_caption('A simple hex GUI')
+    S["surface"] = pygame.display.set_mode((500, 400), 0, 32)
+    S["map"] = loadxml.battleStart("xml/hex.xml")
+    S["map"].controlInit('init')
+    S["mouse"] = None
+    S['path'] = []
+    S["high"] = updateHigh(S)
+    return S
+
+def createHex(a, b, ts):
+    rad = math.cos(math.pi / 6)
+    center = (ts*(2*a+b+1.5), ts*(1.5*b/rad+1.5))
+    length = ts / rad
+    
     found = []
     for i in range(6):
         angle = i * math.pi / 3
@@ -30,79 +38,67 @@ def createHex(center, length):
         found.append((x, y))
     return found
 
-#variables
-selection = {'x': 0, 'y': 0}
-highlighted = main_map.getFill(
-    'token1', 
-    'suptravel', 
-    main_map.getStat('token', 'ACT')
-)
-print(highlighted)
-#game loop
-while True:
-  
-    for event in pygame.event.get():
-        if event.type == QUIT:
-            pygame.quit()
-            sys.exit()
-        
-        if event.type == KEYDOWN:
-        
-            if event.key == K_RETURN:
-                main_map.controlMove(
-                    'token1', 
-                    (selection['x'], selection['y']), 
-                    'travel'
-                )
-                highlighted = main_map.getFill(
-                    'token1', 
-                    'suptravel', 
-                    main_map.getStat('token', 'ACT')
-                )
- 
-        
-        #selection right/left
-            if event.key == K_RIGHT:
-                selection['x'] +=1
-                if selection['x'] >= 8:
-                    selection['x'] = 7
-                    
-            if event.key == K_LEFT:
-                selection['x'] -=1
-                if selection['x'] < 0:
-                    selection['x'] = 0
-                    
-            #selection up/down
-            if event.key == K_UP:
-                selection['y'] -=1
-                if selection['y'] < 0:
-                    selection['y'] = 0
-                    
-            if event.key == K_DOWN:
-                selection['y'] +=1
-                if selection['y'] >= 8:
-                    selection['y'] = 7
-                  
+def updateHigh(S):
+    ACT = S["map"].getStat('token', 'ACT')
+    return S["map"].getFill('token1', 'suptravel', ACT)
+
+def eventUpdate(S):
     #redraw the board
-    mainSurface.fill(BLACK)
-    i = 0    
+    S["surface"].fill(BLACK) 
     for y in range(8):
         for x in range(8):                      
+            #check for click updates
+            if S["mouse"]:
+                eventClick(S, x, y)
             
-            colour = WHITE
-            if (x,y, 'map') in highlighted:
+            loc = (x,y,'map')
+            if loc in S["high"]:
                 colour = GREEN
-            if selection == {'x': x, 'y': y}:
+            elif loc in S['path']:
                 colour = RED
+            else:
+                colour = WHITE
             
-            pygame.draw.polygon(mainSurface, colour, createHex((x*35+30 + i,y*30 + 30), 20), 0)
-            pygame.draw.polygon(mainSurface, BLACK, createHex((x*35+30 + i,y*30 + 30), 20), 1)
+            pygame.draw.polygon(S["surface"], colour, createHex(x, y, ts), 0)
+            pygame.draw.polygon(S["surface"], BLACK, createHex(x, y, ts), 1)
             
-            unit = main_map.getMap((x, y))
+            unit = S["map"].getMap(loc)
             if unit != 'empty':
-                sprite_symbol = main_map.getStat(unit, 'sprite')
-                mainSurface.blit(basicFont.render(sprite_symbol, True, BLACK, colour), (x*35+18+i, y*30+16))
-        i += 18
+                sprite_symbol = S["map"].getStat(unit, 'sprite')
+                S["surface"].blit(FONT.render(sprite_symbol, 
+                    True, BLACK, colour), (ts*(2*x+y+1), ts*(y*1.73+1)))
     
     pygame.display.update()
-    mainClock.tick(60)
+
+def eventExit():
+    pygame.quit()
+    sys.exit()
+
+def eventClick(S, x, y):
+    collide = pygame.Rect(0, 0, 1.5*ts, 1.5*ts)
+    collide.center = (ts*(2*x+y+1.5), ts*(1.5*y/math.cos(math.pi/6)+1.5))
+    
+    if collide.collidepoint(S["mouse"]):
+        S["mouse"] = None
+        loc = (x, y, "map")
+        if loc in S['high']:
+            S["map"].controlMove('token1', loc, 'travel')
+            S['high'] = updateHigh(S)
+            S["path"] = []
+        else:
+            S["path"] = S['map'].pathTowards('token1', loc, 'notempty')
+            if not S["path"]:
+                S["path"] = []
+            
+#game loop
+S = eventLoad()
+while True:
+    for event in pygame.event.get():
+        if event.type == QUIT:
+            eventExit()
+        
+        elif event.type == MOUSEBUTTONDOWN:
+            S["mouse"] = pygame.mouse.get_pos()
+        
+    eventUpdate(S)
+    CLOCK.tick(60)
