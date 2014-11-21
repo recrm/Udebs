@@ -1,43 +1,24 @@
-import pygame
 import sys
 import math
+from pygame.locals import *
+import pygame
 from udebs import loadxml
 from udebs.interpret import importModule
-from pygame.locals import *
-
-def createSet(value = None, old = None):
-    if not old:
-        old = set()
-    if value:
-        old.add(value)
-    return old
-
-module = {"SET": {
-    "f": "createSet",
-    "args": ["$1", "$2"],
-    "default": {"$1": None, "$2": None},
-}}
-importModule(module, {"createSet": createSet})
-
 
 #initialize pygame and udebs
+ts = 15
 pygame.init()
 pygame.display.set_caption('A simple river simulation')
 mainClock = pygame.time.Clock()
+mainSurface = pygame.display.set_mode((850, 520), 0, 32)
+basicFont = pygame.font.SysFont(None, 20)
+pause = False
+
 field = loadxml.battleStart("xml/river.xml")
 field.rand.seed(26892201)
 field.controlInit('init')
+loc = (0,0,'map')
 
-#definitions
-S = {
-    "ts": 15,
-    "pause": False,
-    "surface": pygame.display.set_mode((850, 520), 0, 32),
-    "mouse": None,
-    "loc": (0,0,'map'),
-}    
-
-basicFont = pygame.font.SysFont(None, 20)
 colours = {
     'black': (0, 0, 0),
     'grass': (0, 128, 0),
@@ -60,61 +41,52 @@ def createHex(a, b, ts):
         found.append((x, y))
     return found
 
-def eventClick(S, x, y):
-    ts = S['ts']
-    collide = pygame.Rect(0, 0, 1.5*ts, 1.5*ts)
-    collide.center = (ts*(2*x+y+1.5), ts*(1.5*y/math.cos(math.pi/6)+1.5))
-    
-    if collide.collidepoint(S["mouse"]):
-        S["loc"] = (x, y, "map")
-        S["mouse"] = False
-
-def drawSurface(S, field):
+def drawSurface():
     #redraw the board
-    S["surface"].fill((0,0,0))
+    mainSurface.fill((0,0,0))
     for y in range(field.getMap().y()):
         for x in range(field.getMap().x()):                      
-            if S["mouse"]:
-                eventClick(S, x, y)
-            
             colour = colours[field.getStat((x,y), 'colour')]
-            pygame.draw.polygon(S["surface"], colour, createHex(x, y, S["ts"]), 0)
-            pygame.draw.polygon(S["surface"], (0,0,0), createHex(x, y, S["ts"]), 1)
+            pygame.draw.polygon(mainSurface, colour, createHex(x, y, ts), 0)
+            pygame.draw.polygon(mainSurface, (0,0,0), createHex(x, y, ts), 1)
     
     i = 15
     for stat in field.stats.union(field.strings):
-        value = field.getStat(S['loc'], stat)
-        S["surface"].blit(basicFont.render(stat+": "+str(value), True, (255,255,255), (0,0,0)), (700,i))
+        value = field.getStat((x,y), stat)
+        mainSurface.blit(basicFont.render(stat+": "+str(value), True, (255,255,255), (0,0,0)), (700,i))
+        i += 15
+        
+    for other in [field.getName(loc), str(field.time)]:
+        mainSurface.blit(basicFont.render(other, True, (255,255,255), (0,0,0)), (700,i))
         i += 15
     
-    value = str(field.getStat(S['loc'], "W") + field.getStat(S['loc'], "D"))
-    S["surface"].blit(basicFont.render(value, True, (255,255,255), (0,0,0)), (700,i)) 
-    i += 15
-    S["surface"].blit(basicFont.render(field.getName(S['loc']), True, (255,255,255), (0,0,0)), (700,i)) 
-    i += 15
-    S["surface"].blit(basicFont.render(str(field.time), True, (255,255,255), (0,0,0)), (700,i)) 
+    pygame.display.update()
 
 
 #game loop
 while True:
-  
     for event in pygame.event.get():
         if event.type == QUIT:
             pygame.quit()
             sys.exit()
             
         elif event.type == MOUSEBUTTONDOWN:
-            S['mouse'] = pygame.mouse.get_pos()
+            collide = pygame.Rect(0, 0, 1.5*ts, 1.5*ts)
+            for y in range(field.getMap().y()):
+                for x in range(field.getMap().x()):   
+                    collide.center = (ts*(2*x+y+1.5), ts*(1.5*y/math.cos(math.pi/6)+1.5))
+                    if collide.collidepoint(pygame.mouse.get_pos()):
+                        loc = (x, y, "map")
             
         elif event.type == KEYDOWN:
             if event.key == K_SPACE:
-                S['pause'] = not S['pause']
+                pause = not pause
                 
-                
-    drawSurface(S, field)
-    pygame.display.update()
-    if not S['pause'] and field.time < 100000:
-        field.controlTime(100)
+    drawSurface()
+    
+    if not pause and field.time < 10000:
+        field.controlTime(50)
     mainClock.tick(60)
-#    sys.exit()
+    if field.time >= 10000:
+        sys.exit()
     

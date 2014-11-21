@@ -1,15 +1,17 @@
 <udebs>
 
 <config>
-    <name>Sub Battle</name>
+    <name>Combat</name>
 </config>
 
 <definitions>   
     <stats>
         <ACT /> <!-- Number of action points -->
-        <SPD /> <!-- How many action points are gained each tick -->
+        <SPD /> <!-- How many action points are gained on tick -->
         <HP />  <!-- Hit points -->
         <MP />  <!-- Magic points -->
+        <MAXHP />
+        <MAXMP />
         <MEL /> <!-- Mellee Damage -->
         <MGK /> <!-- Magic Damage -->
         <FIRE /> <!-- Fire weakness -->
@@ -28,43 +30,43 @@
     </strings>
 
     <lists>
-        <status rlist='' slist='status' /> <!-- Status effects, effects stats -->
-        <equip rlist='' slist='equip_item' /> <!-- Equip effects, effects stats -->
-        <inventory /> <!-- Place for storing items, party only -->
-        <monsters />  <!-- List of spawnable monsters, recruiter only -->
-        <yesequip />  <!-- List of people that can equip this item. Equipable items only -->
+        <status rlist="" />
+        <equip rlist="" />
+        <inventory /> <!-- Place for storing items: party -->
         <movelist />
     </lists>
 </definitions>
 
 <map>
-    <row>bmage, empty</row>
-    <row>fighter, empty</row> 
+    <row>fighter, empty</row>
+    <row>bmage, empty</row> 
     <row>wmage, empty</row>
 </map>
 
 <entities>
     <!-- Script-->
+    <init>
+        <effect>
+            <i>CAST empty recruitBattle</i>
+            <i>CHANGE fighter ACT (1 - STAT.fighter.ACT)</i>
+            <i>CHANGE bmage ACT (1 - STAT.bmage.ACT)</i>
+            <i>CHANGE wmage ACT (1 - STAT.wmage.ACT)</i>
+        </effect>
+    </init>
+
     <tick>
         <effect>
-            <i>CAST (ALL party) atb</i>
-            <i>CAST (ALL monster) atb</i>
+            <i>CAST ALL.party atb</i>
+            <i>CAST ALL.monster atb</i>
+            <i>CAST ALL.party party_activate</i>
+            <i>CAST ALL.monster monster_activate</i>
         </effect>
     </tick>
     
     <atb>
-        <effect>CHANGE $T ACT S.$T.SPD</effect>
+        <effect>CHANGE $T ACT STAT.$T.SPD</effect>
     </atb>
-
-    <init>
-        <effect>
-            <i>CAST recruiter recruitBattle</i>
-            <i>CHANGE fighter ACT (-STAT.fighter.ACT + 1)</i>
-            <i>CHANGE bmage ACT (-STAT.bmage.ACT + 1)</i>
-            <i>CHANGE wmage ACT (-STAT.wmage.ACT + 1)</i>
-        </effect>
-    </init>
-
+    
     <finish>
         <effect>
             <i>CHANGE recruiter LVL 1</i>
@@ -72,420 +74,386 @@
         </effect>
     </finish>
     
-    <recruit>
-        <effect>CHANGE $target SPD 1</effect>
-    </recruit>
-    
-    <recruit_boss>
+    <recruitBoss>
         <effect>
             <i>boss TRAVEL (1 1)</i>
             <i>GETS boss group monster</i>
         </effect>
-    </recruit_boss>
+    </recruitBoss>
 
-    <!-- meta moves -->
     <recruitBattle>
         <effect>
-            <i>RECRUIT (S.recruiter.monsters SUB ((DICE.3 + S.recruiter.LVL) * 3)) (1 0)</i>
+            <i>RECRUIT (STAT.recruiter.inventory SUB (DICE.3 + (STAT.recruiter.LVL * 3))) (1 0)</i>
+            <i>RECRUIT (STAT.recruiter.inventory SUB (DICE.3 + (STAT.recruiter.LVL * 3))) (1 1)</i>
+            <i>RECRUIT (STAT.recruiter.inventory SUB (DICE.3 + (STAT.recruiter.LVL * 3))) (1 2)</i>
             <i>GETS (1 0) group monster</i>
-            <i>RECRUIT (S.recruiter.monsters SUB ((DICE.3 + S.recruiter.LVL) * 3)) (1 1)</i>
             <i>GETS (1 1) group monster</i>
-            <i>RECRUIT (S.recruiter.monsters SUB ((DICE.3 + S.recruiter.LVL0 * 3)) (1 2)</i>
             <i>GETS (1 2) group monster</i>
         </effect>
-        <require> NAME.$T == recruiter</require>
     </recruitBattle>
     
     <get_item>
-        <effect>GETS $T inventory (S$.C.inventory SUB ((DICE.5 + S.$C.LVL) * 6))</effect>
-        <require>NAME.$C == treasure</require>
+        <effect>
+            <i>GETS $C inventory (STAT.treasure.inventory SUB (DICE.5 + (STAT.treasure.LVL * 6)))</i>
+            <i>soundFX pickup</i>
+        </effect>
     </get_item>
     
-    <!-- move groups -->
-    <status>
-        <DESC>status and buff</DESC>
+    <monster_activate>
+        <require>STAT.$T.ACT >= 2</require>
+        <effect>
+            <i>movelist = STAT.$T.movelist</i>
+            <i>enemies = (FILTER ALL.party isnotdead)</i>
+            <i>print $enemies</i>
+            <i>trandom = ($enemies SUB DICE.2)</i>
+            <i>mrandom = ($movelist SUB (DICE (length.$movelist - 1)))</i>
+            <i>$T CAST $trandom $mrandom</i>
+            <i>message NAME.$T $mrandom $trandom</i>
+        </effect>
+    </monster_activate>
+
+    <party_activate>
+        <require>STAT.$T.ACT >= 2</require>
+        <effect>activate $T</effect>
+    </party_activate>
+    
+    <!-- Damage Moves -->
+    <globe>
+        <DESC>Almost all moves are in this class</DESC>
         <require>
-            <i>NAME.$move not-in S.$T.status</i>
+            <i>ko not-in STAT.$caster.status</i>
+            <i>ko not-in STAT.$target.status</i>
         </require>
-    </status>
-    
-    <damage>
-        <DESC>Damaging moves</DESC>
-        <effect>
-            <i>DELAY CAST.$target.KO 0</i>
-        </effect>
-    </damage>
-    
-    <health>
-        <DESC>Healing moves</DESC>
-        <effect>
-            <i>DELAY CAST.$target.OVERHEAL 0</i>
-        </effect>
-    </health>
-    
-    <regen>
-        <DESC>Mana Regen Moves</DESC>
-        <effect>
-            <i>DELAY CAST.$target.OVERMANA 0</i>
-       </effect>
-    </regen>
+    </globe>
     
     <active>
-        <DESC>Actives Moves</DESC>
+        <DESC>Actives moves</DESC>
         <require>
+            <i>STAT.$caster.MP >= STAT.$move.MP</i>
             <i>STAT.$caster.ACT >= 2</i>
-            <i>NAME.$move in STAT.$C.movelist</i>
+            <i>NAME.$move in STAT.$caster.movelist</i>
         </require>
         <effect>
+            <i>CHANGE $caster MP -STAT.$move.MP</i>
             <i>CHANGE $caster ACT -2</i>
         </effect>
     </active>
     
-    <globe>
-        <DESC>Almost all moves are in this class</DESC>
-        <require>
-            <i>KO not-in S.$C.status</i>
-            <i>KO not-in S.$T.status</i>
-        </require>
-    </globe>
+    <status>
+        <DESC>status and buff</DESC>
+        <require>NAME.$move not-in STAT.$T.status</require>
+        <effect>GETS $target status NAME.$move</effect>
+    </status>
     
-<!-- Status Effects and chaincasts -->
-    <KO>
-        <DESC>Character's HP has dropped to 0</DESC>
-        <require>
-            <i>S.$T.HP &lt;= 0</i>
-        </require>
+    <damage>
+        <DESC>Damaging moves</DESC>
+        <effect>DELAY (CAST $target ko) 0</effect>
+    </damage>
+    
+    <!-- Moves -->
+    <isnotdead>
+        <require>ko not-in STAT.$T.status</require>
+    </isnotdead>
+    
+    <ko>
+        <DESC>Characters HP has dropped to 0</DESC>
+        <require>STAT.$target.HP &lt;= 0</require>
         <effect>
-            <i>CHANGE $target HP -S.$T.HP</i>
-            <i>GETS $target status move</i>
+            <i>CHANGE $target HP -STAT.$target.HP</i>
             <i>LOSES $target group monster</i>
+            <i>DELAY (CAST $T party_KO) 0</i>
         </effect>
         <group>
             <i>globe</i>
             <i>status</i>
         </group>
         <SPD>-1</SPD>
-    </KO>
+    </ko>
     
-    <SACRIFICE>
-        <DESC>White Mage has been sacrificed and cannot return to the fight</DESC>
+    <party_KO>
+        <require>(length (FILTER ALL.party isnotdead)) == 0</require>
+        <effect>
+            <i>message You are dead!</i>
+            <i>exit</i>
+        </effect>
+    </party_KO>
+    
+    <attack>
+        <DESC>Attack</DESC>
+        <effect>
+            <i>soundFX attack</i>
+            <i>CHANGE $target HP -(* (STAT.$C.MEL + DICE.10) (1 - (STAT.$T.DEF / 100)))</i>
+        </effect>
         <group>
+            <i>damage</i>
+            <i>active</i>
             <i>globe</i>
-            <i>status</i>
         </group>
-        <SPD>-1</SPD> 
-    </SACRIFICE>
+    </attack>
     
-    <DEFEND>
-        <DESC>Increased def on fighter, and he guerenteed takes the next hit</DESC>
+    <pass>
+        <DESC>Pass</DESC> 
+        <skip>skip</skip>
+        <effect>soundFX back</effect>
         <group>
+            <i>active</i>
             <i>globe</i>
-            <i>status</i>
-        </group> 
-        <def>50</def>
-        <mdef>30</mdef>
-    </DEFEND>
-    
-    <CHARGE>
-        <DESC>Decreases fighter def, but charges up for a huge hit</DESC>
-        <group>
-            <i>globe</i>
-            <i>status</i>
         </group>
-        <def>-50</def>
-        <mdef>-30</mdef>    
-    </CHARGE>
- 
-    <POISON>
-        <DESC>POISON</DESC>
+    </pass>
+    
+    <spit>
+        <DESC>Toxic Spit</DESC>
+        <effect>
+            <i>soundFX magic</i>
+            <i>CHANGE $target HP -(* (STAT.$C.MGK + DICE.10) (1 - (STAT.$T.MDEF / 100)))</i>
+            <i>CAST $target poison</i>
+        </effect>
         <group>
-            <i>status</i>
+            <i>damage</i>
+            <i>active</i>
             <i>globe</i>
+        </group>
+        <MP>1</MP>
+    </spit>
+    
+    <poison>
+        <DESC>DROPS THE CHARACTERS HEALTH ONCE USING A DELAYED CHAIN move</DESC>
+        <require>DICE.5 > 2</require>
+        <effect>DELAY (CAST $target poison_active) 2</effect>
+        <group>
+            <i>globe</i>
+            <i>status</i>
         </group>
         <r>-30</r>
         <g>-30</g>
-        <b>-30</b>      
-    </POISON>
+        <b>-30</b>
+    </poison>
     
-<!-- Active components -->
-    <POISON_CHECK>
-        <DESC>DROPS THE CHARACTERS HEALTH ONCE USING A DELAYED CHAIN MOVE</DESC>
-        <require>
-            <i>DICE.5 > 2</i>
-        </require>
-        <effect>
-            <i>DELAY (CAST $target POISON_ACTIVE) 2</i>
-            <i>GETS $target status POISON</i>
-        </effect>
-        <group>
-            <i>globe</i>
-        </group>
-    </POISON_CHECK>
-    
-    <OVERHEAL>
-        <DESC>A check to make sure character hasn't overhealed</DESC>
-        <require>
-            <i>S.$T.HP >= (STAT CLASS.$target.TEMPLATE HP)</i>
-            <i>party in S.$T.group</i>
-        </require>
-        <effect>
-            <i>CHANGE $target HP ((STAT CLASS.$T.TEMPLATE HP) + -STAT.$T.HP)</i>
-        </effect>
-    </OVERHEAL>
-    
-    <OVERMANA>
-        <DESC>A check to make sure character hasnt overmanad</DESC>
-        <require>
-            <i>S.$T.MP >= (STAT CLASS.$T.TEMPLATE MP)</i>
-            <i>party in STAT.$T.group</i>
-        </require>
-        <effect>
-            <i>CHANGE  $target MP ((STAT CLASS.$T.TEMPLATE MP) - (STAT $target MP))</i>
-        </effect>
-    </OVERMANA>
-    
-    <POISON_ACTIVE>
+    <poison_active>
         <DESC>Toxic Spit Active Part</DESC>
         <effect>
+            <i>soundFX hurt</i>
             <i>CHANGE $target HP -(5 + DICE.5)</i>
-            <i>DELAY CAST.$T.POISON_ACTIVE 2</i>
+            <i>DELAY (CAST $target poison_active) 2</i>
         </effect>
         <require>
-            <i>POISON in S.$T.status</i>
+            <i>poison in STAT.$target.status</i>
         </require>
         <group>
             <i>damage</i>
             <i>globe</i>
         </group>
-    </POISON_ACTIVE>
+    </poison_active>
     
-    -((S C MEL + DICE 10) * 2 * (1 - S T DEF / 100))
+    <defend>
+        <DESC>Defend</DESC>
+        <skip>skip</skip>
+        <effect>
+            <i>soundFX charge</i>
+            <i>DELAY (CAST $caster defend_active) 2</i>
+        </effect>
+        <require>$C == $T</require>
+        <group>
+            <i>active</i>
+            <i>status</i>
+            <i>globe</i>
+        </group>
+        <DEF>50</DEF>
+        <MDEF>30</MDEF>
+    </defend>
     
-    <CHARGE_ACTIVE>
+    <defend_active>
+        <DESC>Defend Active Component</DESC>
+        <effect>LOSES $caster status defend</effect>
+        <group>globe</group>
+    </defend_active>
+    
+    <charge>
+        <DESC>Store Energy</DESC>
+        <effect>
+            <i>soundFX charge</i>
+            <i>GETS $caster status charge</i>
+            <i>DELAY (CAST $target charge_active) 2</i>
+        </effect>
+        <group>
+            <i>active</i>
+            <i>globe</i>
+        </group>
+        <DEF>-50</DEF>
+        <MDEF>-30</MDEF>
+    </charge>
+    
+    <charge_active>
         <DESC>Charge Active Component</DESC>
         <effect>
-            <i>CHANGE $target HP -(* 2 (S.$C.MEL + DICE.10) (100 - S.$T.DEF) /100)</i>
+            <i>soundFX attack 2</i>
+            <i>CHANGE $target HP -(* 2 (STAT.$C.MEL + DICE.10) (1 - (STAT.$T.DEF / 100)))</i>
             <i>LOSES $caster status CHARGE</i>
         </effect>
         <group>
             <i>damage</i>
             <i>globe</i>
         </group>
-    </CHARGE_ACTIVE>
-
-    <DEFEND_ACTIVE>
-        <DESC>Defend Active Component</DESC>
-        <effect>
-            <i>LOSES $target status DEFEND</i>
-        </effect>
-        <group>
-            <i>globe</i>
-        </group>
-    </DEFEND_ACTIVE>
+    </charge_active>
     
-    <SACRIFICE_ACTIVE>
-        <DESC>Sacrifice Active Component</DESC>
-        <effect>
-            <i>CHANGE $target HP (STAT CLASS.$target.TEMPLATE (HP + -S.$T.HP))</i>
-            <i>CHANGE $target MP (STAT CLASS.$target.TEMPLATE (MP + -S.$T.MP))</i>
-            <i>LOSES $target status KO</i>
-        </effect>
-        <require>
-            <i>SACRIFICE not-in S.$T.status</i>
-        </require>
-    </SACRIFICE_ACTIVE>
-        
-    <!-- global moves -->
-    -((S C MEL + DICE 10) * (1 - S T DEF / 100))
-    <attack>
-        <DESC>Attack</DESC>
-        <effect>
-            <i>CHANGE $target HP -(* (S.$C.MEL + DICE.10) (100 - S.$T.DEF) /100)</i>
-        </effect>
-        <group>
-            <i>damage</i>
-            <i>active</i>
-            <i>globe</i>
-        </group> 
-    </attack>
-    
-    <pass>
-        <DESC>Pass</DESC> 
-        <skip>skip</skip>
-        <group>
-            <i>active</i>
-            <i>globe</i>
-        </group>
-    </pass>
-    <!-- fighter moves -->
-    <spit>
-        <DESC>Toxic Spit</DESC>
-        <effect>
-            <i>CHANGE $target HP -(* (S.$C.MGK + DICE.10) (100 - S.$T.MDEF) /100)</i>
-            <i>CHANGE $caster MP -1</i>
-            <i>CAST $target POISON_CHECK</i>
-        </effect>
-        <require>
-            <i>STAT.$caster.MP >= 1</i>
-        </require>
-        <group>
-            <i>damage</i>
-            <i>active</i>
-            <i>globe</i>
-        </group>
-    </spit>
-    
-    <defend>
-        <DESC>Defend</DESC>
-        <skip>skip</skip>
-        <effect>
-            <i>DELAY (CAST $caster DEFEND_ACTIVE) 2</i>
-            <i>GETS $caster status DEFEND</i>
-        </effect>
-        <group>
-            <i>active</i>
-            <i>globe</i>
-        </group>
-    </defend>
-    
-    <charge>
-        <DESC>Store Energy</DESC>
-        <effect>
-            <i>GETS $caster status CHARGE</i>
-            <i>DELAY (CAST $target CHARGE_ACTIVE) 2</i>
-        </effect>
-        <group>
-            <i>active</i>
-            <i>globe</i>
-        </group>
-    </charge>
-    <!-- bmage moves -->
     <magic>
         <DESC>Magic Missiles</DESC>
         <effect>
-            <i>CHANGE $target HP -(* (S.$C.MGK + DICE.10) (100 - S.$T.MDEF) /100)</i>
-            <i>CHANGE $caster MP -1</i>
+            <i>soundFX magic</i>
+            <i>CHANGE $target HP -(* (STAT.$C.MGK + DICE.10) (1 - (STAT.$T.MDEF / 100)))</i>
         </effect> 
-        <require>
-            <i>STAT  $caster MP >= 1</i>
-        </require>
         <group>
             <i>damage</i>
             <i>active</i>
             <i>globe</i>
         </group>
+        <MP>1</MP>
     </magic>
     
     <fire>
         <DESC>Fireball</DESC>
         <effect>
-            <i>CHANGE  $target HP -(* (S.$C.MGK + DICE.10) (100 - S.$T.MDEF) S.$T.FIRE /200)</i>
-            <i>CHANGE  $caster MP -2</i>
+            <i>soundFX fire</i>
+            <i>CHANGE $target HP -(* (STAT.$C.MGK + DICE.10) (1 - (STAT.$T.MDEF / 100)) STAT.$T.FIRE /2)</i>
         </effect> 
-        <require>
-            <i>S.$C.MP >= 2</i>
-        </require>
         <group>
             <i>damage</i>
             <i>active</i>
             <i>globe</i>
         </group>
+        <MP>2</MP>
     </fire>
     
     <water>
         <DESC>Waterfall</DESC>
         <effect>
-            <i>CHANGE $target HP -(* (S.$C.MGK + DICE.10) (100 - S.$T.MDEF) S.$T.WATER /200)</i>
-            <i>CHANGE $caster MP -2</i>
+            <i>soundFX water</i>
+            <i>CHANGE $target HP -(* (STAT.$C.MGK + DICE.10) (1 - (STAT.$T.MDEF / 100)) STAT.$T.WATER /2)</i>
         </effect> 
-        <require>
-            <i>S.$C.MP >= 2</i>
-        </require>
         <group>
             <i>damage</i>
             <i>active</i>
             <i>globe</i>
         </group>
+        <MP>2</MP>
     </water>
-    <!-- wmage moves -->
     
-    <sacrifice>
-        <DESC>Sacrifice</DESC>
-        <skip>skip</skip>
+    <!-- Healing moves groups -->
+    <health>
+        <DESC>Healing moves</DESC>
+        <effect>DELAY (CAST $target overheal) 0</effect>
+    </health>
+    
+    <regen>
+        <DESC>Mana Regen Moves</DESC>
+        <effect>DELAY (CAST $target overmana) 0</effect>
+    </regen>
+    
+    <!-- Healing moves -->
+    
+    <overheal>
+        <DESC>A check to make sure character hasnt overhealed</DESC>
+        <require>
+            <i>STAT.$target.HP >= STAT.$target.HP</i>
+            <i>party in STAT.$target.group</i>
+        </require>
+        <effect>CHANGE $target HP (STAT.$T.MAXHP - STAT.$T.HP)</effect>
+        <group>globe</group>
+    </overheal>
+    
+    <overmana>
+        <DESC>A check to make sure character hasnt overmanad</DESC>
+        <require>
+            <i>STAT.$target.MP >= STAT.$target.MP</i>
+            <i>party in STAT.$T.group</i>
+        </require>
+        <effect>CHANGE $target MP (STAT.$target.MAXMP - STAT.$target.MP)</effect>
+        <group>globe</group>
+    </overmana>
+    
+    <full_heal>
+        <DESC>Fully heals target HP and MP</DESC>
         <effect>
-            <i>CHANGE $caster HP -(STAT $caster HP)</i>
-            <i>CHANGE $caster MP -(STAT $caster MP)</i>
-            <i>GETS $caster status SACRIFICE</i>
-            <i>GETS $caster status KO</i>
-            <i>CAST (ALL party) SACRIFICE_ACTIVE</i>
+            <i>LOSES $T status ko</i>
+            <i>CHANGE $T HP (STAT.$target.MAXHP - STAT.$target.HP)</i>
+            <i>CHANGE $T MP (STAT.$target.MAXMP - STAT.$target.MP)</i>
         </effect>
-        <group>
-            <i>active</i>
-            <i>globe</i>
-        </group>
-    </sacrifice>
+        <group>globe</group>
+    </full_heal>
     
     <heal>
         <DESC>Heal</DESC>
         <effect>
-            <i>CHANGE $target HP (S.$C.MGK + DICE.10)</i>
-            <i>CHANGE $caster MP -1</i>
+            <i>soundFX heal</i>
+            <i>CHANGE $target HP (STAT.$caster.MGK + DICE.10)</i>
         </effect>
-        <require>
-            <i>S.$C.MP >= 1</i>
-        </require>
         <group>
             <i>health</i>
             <i>active</i>
             <i>globe</i>
         </group>
+        <MP>1</MP>
     </heal>
     
     <antidote>
         <DESC>Antidote</DESC>
         <effect>
+            <i>soundFX heal</i>
             <i>LOSES $target status POISON</i>
-            <i>CHANGE $caster MP -1</i>
         </effect>
-        <require>
-            <i>STAT $caster MP >= 1</i>
-        </require>
         <group>
             <i>active</i>
             <i>globe</i>
         </group>
+        <MP>1</MP>
     </antidote>
     
-    <!-- nova -->
+    <sacrifice>
+        <DESC>Sacrifice</DESC>
+        <skip>skip</skip>
+        <effect>
+            <i>soundFX uberheal</i>
+            <i>CAST ALL.party full_heal</i>
+            <i>CHANGE $caster HP -STAT.$caster.HP</i>
+            <i>CHANGE $caster MP -STAT.$caster.MP</i>
+            <i>GETS $caster status ko</i>
+        </effect>
+        <group>
+            <i>status</i>
+            <i>active</i>
+            <i>globe</i>
+        </group>
+        <SPD>-1</SPD>
+    </sacrifice>
     
+    <!-- nova -->
     <doomsday>
         <DESC>Doomsday</DESC>
         <effect>
-            <i>DELAY (CAST $target DOOM_ACTIVE) 4</i>
-            <i>CHANGE $caster MP -1</i>
-            <i>CHANGE $caster ACT -2</i>
+            <i>soundFX charge</i>
+            <i>DELAY (CAST $target doom_active) 4</i>
         </effect>
-        <require>
-            <i>S.$C.MP >= 1</i>
-        </require>
         <group>
             <i>active</i>
             <i>globe</i>
         </group>
+        <MP>1</MP>
     </doomsday>
     
-    <DOOM_ACTIVE>
+    <doom_active>
         <DESC>Doomsday Active Component</DESC>
         <effect>
-            <i>CHANGE $target HP -(STAT $target HP)</i>
+            <i>soundFX boom</i>
+            <i>CHANGE $target HP -STAT.$target.HP</i>
         </effect>
         <group>
             <i>damage</i>
             <i>globe</i>
         </group>
-    </DOOM_ACTIVE>
+    </doom_active>
     
     <!-- Big Boss -->
+    <current_barrier />
     
     <barrier>
         <DESC>Barrier change</DESC>
@@ -494,13 +462,12 @@
             <i>globe</i>
         </group>
         <effect>
-            <i>CHANGE $caster MP -1</i>
-            <i>LOSES $caster status (LISTGROUP boss status current_barrier)</i>
-            <i>GETS $caster status (S.$C.inventory SUB (DICE.5 + -1))</i>
+            <i>soundFX charge</i>
+            <i>LOSES $caster status LISTGROUP.boss.status.current_barrier</i>
+            <i>CAST $C (STAT.$C.inventory SUB (DICE.5 - 1))</i>
         </effect>
+        <MP>1</MP>
     </barrier>
-    
-    <current_barrier />
     
     <red>
         <group>
@@ -573,12 +540,10 @@
     <!-- Consumables -->
     <one_use>
         <DESC>ONE use consumable is</DESC>
-        <effect>
-            <i>LOSES party inventory move</i>
-        </effect>
+        <effect>LOSES party inventory $move</effect>
         <require>
-            <i>NAME.$move in S.party.inventory</i>
-            <i>SACRIFICE not-in S.$T.status</i>
+            <i>NAME.$move in STAT.party.inventory</i>
+            <i>SACRIFICE not-in STAT.$target.status</i>
         </require>
     </one_use>
     
@@ -588,9 +553,10 @@
             <i>one_use</i>
             <i>health</i>
         </group>
+        <require>STAT.$T.HP != STAT.$T.MAXHP</require>
         <effect>
             <i>CHANGE $target HP 50</i>
-            <i>LOSES $target status KO</i>
+            <i>LOSES $target status ko</i>
             <i>LOSES $target status POISON</i>
         </effect>
     </potion>
@@ -601,6 +567,7 @@
             <i>one_use</i>
             <i>regen</i>
         </group>
+        <require>STAT.$T.MP != STAT.$T.MAXMP</require>
         <effect>
             <i>CHANGE $target MP 10</i>
             <i>LOSES $target status POISON</i>
@@ -613,10 +580,26 @@
     <equip_item>
         <DESC>equipable is</DESC>
         <require>
-            <i>NAME.$T in S.move.yesequip</i>
-            <i>(CLASS move equipable) not-in (LISTSTAT $target equip group)</i>
+            <i>NAME.$move in STAT.party.inventory</i>
+            <i>NAME.$T in (STAT $move inventory)</i>
         </require>
+        <effect>
+            <i>$T CAST (LISTGROUP $T equip CLASS.$move.equipable) unequip</i>
+            <i>LOSES party inventory $move</i>
+            <i>GETS $T equip $move</i>
+        </effect>
     </equip_item>
+    
+    <unequip>
+        <effect>
+            <i>LOSES $C equip $T</i>
+            <i>GETS party inventory $T</i>
+        </effect>
+    </unequip>
+    
+    <unequip_all>
+        <effect>$T CAST STAT.$T.equip unequip</effect>
+    </unequip_all>
     
     <weapon>
         <DESC>General weapon Class</DESC>
@@ -625,42 +608,34 @@
     <sword>
         <DESC>sword class for is</DESC>
         <MEL>1</MEL>
-        <yesequip>
-            <i>tfighter</i>
-        </yesequip>
-        <group>
-            <i>equipable</i>
-        </group>
+        <inventory>fighter</inventory>
+        <group>equipable</group>
     </sword>
     
     <staff>
         <DESC>staff class for is</DESC>
-        <yesequip>
-            <i>twmage</i>
-            <i>tbmage</i>
-        </yesequip>
-        <group>
-            <i>equipable</i>
-        </group>
+        <inventory>
+            <i>wmage</i>
+            <i>bmage</i>
+        </inventory>
+        <group>equipable</group>
     </staff>
 
     <hat>
         <DESC>hat class for is.</DESC>
-        <HP>10</HP>
-        <yesequip>
-            <i>tfighter</i>
-            <i>twmage</i>
-            <i>tbmage</i>
-        </yesequip>
-        <group>
-            <i>equipable</i>
-        </group>
+        <MAXHP>10</MAXHP>
+        <inventory>
+            <i>fighter</i>
+            <i>wmage</i>
+            <i>bmage</i>
+        </inventory>
+        <group>equipable</group>
     </hat>
     
     <!-- hats!! -->
     <bor_hat>
         <DESC>A boring hat</DESC>
-        <HP>10</HP>
+        <MAXHP>10</MAXHP>
         <DEF>10</DEF>
         <MDEF>10</MDEF>
         <group>
@@ -668,9 +643,10 @@
             <i>equip_item</i>
         </group>
     </bor_hat>
+    
     <med_hat>
         <DESC>A mediocre hat</DESC>
-        <HP>20</HP>
+        <MAXHP>20</MAXHP>
         <DEF>20</DEF>
         <MDEF>20</MDEF>
         <group>
@@ -678,9 +654,10 @@
             <i>equip_item</i>
         </group>
     </med_hat>
+    
     <metal_hat>
         <DESC>A metal hat</DESC>
-        <HP>30</HP>
+        <MAXHP>30</MAXHP>
         <DEF>30</DEF>
         <MDEF>30</MDEF>
         <group>
@@ -688,9 +665,10 @@
             <i>equip_item</i>
         </group>
     </metal_hat>
+    
     <fancy_hat>
         <DESC>A fancy hat</DESC>
-        <HP>20</HP>
+        <MAXHP>20</MAXHP>
         <DEF>20</DEF>
         <MDEF>20</MDEF>
         <MGK>20</MGK>
@@ -699,6 +677,7 @@
             <i>equip_item</i>
         </group>
     </fancy_hat>
+    
     <!-- swords -->
     <wood_sword>
         <DESC>A wooden Sword</DESC>
@@ -709,6 +688,7 @@
         </group>
         <MEL>10</MEL>
     </wood_sword>
+    
     <metal_sword>
         <DESC>A metal Sword</DESC>
         <group>
@@ -718,6 +698,7 @@
         </group>
         <MEL>20</MEL>
     </metal_sword>
+    
     <shiny_sword>
         <DESC>A shiny Sword</DESC>
         <group>
@@ -727,6 +708,7 @@
         </group>
         <MEL>30</MEL>
     </shiny_sword>
+    
     <!-- staffs -->
     <wood_staff>
         <DESC>A wooden Staff</DESC>
@@ -736,8 +718,9 @@
             <i>weapon</i>
         </group>
         <MGK>10</MGK>
-        <MP>5</MP>
+        <MAXMP>5</MAXMP>
     </wood_staff>
+    
     <metal_staff>
         <DESC>A metal Staff</DESC>
         <group>
@@ -746,8 +729,9 @@
             <i>weapon</i>
         </group>
         <MGK>20</MGK>
-        <MP>10</MP>
+        <MAXMP>10</MAXMP>
     </metal_staff>
+    
     <shiny_staff>
         <DESC>A shiny staff</DESC>
         <group>
@@ -756,13 +740,13 @@
             <i>weapon</i>
         </group>
         <MGK>30</MGK>
-        <MP>15</MP>
+        <MAXMP>15</MAXMP>
     </shiny_staff>
         
-    <!-- Recruiter -->
+    <!-- Meta Units -->
     <recruiter>
         <DESC>The board recruiter</DESC>
-        <monsters>
+        <inventory>
             <i>zombie</i>
             <i>ghost</i>
             <i>zombie</i>
@@ -773,12 +757,11 @@
             <i>wisp</i>
             <i>Wisp</i>
             <i>nova</i>
-        </monsters>
+        </inventory>
     </recruiter>
     
     <treasure>
         <DESC>Unit that hands out treasure</DESC>
-        <sprite>T</sprite>
         <inventory>
             <i>bor_hat</i>
             <i>wood_sword</i>
@@ -810,39 +793,26 @@
             <i>pass</i>
         </movelist>
         <inventory>
-            <i>shiny_staff</i>
-
-            <i>potion</i>
-            <i>shiny_sword</i>
             <i>potion</i>
             <i>mana</i>
         </inventory>
-        <group>
-            <i>meta</i>
-        </group>
+        <group>meta</group>
+        <HP>0</HP>
     </party>
-    
-    <TEMPLATE />
     
     <!-- Fighter -->
     <fighter>
         <DESC>Fighter the Brave</DESC>
-        <group>
-            <i>party</i>
-            <i>tfighter</i>
-        </group>
-        <SPD>1</SPD>
-    </fighter>
-
-    <tfighter>
-        <DESC>Template for Fighter the Brave</DESC>
+        <MAXHP>130</MAXHP>
+        <MAXMP>1</MAXMP> 
         <HP>130</HP>
-        <MP>1</MP> 
+        <MP>1</MP>
         <MEL>45</MEL>
         <MGK>10</MGK>
         <DEF>20</DEF>
         <FIRE>2</FIRE>
         <WATER>2</WATER>
+        <SPD>1</SPD>
         <r>255</r>
         <g>75</g>
         <b>75</b>  
@@ -851,30 +821,22 @@
             <i>defend</i>
             <i>charge</i>
         </movelist>
-        <group>
-            <i>TEMPLATE</i>
-        </group>
-    </tfighter>
+        <group>party</group>
+    </fighter>
     
     <!-- Black Mage -->
     <bmage>
         <DESC>Black Mage the Evil</DESC>
-        <group>
-            <i>party</i>
-            <i>tbmage</i>
-        </group>
-        <SPD>1</SPD>
-    </bmage>
-    
-    <tbmage>
-        <DESC>Template for Black Mage the Evil</DESC>
-        <HP>130</HP>
+        <MAXHP>100</MAXHP>
+        <MAXMP>15</MAXMP> 
+        <HP>100</HP>
         <MP>15</MP> 
         <MEL>10</MEL>
         <MGK>45</MGK>
         <MDEF>20</MDEF>
         <FIRE>2</FIRE>
         <WATER>2</WATER>
+        <SPD>1</SPD>
         <r>75</r>
         <g>75</g>
         <b>75</b>
@@ -883,30 +845,22 @@
             <i>fire</i>
             <i>water</i>
         </movelist>
-        <group>
-            <i>TEMPLATE</i>
-        </group>
-    </tbmage>
+        <group>party</group>
+    </bmage>
     
     <!-- White Mage -->
     <wmage>
         <DESC>White Mage the Good</DESC>
-        <group>
-            <i>party</i>
-            <i>twmage</i>
-        </group>
-        <SPD>1</SPD>
-    </wmage>
-    
-    <twmage>
-        <DESC>Template for White Mage the Good</DESC>
-        <HP>130</HP>  
+        <MAXHP>100</MAXHP> 
+        <MAXMP>10</MAXMP> 
+        <HP>100</HP> 
         <MP>10</MP> 
         <MEL>25</MEL>
         <MGK>45</MGK>
         <MDEF>20</MDEF>
         <FIRE>2</FIRE>
         <WATER>2</WATER>
+        <SPD>1</SPD>
         <r>255</r>
         <g>255</g>
         <b>255</b>
@@ -915,16 +869,14 @@
             <i>antidote</i>
             <i>sacrifice</i>
         </movelist>
-        <group>
-            <i>TEMPLATE</i>
-        </group>
-    </twmage>
+        <group>party</group>
+    </wmage>
     <!-- Monsters -->
     
     <monster>
         <DESC>Monster main class</DESC>
     </monster>
-    
+
     <!-- Monster Clonables -->
     <zombie>
         <DESC>A Hoard of Zombies</DESC>
@@ -945,7 +897,7 @@
             <i>spit</i>
         </movelist>
     </zombie>
-    
+
     <ghost>
         <DESC>A magical ghost</DESC>
         <HP>30</HP>
@@ -962,10 +914,9 @@
         <b>255</b>
         <movelist>
             <i>magic</i>
-            <i>heal</i>
         </movelist>
     </ghost>
-    
+
     <golem>
         <DESC>A Berserking monster</DESC>
         <HP>150</HP>
@@ -980,11 +931,9 @@
         <r>30</r>
         <g>30</g>
         <b>30</b>
-        <movelist>
-            <i>attack</i>
-        </movelist>
+        <movelist>attack</movelist>
     </golem>
-    
+
     <fire_golem>
         <DESC>A flaming berserking monster</DESC>
         <HP>200</HP>
@@ -1004,7 +953,7 @@
             <i>charge</i>
         </movelist>
     </fire_golem>
-    
+
     <druid>
         <DESC>A healing Druid</DESC>
         <HP>100</HP>
@@ -1023,10 +972,9 @@
             <i>attack</i>
             <i>magic</i>
             <i>spit</i>
-            <i>heal</i>
         </movelist>
     </druid>
-    
+
     <wisp>
         <DESC>Wisp weak to something</DESC>
         <HP>100</HP>
@@ -1046,7 +994,7 @@
             <i>water</i>
         </movelist>
     </wisp>
-    
+
     <Wisp>
         <DESC>Wisp weak to something</DESC>
         <HP>100</HP>
@@ -1066,7 +1014,7 @@
             <i>water</i>
         </movelist>
     </Wisp>
-    
+
     <nova>
         <DESC>Super Nova</DESC>
         <HP>200</HP>
@@ -1081,11 +1029,9 @@
         <r>255</r>
         <g>255</g>
         <b>0</b>
-        <movelist>
-            <i>doomsday</i>
-        </movelist>
+        <movelist>doomsday</movelist>
     </nova>
-    
+
     <boss>
         <DESC>The Big Boss</DESC>
         <HP>1000</HP>
@@ -1097,13 +1043,10 @@
         <FIRE>2</FIRE>
         <WATER>2</WATER>
         <SPD>2</SPD>
-        <status>
-            <i>black</i>
-        </status>
+        <status>black</status>
         <movelist>
             <i>attack</i>
             <i>charge</i>
-            <i>heal</i>
             <i>spit</i>
             <i>water</i>
             <i>fire</i>

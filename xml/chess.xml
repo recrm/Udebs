@@ -206,10 +206,10 @@
     <time>
         <require>
             <i>STAT.$C.ACT &gt;= 2</i>
-            <i>FUTURE (check (FILTER kings CLASS.$caster.tick) CLASS.$caster.tick) 1</i>
+            <i>FUTURE (check (SEARCH kings CLASS.$caster.tick) CLASS.$caster.tick) 1</i>
         </require>
         <effect>
-            <i>CHANGE CLASS.$C.tick ACT -(STAT.$C.ACT)</i>
+<!--            <i>CHANGE CLASS.$C.tick ACT -(STAT.$C.ACT)</i>-->
             <i>CAST $caster moved_once</i>
         </effect>
     </time>

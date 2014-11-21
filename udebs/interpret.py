@@ -4,6 +4,7 @@ import sys
 import re
 import copy
 import json
+import itertools
 
 class standard:
     def _print(*args):
@@ -77,13 +78,22 @@ class standard:
         return before - element
         
     def sub(before, after):
-        try:
-            return before[int(after)]
-        except IndexError:
-            return 'empty'
-
+        return next(itertools.islice(before, int(after), None), 'empty')
+    
+    def length(list_):
+        return len(list(list_))
+    
+    #This is a rough hack until I can find a better way to do this.
+    #I will not hold this to backwards compatabiliy.    
+    def filter(iterable, value):
+        return [i for i in iterable if i == value]
+        
 class variables:
     keywords = {
+        "filter": {
+            "f": "standard.filter",
+            "args": ["$1", "$2"],
+        },
         "SUB": {
             "f": "standard.sub",
             "args": ["-$1", "$1"],
@@ -147,7 +157,7 @@ class variables:
         },
         "or": {
             "f": "standard.logicor",
-            "args": ["-$1", "$1"],
+            "all": True,
         },
         "|": {
             "f": "abs",
@@ -173,11 +183,21 @@ class variables:
         },
         "$": {
             "f": "standard.getvar",
-            "args": ["storage", "$1"],
+            "args": ["storage","$1"],
         },
         "print": {
             "f": "standard._print",
             "all": True,
+        },
+        "length": {
+            "f": "standard.length",
+            "args": ["$1"],
+        },
+        "testing": {
+            "f": "TEST",
+#            "default": {"$3": 50},
+#            "args": ["-$1", "$1", "$2"],
+#            "kwargs": {"none": "$3", "value": "empty", "test": 10},
         }
     }
     env = {"__builtin__": None, "standard": standard, "storage": {}, "abs": abs, "min": min, "max": max}
@@ -191,17 +211,8 @@ class variables:
     }
 
 def importModule(dicts={}, globs={}):
-    if isinstance(dicts, list):
-        for dictionary in dicts:
-            variables.keywords.update(dictionary)
-    else:
-        variables.keywords.update(dicts)
-        
-    if isinstance(globs, list):
-        for dictionary in globs:
-            variables.env.update(dictionary)
-    else:
-        variables.env.update(globs)
+    variables.keywords.update(dicts)
+    variables.env.update(globs)
 
 def getEnv(local, glob=False):
     value = copy.copy(variables.env)
@@ -210,139 +221,220 @@ def getEnv(local, glob=False):
     value["storage"] = local
     return value
 
-def call(expression, debug=False):
+def formatS(string, debug):
+    string = str(string)
+    if string.isdigit():
+        return string
+    elif string[0] == "'":
+        return string
+    elif string[-1] == ")":
+        return string
+    elif string in variables.env:
+        return string
+    elif "$" in string:
+        return interpret(string, debug)
+        
+    else:
+        return "'"+string+"'"
+
+def call(keyword, args, debug=False):
     """Converts string to function call."""
     if debug:
-        print("call:", expression)
+        print("call:", keyword, args)
     
-    for value in expression:
-        if value in variables.keywords:
-            keyword = value
-            break
-    else:
-        for i in range(len(expression)):
-            expression[i] = s(expression[i], debug)
-        return "{"+",".join(expression)+"}"
-    
-    #Get data for this keyword
+    #Get and fix data for this keyword.
     data = copy.copy(variables.default)
     data.update(variables.keywords[keyword])
 
     #Create dict of values
-    current = expression.index(keyword)
+    current = args.index(keyword)
     nodes = copy.copy(data["default"])
-    for index in range(len(expression)):
-        symbol = "$" if index >= current else "-$"
-        value = symbol + str(abs(index - current))
-        if expression[index] != keyword:
-            nodes[value] = expression[index]
-
+    
+    for index in range(len(args)):
+        value = "$" if index >= current else "-$"
+        value += str(abs(index - current))
+        if args[index] != keyword:
+            nodes[value] = args[index]
+            
     #Force strings into long arguments.
     for string in data["string"]:
-        nodes[string] = "'"+nodes[string].replace("'", "\\'")+"'"
-
-    #Insert positional arguments
-    function = data["f"]+"{"
-    for key in data["args"]:
-        if key in nodes:
-            function += s(nodes[key], debug)+","
-            del nodes[key]
-        else:
-            function += s(key, debug)+","
+        nodes[string] = "'"+str(nodes[string]).replace("'", "\\'")+"'"
 
     #Claim keyword arguments.
+    kwargs = {}
     for key, value in data["kwargs"].items():
         if value in nodes:
-            data["kwargs"][key] = nodes[value]
-            del nodes[value]        
-
+            newvalue = nodes[value]
+            del nodes[value]
+        else:
+            newvalue = value
+        kwargs[key] = formatS(newvalue, debug)
+    
+    arguments = []
+    #Insert positional arguments
+    for key in data["args"]:
+        if key in nodes:
+            arguments.append(formatS(nodes[key], debug))
+            del nodes[key]
+        else:
+            arguments.append(formatS(key, debug))
+    
     #Insert ... arguments.
     if data["all"]:
         for key in sorted(list(nodes.keys())):
-            if key != "$0":
-                function += s(nodes[key], debug)+","
-                del nodes[key]
+            arguments.append(formatS(nodes[key], debug))
+            del nodes[key]
 
     if len(nodes) > 0:
         print("warning: unused arguments.", nodes)
+        print(args)
+#        raise(Exception)
     
     #Insert keyword arguments.
-    for key, value in data["kwargs"].items():
-        function += str(key) + "=" + s(str(value)) +","
+    for key, value in kwargs.items():
+        arguments.append(str(key) + "=" + str(value))
+        
+    if debug:
+        print("computed", data["f"] + "(" + ",".join(arguments) + ")")
+    return data["f"] + "(" + ",".join(arguments) + ")"
 
-    #Remove trailing comma and close argument.
-    if function[-1] == ",":
-        function = function[:-1]+"}"
-    
-    return function
-
-def bracket(string, debug):
+def bracket(string):
     """Finds bracketed substrings in a string and sends them back to recursive."""
     start = string.find("(")
     end = string.find(")") + 1
+    if not end:
+        raise UdebsSyntaxError(string, "Brackets are mismatched.")
     substr = string[start:end]
+    i = 0
     while substr.count("(") != substr.count(")"):
         end = string[end:].find(")") + end + 1
         substr = string[start:end]
+        i +=1
+        if i > 1000:
+            raise UdebsSyntaxError(string, "Brackets are mismatched.")
+            
+    return start, end
 
+#Processes a string.
+def primary(string, debug=False):
+    """Processes a string into it's corresponding list.
+        
+    string - String to process.
+    debug - Prints debugging infor if true.
+    
+    """
+    #check for and handle brackets in call string.
     if debug:
-        print("entering subshell")
-    value = s(string[start+1:end-1], debug)
-    if debug:
-        print(value)
-        print("exiting subshell")            
-    return s(string[:start] + value + string[end:], debug)
+        print("checking", string)
+    
+    if "(" in string:
+        start, end = bracket(string)
+        
+        if string[start-1] in variables.keywords:
+            value = primary(string[start-1] + " " + string[start:end], debug)
+            start -=1
+        else:
+            value = primary(string[start+1:end-1], debug)
+        
+        list_ = primary(string[:start], debug)
+        list_.append(value)
+        list_.extend(primary(string[end:], debug))
+    else:
+        list_ = re.split("\s+", string)
+    
+    while "" in list_:
+        list_.remove("")
+        
+    for index in range(len(list_)):
+        substring = list_[index]
+        if isinstance(substring, list):
+            continue
+        
+        #prefix lists
+        elif substring[0] in variables.keywords and len(substring) > 1 and substring not in variables.keywords:
+            list_[index] = [substring[0], substring[1:]]
+    
+    return list_
 
-def s(string, debug):
-    """Converts arguments to proper type."""
+def secondary(list_, debug):
+    """This function converts the structured list back into a string.
+    
+    """
+    args = []
+    keyword = None
+    
     if debug:
-        print("checking:", string)
-    #type is already string or loc.
-    if not isinstance(string, str):
-        return str(string)
-    elif string.isdigit():
-        return string
-    elif string in variables.env:
-        return string
-    elif string[0] == "'":
-        return string
+        print("secondary", list_)
     
-    #bracket calling
-    elif "(" in string:
-        return bracket(string, debug)
-    
-    #Normal call technique
-    elif " " in string:
-        value = re.split("\s+", string)
-        return call(value, debug)
-    
-    #prefix calling
-    elif string[0] in variables.keywords and string[1] != ".":
-        return call([string[0], string[1:]], debug)
-    
-    #skip if contains brackets (already been processed).
-    elif "{" in string:
-        return string
+    for element in list_:
+        if isinstance(element, list):
+            args.append(secondary(element, debug))
+            continue
+        
+        if element in variables.keywords:
+            keyword = element
+            
+        args.append(element)
+        
+    #if no keyword, return tuple.
+    if not keyword:
+        value = "("
+        for i in args:
+            value +=formatS(i, debug)+","
+        return value[:-1] + ")"
+        
+    #This is a function.
+    return call(keyword, args, debug)
 
-    #dot notation calling technique (cannot contain brackets)
-    elif "." in string:
-        value = re.split("\.", string)
-        return call(value, debug)
-    
-    return "'"+string+"'"
+class UdebsSyntaxError(Exception):
+    def __init__(self, entity, string):
+        self.message = "'" + entity+"'" + " " + string
+    def __str__(self):
+        return repr(self.message)
 
 def interpret(string, debug=False):
+    if debug:
+        print("Interpret:", string)
+
+    #One time bracket replacements.
+    string.replace("[", "(")
+    string.replace("{", "(")
+    string.replace("]", ")")
+    string.replace("}", ")")
+    
+    #One time dot notation replacement.
+    list_ = re.split("\s+", string)
+    for index in range(len(list_)):
+        i = list_[index]
+        if "." in i:
+            #I know this is illogical and confusing, but it just happened.
+            if i[0] in variables.keywords:
+                list_[index] = i[0] + "("+i[1:].replace(".", " ")+")"
+            else:
+                list_[index] = "("+i.replace(".", " ")+")"
+                
+    string = " ".join(list_)
+    
     try:
-        final = s(string, debug)
+        if debug:
+            print("Bracket form:", string, "\n")
+            
+        list_ = primary(string, debug)
+        if debug:
+            print("List form:", list_, "\n")
+        
+        callstring = secondary(list_, debug)
+        if debug:
+            print("Final form:", callstring)
     except:
         print(string)
         raise
-    final = final.replace("{", "(")
-    final = final.replace("}", ")")
-    return final
+        
+    return callstring
+
 
 if __name__ == "__main__":
-    with open("udebs/keywords.json") as fp:
+    with open("keywords.json") as fp:
         importModule(json.load(fp), {'self': None})
-    print(interpret(sys.argv[1], debug=True))
+    interpret(sys.argv[1], debug=True)
 

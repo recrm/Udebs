@@ -117,7 +117,7 @@ def battleWrite(env, location, pretty=False):
     return True
 
 #Creates and instance object from xml file.
-def battleStart(xml_file):
+def battleStart(xml_file, debug=False):
     
     try:
         tree = ElementTree.parse(xml_file)
@@ -275,7 +275,7 @@ def battleStart(xml_file):
                 for value in find_list:
                     if field.compile and lst in {"effect", "require"}:
                         require = True if lst == "require" else False
-                        value.text = main.script(value.text, require)
+                        value.text = main.script(value.text, require, debug)
                     new_list.append(value.text)
             setattr(new_entity, lst, new_list)
         

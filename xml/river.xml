@@ -48,7 +48,7 @@
     
     <tick>
         <effect>
-            <i>LOSES tick change STAT.tick.change</i>
+            <i>CLEAR tick change</i>
             <i>CHANGE source W 1</i>
             <i>CAST pit drain</i>
             <i>outflow = FILL.source.adjacent</i>

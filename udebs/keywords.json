@@ -4,6 +4,10 @@
         "args": ["$caster", "$target", "$move", "$1", "$2"],
         "string": ["$1"]
     },
+    "TIME": {
+        "f": "self.controlTime",
+        "args": ["$1"]
+    },
     "CAST": {
         "f": "self.controlMove",
         "args": ["-$1", "$1", "$2"],
@@ -17,6 +21,10 @@
         "f": "self.controlList",
         "args": ["$1", "$2", "$3", "remove"]
     },
+    "CLEAR": {
+        "f": "self.controlList",
+        "args": ["$1", "$2", "empty", "clear"]
+    },
     "CHANGE": {
         "f": "self.controlStat",
         "args": ["$1", "$2", "$3"]
@@ -28,6 +36,10 @@
     "RECRUIT": {
         "f": "self.controlRecruit",
         "args": ["$1", "$2"]
+    },
+    "DELETE": {
+        "f": "self.controlDelete",
+        "args": ["$1"]
     },
     "MOVE": {
         "f": "self.controlTravel",
@@ -50,13 +62,17 @@
         "f": "self.getGroup",
         "args": ["$1"]
     },
-    "FILTER": {
+    "SEARCH": {
         "f": "self.getSearch",
         "all": true
     },
     "FILL": {
         "f": "self.getFill",
         "args": ["$1", "$2"]
+    },
+    "PATH": {
+        "f": "self.pathTowards",
+        "args": ["$1", "$2", "$3"]
     },
     "DISTANCE": {
         "f": "self.getDistance",
@@ -72,7 +88,11 @@
     },
     "LISTSTAT": {
         "f": "self.getListStat",
-        "args": ["$1", "$2", "$3"]
+        "args": ["$1", "$2"]
+    },
+    "FILTER": {
+        "f": "self.getFilter",
+        "args": ["$1", "$caster", "$2"]
     },
     "FUTURE": {
         "f": "self.testFuture",

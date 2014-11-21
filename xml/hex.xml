@@ -11,7 +11,11 @@
     <strings>
         <sprite />
     </strings>
+    <lists>
+        <direction />
+    </lists>
 </definitions>
+
 <map>
     <dim>
         <x>8</x>
@@ -22,50 +26,63 @@
 <entities>
     
     <!-- scripts -->
+    <init>
+        <effect>
+            <i>token TRAVEL (0 0)</i>
+            <i>CAST (DICE.7 DICE.7) earthquake</i>
+        </effect>
+    </init>
     
+<!--    Metrics-->
     <notempty>
         <require>NAME.$T == empty</require>
     </notempty>
-    
-    <init>
-        <effect>
-            <item>RECRUIT token (0 0)</item>
-            <item>CAST (DICE.7 DICE.7) earthquake</item>
-        </effect>
-    </init>
 
     <suptravel>
         <require>
-            <item>NAME.$T == empty</item>
-            <item>(DISTANCE hex) &lt;= (STAT $caster ACT)</item>
+            <i>NAME.$T == empty</i>
+            <i>(DISTANCE hex) &lt;= (STAT $caster ACT)</i>
         </require>
     </suptravel>
     
-    <travel>
-        <effect>
-            <item>MOVE $caster $target</item>
-        </effect>
-        <require>
-            <item>(DISTANCE suptravel) &lt;= (STAT $caster ACT)</item>
-        </require>
-        <group>
-            <item>suptravel</item>
-        </group>
-    </travel>
-    
     <ridge>
         <require>
-            <item>(DISTANCE x) &lt;= 2</item>
-            <item>(DISTANCE y) == 0</item>
+            <i>(DISTANCE x) &lt;= 2</i>
+            <i>(DISTANCE y) == 0</i>
         </require>
     </ridge>
     
+<!--    Events-->
+    <click>
+        <effect>
+            <i>CAST $T travel</i>
+            <i>CAST $T query</i>
+        </effect>
+    </click>
+    
+    <query>
+        <effect>
+            <i>CLEAR token direction</i>
+            <i>GETS token direction PATH.token.$T.notempty</i>
+        </effect>
+    </query>
+    
+    <travel>
+        <effect>
+            <i>MOVE $caster $target</i>
+        </effect>
+        <require>
+            <i>(DISTANCE suptravel) &lt;= (STAT $caster ACT)</i>
+        </require>
+    </travel>
+    
     <earthquake>
         <effect>
-            <item>RECRUIT earth (FILL $target ridge)</item>
+            <i>RECRUIT earth (FILL $target ridge)</i>
         </effect>
     </earthquake>    
 
+<!--Units-->
     <earth>
         <sprite>M</sprite>
     </earth>
