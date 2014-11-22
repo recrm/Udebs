@@ -28,8 +28,8 @@
     <!-- scripts -->
     <init>
         <effect>
-            <i>token TRAVEL (0 0)</i>
             <i>CAST (DICE.7 DICE.7) earthquake</i>
+            <i>token TRAVEL (0 0)</i>
         </effect>
     </init>
     

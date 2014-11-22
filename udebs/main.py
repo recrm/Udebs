@@ -742,12 +742,15 @@ class instance:
         move = self.getTarget(move)
         pointer = {}
         
+        if start == finish:
+            return []
+        
         for i in self.pathAdjacent(start, move, pointer):
             if finish.loc in i:
                 break
         else:
             return []
-
+            
         found = [finish.loc]
         while True:
             new = pointer[found[-1]]

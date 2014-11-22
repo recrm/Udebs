@@ -1,53 +1,32 @@
 import pygame
 import sys
 import traceback
-from udebs import loadxml
-from udebs.interpret import importModule
+import udebs
 from pygame.locals import *
 
 #Setup pygame
 ts = 32
 pygame.init()
 pygame.display.set_caption('A simple chess GUI.')
-
 surface = pygame.display.set_mode((ts*10, ts*10), 0, 32)
 mainClock = pygame.time.Clock()
 
-#Import graphics
-boards = pygame.image.load("texture/wood.png").convert_alpha()
-token = pygame.image.load("texture/chess_3.png").convert_alpha()
-
-tiles_types = {
-    "white": (0, 0),
-    "black": (0, 2),
-    "T": (3, 0),
-    "B": (3, 2),
-    "R": (4, 1),
-    "L": (2, 1),
-    "TL": (2, 0),
-    "TR": (4, 0),
-    "BL": (2, 2),
-    "BR": (4, 2),
-}
-
-tiles_token = {
-    "P": 0,
-    "R": 1,
-    "N": 2,
-    "B": 3,
-    "Q": 4,
-    "K": 5,
-}
-
+#Tiles
+sheet = pygame.image.load("texture/wood.png").convert_alpha()
+tiles = ["white", "black", "T", "B", "R", "L", "TL", "TR", "BL", "BR"]
+positions = [(0, 0),(0, 2),(3, 0),(3, 2),(4, 1),(2, 1),(2, 0),(4, 0),(2, 2),(4, 2)]
 board = {}
+for k, (x,y) in zip(tiles, positions):
+    board[k] = sheet.subsurface(pygame.Rect(x*ts, y*ts, ts, ts))
+
+#Sprites
+sheet = pygame.image.load("texture/chess_3.png").convert_alpha()
+tiles = ["P", "R", "N", "B", "Q", "K"]
+positions = [0,1,2,3,4,5]
 sprites = {"B": {}, "W": {}}
-
-for k, v in tiles_types.items():
-    board[k] = boards.subsurface(pygame.Rect(v[0]*ts, v[1]*ts, ts, ts))
-
 for col, y in [("W", 0), ("B", 1)]:
-    for rank, x in tiles_token.items():
-        sprites[col][rank] = token.subsurface(pygame.Rect(x*ts, y*ts*2, ts, 2*ts))
+    for rank, x in zip(tiles, positions):
+        sprites[col][rank] = sheet.subsurface(pygame.Rect(x*ts, y*ts*2, ts, 2*ts))
 
 #Setup udebs.
 def norecurse(f):
@@ -79,38 +58,39 @@ def check(king, color, instance):
                     return False
     return True
 
-module = {
-    "check": {
-        "f": "check",
-        "args": ["$1", "$2", "self"],
-    },
-}
-importModule(module, {
-    "check": check, 
-})
-main_map = loadxml.battleStart("xml/chess.xml")
+module = {"check": {
+    "f": "check",
+    "args": ["$1", "$2", "self"],
+}}
+udebs.importModule(module, {"check": check})
+main_map = udebs.battleStart("xml/chess.xml")
 main_map.controlInit('init')
 
 #globals
+BLACK = (0,0,0)
+GREEN = (100,200,100, 127)
+RED = (200, 0, 0, 127)
 high = set()
 activeUnit = False
 moves = {}
 
 def redrawBoard():
-    surface.fill((0,0,0))  
+    surface.fill(BLACK)  
     for x in range(10):
         for y in range(10):
             
-            unit = main_map.getMap((x-1, y-1, "map"))
+            target = (x-1, y-1)
+            unit = main_map.getMap(target)
             tile = main_map.getStat((x, y, "board"), "sprite")
             
             #background
             if tile:
                 bg = board[tile].copy()
-                if (x-1, y-1) in high:
-                    bg.fill((100,200,100, 127))
+                if target in high:
+                    bg.fill(GREEN)
                 elif unit and unit == activeUnit:
-                    bg.fill((200, 0, 0, 127))
+                    bg.fill(RED)
+                
                 surface.blit(bg, (x*ts, y*ts))
             
             #unit
@@ -120,46 +100,44 @@ def redrawBoard():
                 fg = sprites[color][sprite]
                 surface.blit(fg, (x*ts, (y-1)*ts))
           
-    pygame.display.flip()
+    pygame.display.update()
+
+def eventQuit():
+    pygame.quit()
+    sys.exit() 
+
+def eventClear():
+    high.clear()
+    moves.clear()
+    global activeUnit
+    activeUnit = False
 
 #game loop
+redrawBoard()
 while True:
     for event in pygame.event.get():
         if event.type == QUIT:
-            pygame.quit()
-            sys.exit() 
+            eventQuit()
         
-        elif event.type == KEYDOWN:
-            if event.key == K_ESCAPE:
-                high.clear()
-                moves.clear()
-                activeUnit = False
-                
-            elif event.key == K_q:
-                test = main_map.getRevert(2)
-                if test:
-                    high.clear()
-                    moves.clear()
-                    activeUnit = False
-                    main_map = test
+        elif event.type == KEYDOWN and event.key == K_q:
+            test = main_map.getRevert(2)
+            if test:
+                eventClear()
+                main_map = test
                           
         elif event.type == MOUSEBUTTONDOWN:
             mouse = pygame.mouse.get_pos()
-            for x in range(10):
-                for y in range(10):
-                    if x in {0, 9} or y in {0, 9}:
-                        continue
-                    current = pygame.Rect(ts*x, ts*y, ts, ts)
+            for x in range(1,9):
+                for y in range(1,9):
                     #Check if user has clicked on a square.
-                    if current.collidepoint(mouse):
+                    if pygame.Rect(ts*x, ts*y, ts, ts).collidepoint(mouse):
                         target = (x-1, y-1)
                         if activeUnit:
                             #Unit has been selected, so try and move token.
-                            main_map.castMove(activeUnit, target , moves[target])
-                            main_map.controlTime(1)
-                            high.clear()
-                            moves.clear()
-                            activeUnit = False
+                            if target in moves:
+                                main_map.castMove(activeUnit, target , moves[target])
+                                main_map.controlTime(1)
+                            eventClear()
                             
                         else:
                             #Enter selection mode, find all spaces token can move to
@@ -174,14 +152,12 @@ while True:
                             if len(high) > 0:
                                 activeUnit = main_map.getMap(target)
             
-    redrawBoard()
+                        redrawBoard()
     
     #Check if game is over.
-    king_list = main_map.getGroup("kings")
-    for king in king_list:
+    for king in main_map.getGroup("kings"):
         if "captured" in main_map.getStat(king, "status"):
             print("GAME OVER!!")
-            pygame.quit()
-            sys.exit()       
+            eventQuit()      
 
     mainClock.tick(60)
