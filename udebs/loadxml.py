@@ -17,8 +17,6 @@ def battleWrite(env, location, pretty=False):
             final = e.SubElement(middle, item)
             if item in env.rlist:
                 final.attrib['rlist'] = ''
-            if item in env.slist:
-                final.attrib['slist'] = env.slist[item]
     
     config = e.SubElement(root, 'config')
     if env.name != 'Unknown':
@@ -171,8 +169,6 @@ def battleStart(xml_file, debug=False):
                 field.lists.add(stat.tag)
                 if stat.get('rlist') is not None:
                     field.rlist.add(stat.tag)
-                if stat.get('slist') is not None:
-                    field.slist[stat.tag] = stat.get('slist')
                               
         def_strings = defs.find("strings")
         if def_strings is not None:

@@ -10,43 +10,40 @@ class standard:
     def _print(*args):
         print(*args)
         return True
-    
+
     def logicif(cond, value, other):
         return value if cond else other
-        
+
     def inside(before, after):
         return before in after
-        
+
     def notin(before, after):
         return before not in after
-        
+
     def equal(*args):
         x = args[0]
         for y in args:
             if y != x:
                 return False
         return True
-        
+
     def notequal(before, after):
         return before != after
-        
+
     def gt(before, after):
         return before > after
-        
+
     def lt(before, after):
         return before < after
-        
+
     def gtequal(before, after):
         return before >= after
-        
+
     def ltequal(before, after):
         return before <= after
         
     def plus(*args):
-        i = 0
-        for number in args:
-            i += number
-        return i
+        return sum(args)
         
     def multiply(*args):
         i = 1
@@ -83,17 +80,8 @@ class standard:
     def length(list_):
         return len(list(list_))
     
-    #This is a rough hack until I can find a better way to do this.
-    #I will not hold this to backwards compatabiliy.    
-    def filter(iterable, value):
-        return [i for i in iterable if i == value]
-        
 class variables:
     keywords = {
-        "filter": {
-            "f": "standard.filter",
-            "args": ["$1", "$2"],
-        },
         "SUB": {
             "f": "standard.sub",
             "args": ["-$1", "$1"],
@@ -114,7 +102,7 @@ class variables:
             "f": "max",
             "all": True,
         },
-        "?": {
+        "if": {
             "f": "standard.logicif",
             "args": ["$1", "$2", "$3"],
             "default": {"$2": True, "$3": False},
@@ -193,12 +181,15 @@ class variables:
             "f": "standard.length",
             "args": ["$1"],
         },
-        "testing": {
-            "f": "TEST",
+#        "solitary": {
+#            "f": "solitary",
+#        },
+#        "testing": {
+#            "f": "TEST",
 #            "default": {"$3": 50},
-#            "args": ["-$1", "$1", "$2"],
+#            "args": ["-$1", "$1", "$2", "three"],
 #            "kwargs": {"none": "$3", "value": "empty", "test": 10},
-        }
+#        }
     }
     env = {"__builtin__": None, "standard": standard, "storage": {}, "abs": abs, "min": min, "max": max}
     default = {
@@ -221,27 +212,71 @@ def getEnv(local, glob=False):
     value["storage"] = local
     return value
 
+class UdebsSyntaxError(Exception):
+    def __init__(self, string):
+        self.message = string
+    def __str__(self):
+        return repr(self.message)
+
+class UdebsParserError(Exception):
+    def __init__(self, string):
+        self.message = string
+    def __str__(self):
+        return repr(self.message)
+
 def formatS(string, debug):
+    """Converts string into python representation."""
     string = str(string)
     if string.isdigit():
         return string
-    elif string[0] == "'":
+    #String quoted by user.
+    elif string[0] == string[-1] and string[0] in {"'", '"'}:
         return string
+    #String has already been handled by call
     elif string[-1] == ")":
         return string
     elif string in variables.env:
         return string
-    elif "$" in string:
+    #In case prefix notation used in keyword defaults.
+    elif string[0] in variables.keywords:
         return interpret(string, debug)
-        
     else:
         return "'"+string+"'"
 
-def call(keyword, args, debug=False):
-    """Converts string to function call."""
-    if debug:
-        print("call:", keyword, args)
+def call(args, debug=False):
+    """Converts callList into functionString."""
+    if not isinstance(args, list):
+        raise UdebsParserError("There is a bug in the parser, call recived '{}'".format(args))
     
+    if debug:
+        print("call:", args)
+    
+    #Find keyword
+    keywords = [i for i in args if i in variables.keywords]
+    
+    #If there are too many keywords, some might stand alone.
+    if len(keywords) > 1:
+        for key in keywords[:]:
+            values = variables.keywords[key]
+            arguments = sum(len(values.get(i, [])) for i in ["args", "kwargs", "default"])
+            if arguments == 0 and not values.get("all", False):
+                new = call([key])
+                args[args.index(key)] = new
+                keywords.remove(key)
+    
+    #Still to many keywords is a syntax error.            
+    if len(keywords) > 1:            
+        raise UdebsSyntaxError("CallList contains to many keywords '{}'".format(args))
+
+    #No keywords creates a tuple object.
+    elif len(keywords) == 0:
+        value = "("
+        for i in args:
+            value +=formatS(i, debug)+","
+        return value[:-1] + ")"
+
+    keyword = keywords[0]
+
     #Get and fix data for this keyword.
     data = copy.copy(variables.default)
     data.update(variables.keywords[keyword])
@@ -286,155 +321,106 @@ def call(keyword, args, debug=False):
             del nodes[key]
 
     if len(nodes) > 0:
-        print("warning: unused arguments.", nodes)
-        print(args)
-#        raise(Exception)
+        raise UdebsSyntaxError("Keyword contains unused arguments. '{}'".format(args))
     
     #Insert keyword arguments.
     for key, value in kwargs.items():
         arguments.append(str(key) + "=" + str(value))
         
+    computed = data["f"] + "(" + ",".join(arguments) + ")"
     if debug:
-        print("computed", data["f"] + "(" + ",".join(arguments) + ")")
-    return data["f"] + "(" + ",".join(arguments) + ")"
+        print("computed:", computed)
+    return computed
 
-def bracket(string):
-    """Finds bracketed substrings in a string and sends them back to recursive."""
-    start = string.find("(")
-    end = string.find(")") + 1
-    if not end:
-        raise UdebsSyntaxError(string, "Brackets are mismatched.")
-    substr = string[start:end]
-    i = 0
-    while substr.count("(") != substr.count(")"):
-        end = string[end:].find(")") + end + 1
-        substr = string[start:end]
-        i +=1
-        if i > 1000:
-            raise UdebsSyntaxError(string, "Brackets are mismatched.")
-            
-    return start, end
-
-#Processes a string.
-def primary(string, debug=False):
-    """Processes a string into it's corresponding list.
-        
-    string - String to process.
-    debug - Prints debugging infor if true.
+def split_callstring(raw):
+    """Converts callString into callList."""
     
-    """
-    #check for and handle brackets in call string.
-    if debug:
-        print("checking", string)
+    openBracket = {'(', '{', '['}
+    closeBracket = {')', '}', ']'}
+    string = raw.strip()
+    callList = []
+    buf = ''
+    inBrackets = 0
+    dotLegal = True
     
-    if "(" in string:
-        start, end = bracket(string)
-        
-        if string[start-1] in variables.keywords:
-            value = primary(string[start-1] + " " + string[start:end], debug)
-            start -=1
-        else:
-            value = primary(string[start+1:end-1], debug)
-        
-        list_ = primary(string[:start], debug)
-        list_.append(value)
-        list_.extend(primary(string[end:], debug))
-    else:
-        list_ = re.split("\s+", string)
-    
-    while "" in list_:
-        list_.remove("")
-        
-    for index in range(len(list_)):
-        substring = list_[index]
-        if isinstance(substring, list):
+    for char in string:
+        #Ignore everything until matching bracket is found.
+        if inBrackets:
+            if char in openBracket:
+                inBrackets +=1
+            elif char in closeBracket:
+                inBrackets -=1
+            buf += char
             continue
         
-        #prefix lists
-        elif substring[0] in variables.keywords and len(substring) > 1 and substring not in variables.keywords:
-            list_[index] = [substring[0], substring[1:]]
-    
-    return list_
+        #Found opening Bracket
+        if char in openBracket:
+            if len(buf) > 1:
+                raise UdebsSyntaxError("Too many bits before bracket. '{}'".format(raw))
+            inBrackets +=1
 
-def secondary(list_, debug):
-    """This function converts the structured list back into a string.
-    
-    """
-    args = []
-    keyword = None
-    
-    if debug:
-        print("secondary", list_)
-    
-    for element in list_:
-        if isinstance(element, list):
-            args.append(secondary(element, debug))
+        #Dot split
+        elif dotLegal and char == ".":
+            callList.append(buf)
+            buf = ''
             continue
         
-        if element in variables.keywords:
-            keyword = element
-            
-        args.append(element)
+        #Normal whitespace split`
+        elif char.isspace():
+            if dotLegal:
+                dotLegal = False
+                if callList:
+                    buf = ".".join(callList)+"."+buf
+                    callList = []
+            if buf:
+                callList.append(buf)
+                buf = ''
+            continue
         
-    #if no keyword, return tuple.
-    if not keyword:
-        value = "("
-        for i in args:
-            value +=formatS(i, debug)+","
-        return value[:-1] + ")"
+        #Everything else
+        buf += char
         
-    #This is a function.
-    return call(keyword, args, debug)
+    callList.append(buf)
 
-class UdebsSyntaxError(Exception):
-    def __init__(self, entity, string):
-        self.message = "'" + entity+"'" + " " + string
-    def __str__(self):
-        return repr(self.message)
+    if inBrackets:
+        raise UdebsSyntaxError("Brackets are mismatched. '{}'".format(raw))
 
-def interpret(string, debug=False):
+    if '' in callList:
+        raise UdebsSyntaxError("Empty element in callList. '{}'".format(raw))
+
+    #Length one special cases.
+    if len(callList) == 1:
+        value = callList[0]
+
+        #unnecessary brackets. (Future fix: deal with this at start of function as these are common.)
+        if value[0] in openBracket and value[-1] in closeBracket:
+            return split_callstring(value[1:-1])
+
+        #Prefix calling.
+        if value not in variables.keywords:
+            if value[0] in variables.keywords:
+                return [value[0], value[1:]]
+
+    return callList
+
+def interpret(string, debug=False, first=True):
+    """Recursive function that parses callString"""
+    #Small hack for solitary keywords
+    if first and string in variables.keywords:
+        return call([string])
+
+    _list = split_callstring(string)
+    #Exit condition
+    if len(_list) == 1:
+        return _list[0]
+
     if debug:
         print("Interpret:", string)
 
-    #One time bracket replacements.
-    string.replace("[", "(")
-    string.replace("{", "(")
-    string.replace("]", ")")
-    string.replace("}", ")")
-    
-    #One time dot notation replacement.
-    list_ = re.split("\s+", string)
-    for index in range(len(list_)):
-        i = list_[index]
-        if "." in i:
-            #I know this is illogical and confusing, but it just happened.
-            if i[0] in variables.keywords:
-                list_[index] = i[0] + "("+i[1:].replace(".", " ")+")"
-            else:
-                list_[index] = "("+i.replace(".", " ")+")"
-                
-    string = " ".join(list_)
-    
-    try:
-        if debug:
-            print("Bracket form:", string, "\n")
-            
-        list_ = primary(string, debug)
-        if debug:
-            print("List form:", list_, "\n")
-        
-        callstring = secondary(list_, debug)
-        if debug:
-            print("Final form:", callstring)
-    except:
-        print(string)
-        raise
-        
-    return callstring
-
+    _list = [interpret(i, debug, False) for i in _list]
+    return call(_list, debug)
 
 if __name__ == "__main__":
     with open("keywords.json") as fp:
         importModule(json.load(fp), {'self': None})
     interpret(sys.argv[1], debug=True)
-

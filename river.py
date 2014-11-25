@@ -84,7 +84,7 @@ while True:
             mouse = pygame.mouse.get_pos()
             for y in range(field.getMap().y()):
                 for x in range(field.getMap().x()):   
-                    if hexagon(x, y, ts, False).square.collidepoint(mouse):
+                    if hexagon(x, y, ts).square.collidepoint(mouse):
                         loc = (x, y, "map")
             
         elif event.type == KEYDOWN:

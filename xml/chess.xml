@@ -280,7 +280,7 @@
             <i>(DISTANCE y) == 0</i>
         </require>
         <effect>
-            <i>TRAVEL (XLOC.$T (YLOC.$C + -STAT.$C.FLP))</i>
+            <i>TRAVEL (XLOC.$T (YLOC.$C + -(STAT.$C.FLP)))</i>
             <i>$target TRAVEL bump</i>
             <i>CAST $target captured</i>
         </effect>

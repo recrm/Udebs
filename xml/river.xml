@@ -74,7 +74,7 @@
     
     <flow>
         <require>
-            <i>difference = (+ STAT.$C.W STAT.$C.D -STAT.$T.W -STAT.$T.D)</i>
+            <i>difference = (+ STAT.$C.W STAT.$C.D -(STAT $T W) -(STAT $T D))</i>
             <i>|$difference &gt; 1</i>
             <i>flowout = (? ($difference &gt; 0) $caster $target)</i>
             <i>STAT.$flowout.W &gt; 0</i>
