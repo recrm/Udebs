@@ -52,8 +52,8 @@ class hexagon:
 def drawSurface():
     #redraw the board
     mainSurface.fill(BLACK)
-    for y in range(field.getMap().y()):
-        for x in range(field.getMap().x()):
+    for y in range(field.getMap().y):
+        for x in range(field.getMap().x):
             hexa = hexagon(x, y, ts)
             colour = colours[field.getStat((x,y), 'colour')]
             pygame.draw.polygon(mainSurface, colour, hexa.points, 0)

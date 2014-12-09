@@ -71,7 +71,7 @@
         "args": ["$1", "$2"]
     },
     "PATH": {
-        "f": "self.pathTowards",
+        "f": "self.getPath",
         "args": ["$1", "$2", "$3"]
     },
     "DISTANCE": {

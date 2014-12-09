@@ -5,6 +5,12 @@ from xml.etree import ElementTree
 
 #creates an xml file from instance object.
 def battleWrite(env, location, pretty=False):
+    """
+    Writes an instance object to file.
+    
+    env - Instance object to write.
+    location - Variable to pass to xml.etree.write.
+    """
     e = ElementTree
     root = e.Element('udebs')
     
@@ -31,9 +37,11 @@ def battleWrite(env, location, pretty=False):
     if env.compile != True:
         compile_ = e.SubElement(config, 'compile')
         compile_.text = str(env.compile)
-    if env.django != False:
-        django = e.SubElement(config, 'django')
-        django.text = str(env.django)
+    
+    
+    if env.revert != 1:
+        compile_ = e.SubElement(config, 'revert')
+        compile_.text = str(env.compile - 1)
     
     #map
     maps = e.SubElement(root, 'maps')
@@ -76,8 +84,8 @@ def battleWrite(env, location, pretty=False):
 
     #entities
     entities = e.SubElement(root, 'entities')
-    for entry in env.getObject():   
-        entity = env.getObject(entry)
+    for entry in env:   
+        entity = env[entry]
         stats = env.stats.union(env.strings, env.lists)
         entity_node = e.SubElement(entities, entity.name)
         for stat in stats:
@@ -116,7 +124,12 @@ def battleWrite(env, location, pretty=False):
 
 #Creates and instance object from xml file.
 def battleStart(xml_file, debug=False):
+    """
+    Creates an instanance object from given xml file.
     
+    xml_file - String representing file to look in.
+    debug - Boolean that gets passed to the interpret.interpret function.
+    """
     try:
         tree = ElementTree.parse(xml_file)
         root = tree.getroot()
@@ -136,10 +149,6 @@ def battleStart(xml_file, debug=False):
         revert = config.findtext("revert")
         if revert is not None:
             field.revert = eval(revert) + 1
-        
-        django = config.findtext('django')
-        if django is not None:
-            field.django = eval(django)
         
         comp = config.findtext("compile")
         if comp is not None:
@@ -186,7 +195,7 @@ def battleStart(xml_file, debug=False):
             x = int(dim_map.find('x').text)
             y = int(dim_map.find('y').text)
             for element in range(y):
-                new_map.map.append([new_map.empty for i in range(x)])
+                new_map._map.append([new_map.empty for i in range(x)])
         else:
             temp = []
             for row in field_map:
@@ -236,14 +245,10 @@ def battleStart(xml_file, debug=False):
             for item in log:
                 field.log.append(item.text)
     
-    if field.django:
-        field.save()
-    
-    
     #Set empty 
     empty = main.entity(field)
     empty.immutable = True
-    empty.record(field)
+    empty.record()
     
     #Create all entity type objects.
     def addObject(item):
@@ -275,8 +280,8 @@ def battleStart(xml_file, debug=False):
                     new_list.append(value.text)
             setattr(new_entity, lst, new_list)
         
-        new_entity.update(field)
-        new_entity.record(field)
+        new_entity.update()
+        new_entity.record()
         
         return new_entity
                         
@@ -286,7 +291,7 @@ def battleStart(xml_file, debug=False):
             new_entity = addObject(item)
     
     field.controlLog("INITIALIZING", field.name)
-    if 'tick' not in field.getObject():
+    if 'tick' not in field:
         field.controlLog("warning, no tick is defined.")
     
     if field.revert > 1:

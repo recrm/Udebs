@@ -18,7 +18,7 @@ xml_test = """
         <DESC />
     </strings>
     <lists>
-        <equipment slist="equip" />
+        <equipment />
         <inventory rlist='' />
     </lists>
 </definitions>
@@ -81,7 +81,6 @@ class TestBattleStart(unittest.TestCase):
         self.test1 = udebs.battleStart(xml_test)
         
     def test_config(self):
-        self.assertFalse(self.test1.django)
         self.assertTrue(self.test1.hex)
         self.assertFalse(self.test1.compile)
         self.assertFalse(self.test1.logging)
@@ -92,17 +91,15 @@ class TestBattleStart(unittest.TestCase):
         self.assertIn("DESC", self.test1.strings)
         self.assertIn("equipment", self.test1.lists)
         self.assertIn("inventory", self.test1.rlist)
-        self.assertIn("equipment", self.test1.slist)
-        self.assertEqual("equip", self.test1.slist["equipment"])
         total = sum([len(self.test1.lists), len(self.test1.stats), len(self.test1.strings)])
         #four defined stats + four built in stats.
         self.assertEqual(total, 8)
         
     def test_map(self):
         self.assertEqual(len(self.test1.map), 3)
-        self.assertIsInstance(self.test1.map['two'], udebs.board)
-        self.assertEqual(self.test1.map['one'].x(), 4)
-        self.assertEqual(self.test1.map['two'].y(), 2)
+        self.assertIsInstance(self.test1.map['two'], udebs.main.board)
+        self.assertEqual(self.test1.map['one'].x, 4)
+        self.assertEqual(self.test1.map['two'].y, 2)
         
     def test_var(self):
         self.assertEqual(self.test1.time, 4)
@@ -126,14 +123,12 @@ class TestBattleWrite(unittest.TestCase):
         self.env2 = udebs.battleStart("/tmp/udebs_testing.xml")
         
     def test_equal(self):
-        self.assertEqual(self.env1.django, self.env2.django)
         self.assertEqual(self.env1.compile, self.env2.compile)
         self.assertEqual(self.env1.hex, self.env2.hex)
         self.assertEqual(self.env1.name, self.env2.name)
         self.assertEqual(self.env1.lists, self.env2.lists)
         self.assertEqual(self.env1.stats, self.env2.stats)
         self.assertEqual(self.env1.strings, self.env2.strings)
-        self.assertEqual(self.env1.slist, self.env2.slist)
         self.assertEqual(self.env1.rlist, self.env2.rlist)
         self.assertEqual(self.env1.rmap, self.env2.rmap)
         self.assertEqual(self.env1.time, self.env2.time)
@@ -160,9 +155,9 @@ class TestBoardClass(unittest.TestCase):
         self.two = self.test1.map["two"]
     
     def test_size(self):
-        self.assertEqual(self.one.y(), 4)
-        self.assertEqual(self.two.x(), 2)
-        self.assertEqual(self.one.size(), 16)
+        self.assertEqual(self.one.y, 4)
+        self.assertEqual(self.two.x, 2)
+        self.assertEqual(self.one.size, 16)
     
     def test_get(self):
         self.assertEqual("unit1", self.two.get((0,0)))
@@ -191,7 +186,7 @@ class TestEntityClass(unittest.TestCase):
         self.unit = self.env.data["unit1"]
         
     def test_init(self):
-        new = udebs.entity(self.env)
+        new = udebs.main.entity(self.env)
         self.assertIn(new.name, new.group)
         stats = self.env.strings.union(self.env.stats, self.env.lists)
         for stat in stats:
@@ -205,7 +200,7 @@ class TestEntityClass(unittest.TestCase):
         self.assertEqual(store, self.unit.loc)
         
     def test_record(self):
-        new = udebs.entity(self.env)
+        new = udebs.main.entity(self.env)
         new.name = "new"
         new.record(self.env)
         self.assertIn("new", self.env.data)
@@ -217,7 +212,7 @@ class TestInstanceClass(unittest.TestCase):
     def test_getObject(self):
         self.assertEqual(len(self.env.getObject()), 5)
         self.assertIs(self.env.getObject("unit1"), self.env.data["unit1"])
-        with self.assertRaises(udebs.UndefinedEntityError):
+        with self.assertRaises(udebs.main.UndefinedEntityError):
             self.env.getObject("error")
             
     def test_testTarget(self):
@@ -234,7 +229,7 @@ class TestInstanceClass(unittest.TestCase):
         self.env.map["one"].insert("move1", (0,0))
         self.assertEqual(self.env.getStat("unit1", "ACT"), 20)
         self.assertEqual(len(self.env.getStat("unit1", "equipment")), 3)
-        with self.assertRaises(udebs.UndefinedStatError):
+        with self.assertRaises(udebs.main.UndefinedStatError):
             self.env.getStat('unit1', "Not Defined")
        
     def test_controlTravel(self):
@@ -249,10 +244,6 @@ class TestInstanceClass(unittest.TestCase):
         self.env.controlTravel("unit1", (0,0))
         self.assertEqual(self.env.getMap((0,0, 'map')), "unit1")
         self.assertEqual(self.env.getMap((0,0)), "unit1")
-            
-        
-        
-        
         
 if __name__ == '__main__':
     unittest.main()

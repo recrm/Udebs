@@ -32,25 +32,33 @@ for col, y in [("W", 0), ("B", 1)]:
 def norecurse(f):
     """Returns True is a function calls itself."""
     def func(*args, **kwargs):
-        if len([l[2] for l in traceback.extract_stack() if l[2] == f.__name__]) > 0:
+        trace = [i[2] for i in traceback.extract_stack() if i[2] == f.__name__]
+        if len(trace) > 0:
             return True
         return f(*args, **kwargs)
     return func
 
 @norecurse
 def check(king, color, instance):
+    """
+    Check if space is under attack.
+    
+    king - Spot to check if under attack.
+    color - Player that can't be under attack.
+    """
     king = instance.getTarget(king)
     color = "black" if color == "white" else "white"
-    
-    #stupid case specific fix because pawns move wierd.
+
+    #stupid case specific fix for castling because pawns move wierd.
     if king.name == "empty":
         y = -1 if color == "black" else 1
         for x in [-1, 1]:
             unit = instance.getMap((king.loc[0]+x, king.loc[1]+y))
+            print("unit",unit)
             if unit and "pawn" in unit:
                 if color in instance.getStat(unit, "group"):
                     return False
-    
+
     for unit in instance.getGroup(color):
         for move in instance.getStat(unit, 'movelist'):
             if move not in {"pawn_travel", "pawn_double", "king_kcastle", "king_qcastle"}:
@@ -78,11 +86,11 @@ def redrawBoard():
     surface.fill(BLACK)  
     for x in range(10):
         for y in range(10):
-            
+
             target = (x-1, y-1)
             unit = main_map.getMap(target)
             tile = main_map.getStat((x, y, "board"), "sprite")
-            
+
             #background
             if tile:
                 bg = board[tile].copy()
@@ -90,16 +98,16 @@ def redrawBoard():
                     bg.fill(GREEN)
                 elif unit and unit == activeUnit:
                     bg.fill(RED)
-                
+
                 surface.blit(bg, (x*ts, y*ts))
-            
+
             #unit
             if unit not in {False, "empty"}:
                 sprite = main_map.getStat(unit, "sprite")
                 color = main_map.getStat(unit, "colour")
                 fg = sprites[color][sprite]
                 surface.blit(fg, (x*ts, (y-1)*ts))
-          
+
     pygame.display.update()
 
 def eventQuit():
@@ -118,13 +126,14 @@ while True:
     for event in pygame.event.get():
         if event.type == QUIT:
             eventQuit()
-        
+
         elif event.type == KEYDOWN and event.key == K_q:
             test = main_map.getRevert(2)
             if test:
                 eventClear()
                 main_map = test
-                          
+                redrawBoard()
+
         elif event.type == MOUSEBUTTONDOWN:
             mouse = pygame.mouse.get_pos()
             for x in range(1,9):
@@ -138,7 +147,7 @@ while True:
                                 main_map.castMove(activeUnit, target , moves[target])
                                 main_map.controlTime(1)
                             eventClear()
-                            
+
                         else:
                             #Enter selection mode, find all spaces token can move to
                             for x in range(8):
@@ -148,12 +157,13 @@ while True:
                                         if main_map.testMove(target, other, move):
                                             high.add(other)
                                             moves[other] = move
-                                            
+                                            break
+
                             if len(high) > 0:
                                 activeUnit = main_map.getMap(target)
-            
+
                         redrawBoard()
-    
+
     #Check if game is over.
     for king in main_map.getGroup("kings"):
         if "captured" in main_map.getStat(king, "status"):

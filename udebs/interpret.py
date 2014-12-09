@@ -7,13 +7,17 @@ import json
 import itertools
 
 class standard:
+    """
+    Basic functionality built into the Udebs scripting language. 
+    None of the functions here can depend on any other Udebs module.
+    """
     def _print(*args):
         print(*args)
         return True
 
     def logicif(cond, value, other):
         return value if cond else other
-
+    
     def inside(before, after):
         return before in after
 
@@ -54,6 +58,9 @@ class standard:
     def logicor(*args):
         return any(args)
         
+    def logicif(cond, value, other):
+        return value if cond else other
+        
     def mod(before, after):
         return before % after
 
@@ -81,6 +88,9 @@ class standard:
         return len(list(list_))
     
 class variables:
+    """
+    Base environment object that Udebs scripts are interpreted through.
+    """
     keywords = {
         "SUB": {
             "f": "standard.sub",
@@ -93,6 +103,11 @@ class variables:
         "not-in": {
             "f": "standard.notin",
             "args": ["-$1", "$1"],
+        },
+        "if": {
+            "f": "standard.logicif",
+            "args": ["$1", "$2", "$3"],
+            "default": {"$2": True, "$3": False},
         },
         "min": {
             "f": "min",
@@ -201,11 +216,17 @@ class variables:
         "string": [],
     }
 
+
 def importModule(dicts={}, globs={}):
+    """
+    Allows user to extend base variables available to the interpreter.
+    Should be run before the instance object is created.
+    """
     variables.keywords.update(dicts)
     variables.env.update(globs)
 
-def getEnv(local, glob=False):
+def _getEnv(local, glob=False):
+    """Retrieves a copy of the base variables."""
     value = copy.copy(variables.env)
     if glob:
         value.update(glob)
@@ -225,7 +246,7 @@ class UdebsParserError(Exception):
         return repr(self.message)
 
 def formatS(string, debug):
-    """Converts string into python representation."""
+    """Converts a string into its python representation."""
     string = str(string)
     if string.isdigit():
         return string
@@ -273,7 +294,10 @@ def call(args, debug=False):
         value = "("
         for i in args:
             value +=formatS(i, debug)+","
-        return value[:-1] + ")"
+        computed = value[:-1] + ")"
+        if debug:
+            print("computed:", computed)
+        return computed
 
     keyword = keywords[0]
 
@@ -334,7 +358,6 @@ def call(args, debug=False):
 
 def split_callstring(raw):
     """Converts callString into callList."""
-    
     openBracket = {'(', '{', '['}
     closeBracket = {')', '}', ']'}
     string = raw.strip()

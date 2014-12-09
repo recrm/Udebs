@@ -1,4 +1,5 @@
 from udebs import interpret
+from collections import MutableMapping
 import random
 import sys
 import math 
@@ -8,6 +9,7 @@ import re
 import json
 import collections
 
+#Loads functions from keywords.json into the interpreter.
 with open("udebs/keywords.json") as fp:
     interpret.importModule(json.load(fp), {'self': None})
     
@@ -15,11 +17,13 @@ with open("udebs/keywords.json") as fp:
 #                 Main Class                       -
 #---------------------------------------------------
 
-class instance:
-    
-    def __init__(self, *args, **kwargs):
+class instance(MutableMapping):
+    """
+    Main instance class. This is an object that represents 
+    the state space of the entire game.
+    """
+    def __init__(self):
         #config
-        self.django = False
         self.compile = True
         self.hex = False
         self.name = 'Unknown'
@@ -30,6 +34,7 @@ class instance:
         self.lists = {'group', 'effect', 'require'}
         self.stats = {'increment'}
         self.strings = set()
+        #rlist and rmap are flags that indicate objects entities should inherit from.
         self.rlist = set()
         self.rmap = set()
         
@@ -40,16 +45,17 @@ class instance:
         self.log = []
         self.state = []
         
-        #internal use only.
-        self.data = {}
-        self.variables = {}
+        #Other
         self.rand = random.Random()
         
-        super(instance, self).__init__(*args, **kwargs)
+        #internal use only.
+        self._data = {}
     
     def __eq__(self, other):
+        if not isinstance(other, instance):
+            return False
+            
         check1 = [
-            self.django == other.django,
             self.compile == other.compile,
             self.hex == other.hex,
             self.name == other.name,
@@ -67,9 +73,9 @@ class instance:
             self.time == other.time,
             self.delay == other.delay,
             self.map == other.map,
-            len(self.getObject()) == len(other.getObject()),
+            len(self) == len(other),
         ]
-        check2 = (self.getObject(entity) == other.getObject(entity) for entity in self.getObject())
+        check2 = (self[entity] == other[entity] for entity in self)
         return all(itertools.chain(check1, check2))
         
     def __copy__(self):
@@ -77,33 +83,42 @@ class instance:
         new.__dict__.update(self.__dict__)
         new.delay = copy.deepcopy(self.delay)
         new.map = copy.deepcopy(self.map)
-        new.data = copy.deepcopy(self.data)
+        new._data = copy.deepcopy(self._data)
+        for entity in new:
+            new[entity].field = new
         new.state = None
-        
         return new
+        
+    def __getitem__(self, key):
+        if key == "bump":
+            return self._data["empty"]
+        return self._data[key]
+        
+    def __setitem__(self, key, value):
+        self._data[key] = value
+        
+    def __delitem__(self, key):
+        del self._data[key]
+        
+    def __len__(self):
+        return len(self._data)
+        
+    def __iter__(self):
+        return iter(self._data)
+        
+    def __contains__(self, item):
+        return item in self._data
         
     #---------------------------------------------------
     #                 Get Functions                    -
     #---------------------------------------------------
-    
-    def getObject(self, string=False):
-        """Returns object associated with string selector. Error if undefined"""
-        try:
-            return self.data[string]
-        except KeyError:
-            if string == "bump":
-                return self.data["empty"]
-            elif not string:
-                return self.data.keys()
-            else:
-                raise UndefinedEntityError(string)
-    
+    #Primary get functions.
     def getTarget(self, target, multi=False):
         """Returns entity object based on given selector.
         
         target - Any entity selector.
         multi - Boolean, allows lists of targets.
-        
+
         """
         if target == False:
             target = "empty"
@@ -116,15 +131,15 @@ class instance:
             
         #If string, return associated entity.
         elif ttype is str:
-            return self.getObject(target)
+            return self[target]
         
         #If tuple, this is a location.
         elif ttype is tuple:
-            unit = self.getObject(self.getMap(target))
+            unit = self[self.getMap(target)]
             if isinstance(unit, entity):
                 if unit.immutable:
                     unit = copy.copy(unit)
-                    unit.update(self, target)
+                    unit.update(target)
                 return unit
             else:
                 return []
@@ -154,12 +169,12 @@ class instance:
         def iterValues(target):
             #classes
             for item in target.group:
-                yield getattr(self.getObject(item), stat)
+                yield getattr(self[item], stat)
                 
                 #special lists
                 for lst in self.rlist:
-                    for unit in getattr(self.getObject(item), lst):
-                        yield self.getStat(self.getObject(unit), stat)
+                    for unit in getattr(self[item], lst):
+                        yield self.getStat(self[unit], stat)
         
             #map locations
             if maps and target.loc:
@@ -211,9 +226,9 @@ class instance:
             return int(math.sqrt(math.pow(one[0] - two[0], 2) + math.pow(one[1] - two[1], 2)))
         elif method == "pinf":
             return max(abs(one[0] - two[0]), abs(one[1] - two[1]))
-        elif method in self.getObject():
+        elif method in self:
             count = 0
-            for i in self.pathAdjacent(one, method):
+            for i in self.getAdjacent(one, method):
                 if two in i:
                     return count
                 count +=1
@@ -222,6 +237,105 @@ class instance:
         else:
             raise UndefinedMetricError(method)
     
+    def getEnv(self, caster, target, move):
+        """
+        Creates an environment object. From three entity targets.
+        """
+        caster = self.getTarget(caster)
+        target = self.getTarget(target)
+        move = self.getTarget(move)
+        
+        var_local = {
+            "caster": caster,
+            "target": target,
+            "move": move,
+            "C": caster,
+            "T": target,
+            "M": move,
+        }
+        return interpret._getEnv(var_local, {"self": self})
+    
+    #Pathing get functions.
+    def getAdjacent(self, center, move="empty", pointer=None):
+        """
+        Iterates over concentric circles of adjacent tiles
+        """
+        center = self.getTarget(center)
+        move = self.getTarget(move)
+
+        if not center.loc:
+            yield list()
+            return
+        
+        new = {center.loc}
+        searched = {center.loc}
+        next = self.adjacent(center.loc, pointer)
+        
+        next.difference_update(searched)
+        
+        while len(new) > 0:
+            #Sorted is needed to force program to be deterministic.
+            yield sorted(list(new))
+            new = set()
+            for node in next:        
+                if not self.getMap(node):
+                    continue
+                if self.testMove(center, node, move):
+                    new.add(node)
+            
+            searched.update(next)
+            next = set().union(*[self.adjacent(node, pointer) for node in new])
+            next.difference_update(searched)
+    
+    def getPath(self, start, finish, move):
+        """
+        Algorithm to find a path between start and finish assuming move.
+        
+        start, finish - Target objects of start and finish locations.
+        move - Entity that decides if a spot can be moved onto.
+        
+        Returns empty list if there is no path.
+        """
+        start = self.getTarget(start)
+        finish = self.getTarget(finish)
+        pointer = {}
+        
+        if start == finish:
+            return []
+        
+        for i in self.getAdjacent(start, move, pointer):
+            if finish.loc in i:
+                break
+        else:
+            return []
+            
+        found = [finish.loc]
+        while True:
+            new = pointer[found[-1]]
+            found.append(new)
+            if new == start.loc:
+                found.reverse()
+                return found
+                
+    def getFill(self, center, move='empty', distance=float("inf")):
+        """
+        Returns a list of map spaces that center fills into.
+        
+        center - Target object representing starting location of fill.
+        move - Target object representing move that defines fill success.
+        distance - Maximum fill distance from target.
+        """
+        found = []
+        count = 0
+        for i in self.getAdjacent(center, move):
+            found.extend(i)
+            if count >= distance:
+                break
+            count +=1
+        self.rand.shuffle(found)
+        return found
+    
+    #Random other get functions.
     def getLog(self):
         """Returns list of log entries made since last call."""
         test = copy.copy(self.log)
@@ -239,11 +353,15 @@ class instance:
             except KeyError:
                 raise UndefinedSelectorError(target)
         
-        #down here kept for compatability reasons.
+        #Should split this into two functions.
         elif ttype is tuple:
-            map_ = target[2] if len(target) >= 3 else "map"
-            return self.getMap(map_).get(target)
-            
+            string = target[2] if len(target) >=3 else 'map'
+            map_ = self.getMap(string)
+            try:
+                value = map_[target]
+            except IndexError:
+                value = False
+            return value
         else:
             raise UndefinedSelectorError(target)
         
@@ -252,7 +370,6 @@ class instance:
         return self.getTarget(target).loc
     
     def getRevert(self, value=0):
-        storage = self.state
         index = -(value +1)
         try:
             new = copy.copy(self.state[index])
@@ -261,20 +378,19 @@ class instance:
         new.state = self.state[:index+1]
         return new
     
-    
+    #Simple get functions.
     def getGroup(self, group, inc_self=False):
         """Return all objects belonging to group."""
         group = self.getTarget(group)
         
         found = []
-        for unit in self.getObject():
+        for unit in self:
             if group.name in self.getStat(unit, 'group'):
                 found.append(unit)
         if not inc_self:
             found.remove(group.name)
         return found
     
-    #returns combined stat for all elements in a list
     def getListStat(self, lst, stat):
         """Returns combination of all stats for objects in a units list.
         
@@ -293,7 +409,6 @@ class instance:
         else:
             raise UndefinedStatError(stat)
         
-    #returns first element in list contained in group
     def getListGroup(self, target, lst, group):
         """Returns first element in list that is a member of group.
         
@@ -310,12 +425,8 @@ class instance:
         return False
     
     def getFilter(self, iterable, caster, move):
-        caster = self.getTarget(caster)
-        move = self.getTarget(move)
-        
-        found = [i for i in iterable if self.testMove(caster, i, move) == True] 
-        
-        return found
+        """Return all elements of list where move suceeds."""
+        return [i for i in iterable if self.testMove(caster, i, move)]
     
     def getSearch(self, *args):
         """Returns a list of objects contained in all groups.
@@ -328,20 +439,6 @@ class instance:
             found = found.intersection(self.getGroup(arg))
         return sorted(list(found))
         
-    def getFill(self, center, move='empty', distance=float("inf")):
-        center = self.getTarget(center)
-        move = self.getTarget(move)
-        
-        found = []
-        count = 0
-        for i in self.pathAdjacent(center, move):
-            found.extend(i)
-            if count >= distance:
-                break
-            count +=1
-        self.rand.shuffle(found)
-        return found
-    
     #Entity helper get functions.
     def getX(self, entity):
         entity = self.getTarget(entity)
@@ -380,10 +477,7 @@ class instance:
                 for delay in copy.copy(self.delay):
                     if delay["DELAY"] <= 0:
                         check = False
-                        env = self.createTarget(delay["CASTER"],
-                                                delay["TARGET"],
-                                                delay["MOVE"])
-                        
+                        env = self.getEnv(delay["CASTER"],delay["TARGET"],delay["MOVE"])
                         self.delay.remove(delay)
                         self.controlEffect(env, delay['STRING'])
                         
@@ -395,10 +489,9 @@ class instance:
         if time != 0:
             for i in range(time):
                 self.time +=1
-                self.variables = {}
                 self.controlLog('Env time is now', self.time)
-                if 'tick' in self.getObject():
-                    env = self.createTarget("empty", 'empty', "tick")
+                if 'tick' in self:
+                    env = self.getEnv("empty", 'empty', "tick")
                     if self.testRequire(env) == True:
                         self.controlEffect(env)
                 for delay in self.delay:
@@ -406,11 +499,11 @@ class instance:
                 checkdelay()
         else:
             checkdelay()
-            self.variables = {}
             
         return True
     
     def controlRevert(self):
+        """Controls saving of new states."""
         if self.revert > 1 and self.state:
             clone = copy.copy(self) 
             self.state.append(clone)
@@ -531,16 +624,26 @@ class instance:
         return flag
     
     def controlDelete(self, targets):
+        """
+        Controls the delete of unused entities.
+        Warning. Experimental, not recomended.
+        """
         targets = self.getTarget(targets, multi=True)
         for target in targets:
             if not target.immutable:
                 self.controlLog(target.name, "has been removed from the game.")
-                del self.data[target.name]
+                del self[target.name]
                 del target
 
         return True
     
     def controlRecruit(self, clone, positions=[]):
+        """
+        Recruits a clone of entity to an instance.
+        
+        clone - Target object to clone.
+        positions - List of locations to clone the object to. (None creates an offboard unit.)
+        """
         positions = self.getTarget(positions, multi=True)
         clone = self.getTarget(clone)
         new_unit = None
@@ -562,7 +665,7 @@ class instance:
             new_unit.group = [new_unit.name] + new_unit.group
             
             #add object to env
-            new_unit.record(self)
+            new_unit.record()
             self.controlLog(new_unit.name, "has been recruited")
             
             #travel object to location
@@ -572,6 +675,12 @@ class instance:
         return new_unit
     
     def controlTravel(self, caster, targets=False):
+        """
+        Changes a units board locations.
+        
+        caster - Target object to move.
+        targets - Location to move object to. (Multiple only for immutable. Otherwise caster is moved multiple times.)
+        """
         caster = self.getTarget(caster)
         targets = self.getTarget(targets, multi=True)
         
@@ -590,13 +699,13 @@ class instance:
             
             #move units
             if target.loc:
-                map_target.insert(caster.name, target.loc)
+                map_target[target.loc] = caster.name
             if caster.loc:
-                map_caster.insert(map_caster.empty, caster.loc)
+                del map_caster[caster.loc]
             
             #update units
-            target.update(self)
-            caster.update(self)
+            target.update()
+            caster.update()
             
             #control Logs
             if not caster.immutable:
@@ -607,6 +716,11 @@ class instance:
         return True
          
     def controlDelay(self, caster, target, move, call_string, delay):
+        """
+        Creates a new delay object.
+        
+        To do: create an actual delay object.
+        """
         new_delay = {
             "DELAY": delay,
             "STRING": call_string,
@@ -619,13 +733,21 @@ class instance:
         return True
     
     def controlMove(self, caster, targets , moves, force=False):
+        """
+        Main function to trigger an event.
+        
+        caster - Target object of caster
+        targets - Target objects of recipient.
+        moves - Target objects of events to trigger.
+        force - Boolean to trigger skipping of require check. (Rarely used)
+        """
         caster = self.getTarget(caster)
         targets = self.getTarget(targets, multi=True)
         moves = self.getTarget(moves, multi=True)
         flag = False
         for target in targets:
             for move in moves:
-                env = self.createTarget(caster, target, move)
+                env = self.getEnv(caster, target, move)
                 
                 
                 check = True if force else self.testRequire(env)
@@ -640,7 +762,21 @@ class instance:
         
         return flag
         
+    def controlInit(self, move, time=0, force=False):
+        """Wrapper of controlMove where caster and target are unimportant."""
+        if self.controlMove("empty", "empty", move, force):
+            self.controlTime(time)
+            return True
+        return False
+        
     def controlEffect(self, env, single=False, command="effect"):
+        """
+        Controls actual execution of events.
+        
+        env - environment object to trigger.
+        single - specific effect to trigger in env (Not neccessary derived from env.)
+        command - "effect" or "require" which one is triggered.
+        """
         effects = [single] if single else self.getStat(env['storage']['move'], command)
         
         for effect in effects:
@@ -662,27 +798,73 @@ class instance:
         return True
     
     #---------------------------------------------------
-    #                 User only wrappers               -
+    #              Testing Functions                   -
+    #---------------------------------------------------
+        
+    def testFuture(self, caster, target, move, string, time=0):
+        """
+        Experimental function. Checks if condition is true in the future.
+        (Works for chess, I doubt I will touch it.)
+        
+        caster, target, move - event to triger.
+        time - how much time to pass after event.
+        """
+        caster = self.getTarget(caster)
+        target = self.getTarget(target)
+        move = self.getTarget(move)
+        
+        #create test instance
+        clone = copy.copy(self)
+        clone.logging = False
+        
+        #convert instance targets into clone targets.
+        caster = clone.getTarget(caster.loc)
+        target = clone.getTarget(target.loc)
+        move = clone.getTarget(move.name)
+        
+        #test situation
+        clone.controlMove(caster, target, move, force=True)
+        clone.controlTime(time)
+        return clone.testMove(caster, target, move, single=string)
+        
+    def testBlock(self, start, finish, move):
+        """Tests to see if there exists a path from start to finish."""
+        
+        finish = self.getTarget(finish)
+
+        for i in self.getAdjacent(start, move):
+            for q in i:
+                if finish.loc in self.adjacent(q):
+                    return True
+        return False
+        
+    def testMove(self, caster, target, move, single=False):
+        """Gutted controlMove, returns if event would have activated."""
+        env = self.getEnv(caster, target, move)
+        result = self.testRequire(env, single=single)
+        "testRequire returns a string if test failed indicating why test failed."
+        return True if result == True else False
+        
+    def testRequire(self, env, single=False):
+        """Require wrapper for controlEffect."""
+        return self.controlEffect(env, single, "require")
+        
+    #---------------------------------------------------
+    #                   Other Functions                -
     #---------------------------------------------------
     def castMove(self, caster, target , move, time=0, force=False):
+        """Wrapper of controlMove that appends a tick."""
         if self.controlMove(caster, target, move, force):
-            self.controlTime(0)
-            if time != 0:
-                self.controlTime(time)
+            self.controlTime(time)
             return True
-        else:
-            return False
-        
-    def controlInit(self, move):
-        self.controlMove("empty", "empty", move)
-        self.controlTime(0)
-    
-    #---------------------------------------------------
-    #                 Pathing Functions                -
-    #---------------------------------------------------
+        return False
     
     def adjacent(self, location, pointer=None):
-        """Iterates of adjacent tiles"""
+        """
+        Returns rough index of tiles adjacent to given tile.
+        location - Any tuple location.
+        pointer - optional pointer dict to keep track of path.
+        """
         x = location[0]
         y = location[1]
         map_ = location[2]
@@ -704,117 +886,6 @@ class instance:
                     pointer[item] = location
         return found
         
-    def pathAdjacent(self, center, move="empty", pointer=None):
-        """Iterates over concentric circles of adjacent tiles"""
-        center = self.getTarget(center)
-        move = self.getTarget(move)
-
-        if not center.loc:
-            yield list()
-            return
-        
-        new = {center.loc}
-        searched = {center.loc}
-        next = self.adjacent(center.loc, pointer)
-        
-        next.difference_update(searched)
-        
-        while len(new) > 0:
-            #Sorted is needed to force program to be deterministic.
-            yield sorted(list(new))
-            new = set()
-            for node in next:        
-                if not self.getMap(node):
-                    continue
-                if self.testMove(center, node, move) == True:
-                    new.add(node)
-            
-            searched.update(next)
-            next = set().union(*[self.adjacent(node, pointer) for node in new])
-            next.difference_update(searched)
-            
-    def pathTowards(self, start, finish, move):
-        start = self.getTarget(start)
-        finish = self.getTarget(finish)
-        move = self.getTarget(move)
-        pointer = {}
-        
-        if start == finish:
-            return []
-        
-        for i in self.pathAdjacent(start, move, pointer):
-            if finish.loc in i:
-                break
-        else:
-            return []
-            
-        found = [finish.loc]
-        while True:
-            new = pointer[found[-1]]
-            found.append(new)
-            if new == start.loc:
-                found.reverse()
-                return found
-          
-    #---------------------------------------------------
-    #                 Test Functions                   -
-    #---------------------------------------------------
-    
-    def testMove(self, unit, target, move, single=False):
-        env = self.createTarget(unit, target, move)
-        result = self.testRequire(env, single=single)
-        return True if result == True else False
-        
-    def testRequire(self, env, single=False):
-        return self.controlEffect(env, single, "require")
-    
-    def testBlock(self, start, finish, move):
-        start = self.getTarget(start)
-        finish = self.getTarget(finish)
-        move = self.getTarget(move)
-
-        for i in self.pathAdjacent(start, move):
-            for q in i:
-                if finish.loc in self.adjacent(q):
-                    return True
-        return False
-        
-    def testFuture(self, caster, target, move, string, time=0):
-        
-        caster = self.getTarget(caster)
-        target = self.getTarget(target)
-        move = self.getTarget(move)
-        
-        #create test instance
-        clone = copy.copy(self)
-        clone.logging = False
-        
-        #convert instance targets into clone targets.
-        caster = clone.getTarget(caster.loc)
-        target = clone.getTarget(target.loc)
-        move = clone.getTarget(move.name)
-        
-        #test situation
-        clone.controlMove(caster, target, move, force=True)
-        clone.controlTime(time)
-        return clone.testMove(caster, target, move, single=string) == True
-        
-    def createTarget(self, caster, target, move):
-        
-        caster = self.getTarget(caster)
-        target = self.getTarget(target)
-        move = self.getTarget(move)
-        
-        var_local = {
-            "caster": caster,
-            "target": target,
-            "move": move,
-            "C": caster,
-            "T": target,
-            "M": move,
-        }
-        return interpret.getEnv(var_local, {"self": self})
-
 #---------------------------------------------------
 #                 Other Objects                    -
 #---------------------------------------------------
@@ -843,12 +914,6 @@ class UndefinedMetricError(Exception):
     def __str__(self):
         return repr(self.metric)+" is not a valid distance metric."
         
-class XMLSyntaxError(Exception):
-    def __init__(self, xml):
-        self.xml = xml
-    def __str__(self):
-        return "Invalid syntax, " + repr(self.xml)
-        
 class OffBoardError(Exception):
     def __init__(self, location):
         self.location = location
@@ -856,7 +921,7 @@ class OffBoardError(Exception):
         return repr(self.location) + " is not a valid target location."
 
 class entity:
-    def __init__(self, field=instance(), name="empty", *args, **kwargs):
+    def __init__(self, field=instance(), name="empty"):
         self.name = name
         self.loc = False
         self.immutable = False
@@ -869,20 +934,18 @@ class entity:
             setattr(self, string, '')
         self.group.append(self.name)
         
-        super(entity, self).__init__(*args, **kwargs)
-        
     def __eq__(self, other):
-        if isinstance(other, entity):
-            def values():
-                yield self.name == other.name,
-                yield self.loc == other.loc,
-                yield self.immutable == other.immutable,
-                for stat in itertools.chain(self.field.stats, self.field.lists, self.field.strings):
-                    yield getattr(self, stat) == getattr(other, stat)
-
-            return all(values())            
-        else:
+        if not isinstance(other, entity):
             return False
+        
+        values = [
+            self.name == other.name,
+            self.loc == other.loc,
+            self.immutable == other.immutable,
+        ]
+        for stat in itertools.chain(self.field.stats, self.field.lists, self.field.strings):
+            values.append(getattr(self, stat) == getattr(other, stat))
+        return all(values)            
     
     def __repr__(self):
         return "<entity: "+self.name+">"
@@ -890,6 +953,8 @@ class entity:
     def __iter__(self):
         yield self
     
+    #Accidentally copying the entity.field attribute causes severe issues.
+    #Entity.field should allways allways be nothing but a pointer.
     def __copy__(self):
         new = entity()
         for k, v in self.__dict__.items():
@@ -903,15 +968,15 @@ class entity:
     def __deepcopy__(self, other):
         return copy.copy(self)
     
-    def update(self, env=instance(), target=False):
+    def update(self, target=False):
         if target:
             if len(target) < 3:
                 target = (target[0], target[1], "map")
             self.loc = target
             return
         
-        if not self.immutable:      
-            for map_ in env.map.values():
+        if not self.immutable:
+            for map_ in self.field.map.values():
                 test = map_.find(self.name)
                 if test:
                     self.loc = test
@@ -919,81 +984,90 @@ class entity:
         
         self.loc = False
         
-    def record(self, field, name=False):
+    def record(self, name=False):
         if not name:
             name = self.name
-        field.data[name] = self
+        self.field[name] = self
         
 class script:
     def __init__(self, effect, require=False, debug=False):
-        
         command = 'eval' if require else 'exec'
-        
         self.raw = effect
         self.interpret = interpret.interpret(effect, debug)
-        try:
-            self.code = compile(self.interpret, '<string>', command)
-        except SyntaxError:
-            raise XMLSyntaxError
+        self.code = compile(self.interpret, '<string>', command)
             
     def __eq__(self, other):
-        return self.raw == other.raw
+        return isinstance(other, script) and self.raw == other.raw
     
     def __repr__(self):
         return self.raw
         
-class board:
+class board(MutableMapping):
     def __init__(self):
-        self.map = []
+        """Initiation is found in loadxml.battleStart.addMap."""
+        self._map = []
         self.name = "unknown"
         self.empty = "empty"
     
     def __eq__(self, other):
-        def values():
-            yield self.map == other.map
-            yield self.name == other.name
-            yield self.empty == other.empty
+        if not isinstance(other, board):
+            return False
         
-        return all(values())
+        values = [
+            self._map == other._map,
+            self.name == other.name,
+            self.empty == other.empty,
+        ]
+        return all(values)
     
-    def x(self):
-        return len(self.map)
-        
-    def y(self):
-        try:
-            return max([len(x) for x in self.map])
-        except:
-            return 0
-        
-    def size(self):
-        return self.x() * self.y()
-        
-    def insert(self, string, location):
-        x = location[0]
-        y = location[1]
-        
+    def __getitem__(self, key):
+        "Get object at location."
+        x = key[0]
+        y = key[1]
         if x < 0 or y < 0:
-            raise OffBoardError(location)
-        self.map[x][y] = string
+            raise IndexError
+        return self._map[x][y]
     
-    def get(self, loc):
-        if not loc or loc[0] < 0 or loc[1] < 0:
-            return False
-        try:
-            return self.map[loc[0]][loc[1]]
-        except IndexError:
-            return False
-    
-    def find(self, string):
-        x = 0
-        for column in self.map:
-            try:
-                return (x, column.index(string), self.name)
-            except ValueError:
-                x +=1
-                continue
-        else:
-            return False
+    def __setitem__(self, key, value):
+        """Insert string at location."""
+        x = key[0]
+        y = key[1]
+        if x < 0 or y < 0:
+            raise IndexError
+        self._map[x][y] = value
         
+    def __delitem__(self, key):
+        x = key[0]
+        y = key[1]
+        self._map[x][y] = self.empty
+        
+    def __len__(self):
+        return self.x * self.y
+        
+    def __iter__(self):
+        for x in range(self.x):
+            for y in range(self.y):
+                yield (x, y, self.name)
+                
     def __repr__(self):
         return "<board: "+self.name+">"
+        
+    @property
+    def x(self):
+        return len(self._map)
+    
+    @property
+    def y(self):
+        try:
+            return max([len(x) for x in self._map])
+        except ValueError:
+            return 0
+        
+    def find(self, string):
+        "Get location of object."
+        for loc in self:
+            if self[loc] == string:
+                return (loc[0], loc[1], self.name)
+        return False
+        
+    
