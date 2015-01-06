@@ -1,9 +1,7 @@
 {
-    "DELAY": {
-        "f": "self.controlDelay",
-        "args": ["$caster", "$target", "$move", "$1", "$2"],
-        "string": ["$1"]
-    },
+    "#": "Control Functions",
+    
+    
     "TIME": {
         "f": "self.controlTime",
         "args": ["$1"]
@@ -12,6 +10,11 @@
         "f": "self.controlMove",
         "args": ["-$1", "$1", "$2"],
         "default": {"-$1": "$caster"}
+    },
+    "DELAY": {
+        "f": "self.controlDelay",
+        "args": ["$caster", "$target", "$move", "$1", "$2"],
+        "string": ["$1"]
     },
     "GETS": {
         "f": "self.controlList",
@@ -50,6 +53,9 @@
         "args": ["-$1", "$1"],
         "default": {"-$1": "$caster"}
     },
+    
+    "#": "Get moves.",
+    
     "CLASS": {
         "f": "self.getListGroup",
         "args": ["$1", "group", "$2"]

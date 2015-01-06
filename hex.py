@@ -27,25 +27,25 @@ class hexagon:
         rad = math.cos(math.pi / 6)
         self.center = (ts*(2*a+b+1.5), ts*(1.5*b/rad+1.5))
         self.points = []
-        
+
         length = ts / rad
         for i in range(6):
             angle = i * math.pi / 3
             x = self.center[0] + length*math.sin(angle)
             y = self.center[1] + length*math.cos(angle)
             self.points.append((x, y))
-            
+
         self.square = pygame.Rect(0, 0, ts*1.5, ts*1.5)
         self.square.center = self.center
 
 def eventUpdate():
     #redraw the board
-    mainSurface.fill(BLACK) 
+    mainSurface.fill(BLACK)
     ACT = main_map.getStat('token', 'ACT')
     highlight = main_map.getFill('token', 'suptravel', ACT)
     direction = main_map.getStat("token", "direction")
     for y in range(8):
-        for x in range(8):                      
+        for x in range(8):
             loc = (x,y,'map')
             if loc in highlight:
                 colour = GREEN
@@ -53,16 +53,16 @@ def eventUpdate():
                 colour = RED
             else:
                 colour = WHITE
-            
+
             hexa = hexagon(x, y, ts)
             pygame.draw.polygon(mainSurface, colour, hexa.points, 0)
             pygame.draw.polygon(mainSurface, BLACK, hexa.points, 1)
-            
+
             unit = main_map.getMap(loc)
             if unit != 'empty':
                 sprite_symbol = main_map.getStat(unit, 'sprite')
                 mainSurface.blit(mainFont.render(sprite_symbol, True, BLACK, colour), hexa.square)
-    
+
     pygame.display.update()
 
 #game loop
@@ -72,7 +72,7 @@ while True:
         if event.type == QUIT:
             pygame.quit()
             sys.exit()
-        
+
         elif event.type == MOUSEBUTTONDOWN:
             mouse = pygame.mouse.get_pos()
             for x in range(8):
@@ -80,5 +80,5 @@ while True:
                     if hexagon(x, y, ts).square.collidepoint(mouse):
                         main_map.controlMove('token', (x,y), 'click')
                         eventUpdate()
-            
+
     mainClock.tick(60)

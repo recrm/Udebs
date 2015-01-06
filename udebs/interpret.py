@@ -8,7 +8,7 @@ import itertools
 
 class standard:
     """
-    Basic functionality built into the Udebs scripting language. 
+    Basic functionality built into the Udebs scripting language.
     None of the functions here can depend on any other Udebs module.
     """
     def _print(*args):
@@ -17,7 +17,7 @@ class standard:
 
     def logicif(cond, value, other):
         return value if cond else other
-    
+
     def inside(before, after):
         return before in after
 
@@ -45,22 +45,22 @@ class standard:
 
     def ltequal(before, after):
         return before <= after
-        
+
     def plus(*args):
         return sum(args)
-        
+
     def multiply(*args):
         i = 1
         for number in args:
             i *= number
         return i
-        
+
     def logicor(*args):
         return any(args)
-        
+
     def logicif(cond, value, other):
         return value if cond else other
-        
+
     def mod(before, after):
         return before % after
 
@@ -68,25 +68,25 @@ class standard:
         storage[variable] = value
         return True
 
-    #prefix functions    
+    #prefix functions
     def getvar(storage, variable):
         return storage[variable]
 
     def div(before, after):
         return before/after
-        
+
     def logicnot(element):
         return not element
-        
+
     def minus(before, element):
         return before - element
-        
+
     def sub(before, after):
         return next(itertools.islice(before, int(after), None), 'empty')
-    
+
     def length(list_):
         return len(list(list_))
-    
+
 class variables:
     """
     Base environment object that Udebs scripts are interpreted through.
@@ -117,11 +117,6 @@ class variables:
             "f": "max",
             "all": True,
         },
-        "if": {
-            "f": "standard.logicif",
-            "args": ["$1", "$2", "$3"],
-            "default": {"$2": True, "$3": False},
-        },        
         "==": {
             "f": "standard.equal",
             "all": True,
@@ -196,15 +191,6 @@ class variables:
             "f": "standard.length",
             "args": ["$1"],
         },
-#        "solitary": {
-#            "f": "solitary",
-#        },
-#        "testing": {
-#            "f": "TEST",
-#            "default": {"$3": 50},
-#            "args": ["-$1", "$1", "$2", "three"],
-#            "kwargs": {"none": "$3", "value": "empty", "test": 10},
-#        }
     }
     env = {"__builtin__": None, "standard": standard, "storage": {}, "abs": abs, "min": min, "max": max}
     default = {
@@ -268,13 +254,13 @@ def call(args, debug=False):
     """Converts callList into functionString."""
     if not isinstance(args, list):
         raise UdebsParserError("There is a bug in the parser, call recived '{}'".format(args))
-    
+
     if debug:
         print("call:", args)
-    
+
     #Find keyword
     keywords = [i for i in args if i in variables.keywords]
-    
+
     #If there are too many keywords, some might stand alone.
     if len(keywords) > 1:
         for key in keywords[:]:
@@ -284,9 +270,9 @@ def call(args, debug=False):
                 new = call([key])
                 args[args.index(key)] = new
                 keywords.remove(key)
-    
-    #Still to many keywords is a syntax error.            
-    if len(keywords) > 1:            
+
+    #Still to many keywords is a syntax error.
+    if len(keywords) > 1:
         raise UdebsSyntaxError("CallList contains to many keywords '{}'".format(args))
 
     #No keywords creates a tuple object.
@@ -308,13 +294,13 @@ def call(args, debug=False):
     #Create dict of values
     current = args.index(keyword)
     nodes = copy.copy(data["default"])
-    
+
     for index in range(len(args)):
         value = "$" if index >= current else "-$"
         value += str(abs(index - current))
         if args[index] != keyword:
             nodes[value] = args[index]
-            
+
     #Force strings into long arguments.
     for string in data["string"]:
         nodes[string] = "'"+str(nodes[string]).replace("'", "\\'")+"'"
@@ -328,7 +314,7 @@ def call(args, debug=False):
         else:
             newvalue = value
         kwargs[key] = formatS(newvalue, debug)
-    
+
     arguments = []
     #Insert positional arguments
     for key in data["args"]:
@@ -337,7 +323,7 @@ def call(args, debug=False):
             del nodes[key]
         else:
             arguments.append(formatS(key, debug))
-    
+
     #Insert ... arguments.
     if data["all"]:
         for key in sorted(list(nodes.keys())):
@@ -346,11 +332,11 @@ def call(args, debug=False):
 
     if len(nodes) > 0:
         raise UdebsSyntaxError("Keyword contains unused arguments. '{}'".format(args))
-    
+
     #Insert keyword arguments.
-    for key, value in kwargs.items():
-        arguments.append(str(key) + "=" + str(value))
-        
+    for key in sorted(kwargs.keys()):
+        arguments.append(str(key) + "=" + str(kwargs[key]))
+
     computed = data["f"] + "(" + ",".join(arguments) + ")"
     if debug:
         print("computed:", computed)
@@ -365,7 +351,7 @@ def split_callstring(raw):
     buf = ''
     inBrackets = 0
     dotLegal = True
-    
+
     for char in string:
         #Ignore everything until matching bracket is found.
         if inBrackets:
@@ -375,19 +361,7 @@ def split_callstring(raw):
                 inBrackets -=1
             buf += char
             continue
-        
-        #Found opening Bracket
-        if char in openBracket:
-            if len(buf) > 1:
-                raise UdebsSyntaxError("Too many bits before bracket. '{}'".format(raw))
-            inBrackets +=1
 
-        #Dot split
-        elif dotLegal and char == ".":
-            callList.append(buf)
-            buf = ''
-            continue
-        
         #Normal whitespace split`
         elif char.isspace():
             if dotLegal:
@@ -399,10 +373,22 @@ def split_callstring(raw):
                 callList.append(buf)
                 buf = ''
             continue
-        
+
+        #Dot split
+        elif dotLegal and char == ".":
+            callList.append(buf)
+            buf = ''
+            continue
+
+        #Found opening Bracket
+        if char in openBracket:
+            if len(buf) > 1:
+                raise UdebsSyntaxError("Too many bits before bracket. '{}'".format(raw))
+            inBrackets +=1
+
         #Everything else
         buf += char
-        
+
     callList.append(buf)
 
     if inBrackets:

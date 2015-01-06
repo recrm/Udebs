@@ -42,7 +42,7 @@ def norecurse(f):
 def check(king, color, instance):
     """
     Check if space is under attack.
-    
+
     king - Spot to check if under attack.
     color - Player that can't be under attack.
     """
@@ -54,7 +54,6 @@ def check(king, color, instance):
         y = -1 if color == "black" else 1
         for x in [-1, 1]:
             unit = instance.getMap((king.loc[0]+x, king.loc[1]+y))
-            print("unit",unit)
             if unit and "pawn" in unit:
                 if color in instance.getStat(unit, "group"):
                     return False
@@ -83,7 +82,7 @@ activeUnit = False
 moves = {}
 
 def redrawBoard():
-    surface.fill(BLACK)  
+    surface.fill(BLACK)
     for x in range(10):
         for y in range(10):
 
@@ -112,7 +111,7 @@ def redrawBoard():
 
 def eventQuit():
     pygame.quit()
-    sys.exit() 
+    sys.exit()
 
 def eventClear():
     high.clear()
@@ -150,10 +149,11 @@ while True:
 
                         else:
                             #Enter selection mode, find all spaces token can move to
+                            movelist = main_map.getStat(target, 'movelist')
                             for x in range(8):
                                 for y in range(8):
                                     other = (x,y)
-                                    for move in main_map.getStat(target, 'movelist'):
+                                    for move in movelist:
                                         if main_map.testMove(target, other, move):
                                             high.add(other)
                                             moves[other] = move
@@ -168,6 +168,6 @@ while True:
     for king in main_map.getGroup("kings"):
         if "captured" in main_map.getStat(king, "status"):
             print("GAME OVER!!")
-            eventQuit()      
+            eventQuit()
 
     mainClock.tick(60)
