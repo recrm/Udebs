@@ -1,0 +1,138 @@
+{
+    "#": "Entity actions.",
+    "CAST": {
+        "f": "self.controlMove",
+        "args": ["-$1", "$1", "$2"],
+        "default": {"-$1": "$caster"}
+    },
+    "GETS": {
+        "f": "self.controlList",
+        "args": ["-$1", "$1", "$2", "add"],
+        "default": {"-$1": "$caster"}
+    },
+    "LOSES": {
+        "f": "self.controlList",
+        "args": ["-$1", "$1", "$2", "remove"],
+        "default": {"-$1": "$caster"}
+    },
+    "CLEAR": {
+        "f": "self.controlList",
+        "args": ["-$1", "$1", "empty", "clear"],
+        "default": {"-$1": "$caster"}
+    },
+    "CHANGE": {
+        "f": "self.controlStat",
+        "args": ["-$1", "$1", "$2"],
+        "default": {"-$1": "$caster"}
+    },
+    "REPLACE": {
+        "f": "self.controlString",
+        "args": ["-$1", "$1", "$2"],
+        "default": {"-$1": "$caster"}
+    },
+    "RECRUIT": {
+        "f": "self.controlRecruit",
+        "args": ["-$1", "$1"],
+        "default": {"-$1": "$caster"}
+    },
+    "MOVE": {
+        "f": "self.controlTravel",
+        "args": ["-$1", "$1"],
+        "default": {"-$1": "$caster"}
+    },
+
+    "#": "Environment actions.",
+
+    "INIT": {
+        "f": "self.controlInit",
+        "args": ["$1"]
+    },
+    "DELAY": {
+        "f": "self.controlDelay",
+        "args": ["$caster", "$target", "$move", "$1", "$2"],
+        "string": ["$1"]
+    },
+
+    "#": "Get from entity.",
+
+    "STAT": {
+        "f": "self.getStat",
+        "args": ["-$1", "$1"],
+        "default": {"-$1": "$caster"}
+    },
+    "CLASS": {
+        "f": "self.getListGroup",
+        "args": ["-$1", "group", "$1"],
+        "default": {"-$1": "$caster"}
+    },
+    "LISTSTAT": {
+        "f": "self.getListStat",
+        "args": ["-$1", "$1"],
+        "default": {"-$1": "$caster"}
+    },
+    "LISTGROUP": {
+        "f": "self.getListGroup",
+        "args": ["-$1", "$1", "$2"],
+        "default": {"-$1": "$caster"}
+    },
+    "XLOC": {
+        "f": "self.getX",
+        "args": ["-$1"],
+        "default": {"-$1": "$caster"}
+    },
+    "YLOC": {
+        "f": "self.getY",
+        "args": ["-$1"],
+        "default": {"-$1": "$caster"}
+    },
+    "LOC": {
+        "f": "self.getLoc",
+        "args": ["-$1"],
+        "default": {"-$1": "$caster"}
+    },
+    "NAME": {
+        "f": "self.getName",
+        "args": ["-$1"],
+        "default": {"-$1": "$caster"}
+    },
+
+    "#": "Get from environment.",
+
+    "DICE": {
+        "f": "self.rand.randint",
+        "args": [0, "$1"]
+    },
+    "ALL": {
+        "f": "self.getGroup",
+        "args": ["$1"]
+    },
+    "SEARCH": {
+        "f": "self.getSearch",
+        "all": true
+    },
+    "FILL": {
+        "f": "self.getFill",
+        "args": ["$1", "$2"]
+    },
+    "PATH": {
+        "f": "self.getPath",
+        "args": ["$2", "$3", "$1"],
+        "default": {"$2": "$caster", "$3": "$target"}
+    },
+    "DISTANCE": {
+        "f": "self.getDistance",
+        "args": ["$2", "$3", "$1"],
+        "default": {"$2": "$caster", "$3": "$target"}
+    },
+    "BLOCK": {
+        "f": "self.testBlock",
+        "args": ["$2", "$3", "$1"],
+        "default": {"$2": "$caster", "$3": "$target"}
+    },
+    "FUTURE": {
+        "f": "self.testFuture",
+        "args": ["$caster", "$target", "$move", "$1", "$2"],
+        "default": {"$2": 0},
+        "string": ["$1"]
+    }
+}

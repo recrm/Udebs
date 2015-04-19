@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
 
 import sys
-import re
 import copy
 import json
 import itertools
+import copy
+import os
 
 class standard:
     """
@@ -87,112 +88,21 @@ class standard:
     def length(list_):
         return len(list(list_))
 
+
 class variables:
-    """
-    Base environment object that Udebs scripts are interpreted through.
-    """
-    keywords = {
-        "SUB": {
-            "f": "standard.sub",
-            "args": ["-$1", "$1"],
-        },
-        "in": {
-            "f": "standard.inside",
-            "args": ["-$1", "$1"],
-        },
-        "not-in": {
-            "f": "standard.notin",
-            "args": ["-$1", "$1"],
-        },
-        "if": {
-            "f": "standard.logicif",
-            "args": ["$1", "$2", "$3"],
-            "default": {"$2": True, "$3": False},
-        },
-        "min": {
-            "f": "min",
-            "all": True,
-        },
-        "max": {
-            "f": "max",
-            "all": True,
-        },
-        "==": {
-            "f": "standard.equal",
-            "all": True,
-        },
-        "!=": {
-            "f": "standard.notequal",
-            "args": ["-$1", "$1"],
-        },
-        ">": {
-            "f": "standard.gt",
-            "args": ["-$1", "$1"],
-        },
-        "<": {
-            "f": "standard.lt",
-            "args": ["-$1", "$1"],
-        },
-        ">=": {
-            "f": "standard.gtequal",
-            "args": ["-$1", "$1"],
-        },
-        "<=": {
-            "f": "standard.ltequal",
-            "args": ["-$1", "$1"],
-        },
-        "%": {
-            "f": "standard.mod",
-            "args": ["-$1", "$1"],
-        },
-        "+": {
-            "f": "standard.plus",
-            "all": True,
-        },
-        "*": {
-            "f": "standard.multiply",
-            "all": True,
-        },
-        "or": {
-            "f": "standard.logicor",
-            "all": True,
-        },
-        "|": {
-            "f": "abs",
-            "args": ["$1"]
-        },
-        "/": {
-            "f": "standard.div",
-            "args": ["-$1", "$1"],
-            "default": {"-$1": 1}
-        },
-        "!": {
-            "f": "standard.logicnot",
-            "args": ["$1"],
-        },
-        "-": {
-            "f": "standard.minus",
-            "args": ["-$1", "$1"],
-            "default": {"-$1": 0}
-        },
-        "=": {
-            "f": "standard.setvar",
-            "args": ["storage", "-$1", "$1"],
-        },
-        "$": {
-            "f": "standard.getvar",
-            "args": ["storage","$1"],
-        },
-        "print": {
-            "f": "standard._print",
-            "all": True,
-        },
-        "length": {
-            "f": "standard.length",
-            "args": ["$1"],
-        },
+    modules = {
+        1: [],
+        2: [],
+        "other": [],
     }
-    env = {"__builtin__": None, "standard": standard, "storage": {}, "abs": abs, "min": min, "max": max}
+    env = {
+        "__builtin__": None,
+        "standard": standard,
+        "storage": {},
+        "abs": abs,
+        "min": min,
+        "max": max
+    }
     default = {
         "f": "",
         "args": [],
@@ -202,14 +112,41 @@ class variables:
         "string": [],
     }
 
+    def keywords(version=1):
+        found = {}
+        for module in variables.modules[version]:
+            found.update(module)
 
-def importModule(dicts={}, globs={}):
+        for module in variables.modules["other"]:
+            found.update(module)
+
+        return found
+
+    def importVar(module, version=False):
+        if not version:
+            version = "other"
+
+        variables.modules[version].append(module)
+
+def importModule(dicts={}, globs={}, version=False):
     """
     Allows user to extend base variables available to the interpreter.
     Should be run before the instance object is created.
     """
-    variables.keywords.update(dicts)
+    variables.importVar(dicts, version)
     variables.env.update(globs)
+
+def importSystemModule(name, globs):
+    """Convenience script for import system keywords."""
+    versions = [1,2]
+    path = os.path.dirname(__file__)
+    for version in versions:
+        filename = path + "/keywords/" + name + "-" + str(version) + ".json"
+        with open(filename) as fp:
+            importModule(json.load(fp), globs, version)
+
+#Import base
+importSystemModule("base", {})
 
 def _getEnv(local, glob=False):
     """Retrieves a copy of the base variables."""
@@ -231,7 +168,7 @@ class UdebsParserError(Exception):
     def __str__(self):
         return repr(self.message)
 
-def formatS(string, debug):
+def formatS(string, version, debug):
     """Converts a string into its python representation."""
     string = str(string)
     if string.isdigit():
@@ -245,12 +182,12 @@ def formatS(string, debug):
     elif string in variables.env:
         return string
     #In case prefix notation used in keyword defaults.
-    elif string[0] in variables.keywords:
-        return interpret(string, debug)
+    elif string[0] in variables.keywords(version):
+        return interpret(string, version, debug)
     else:
         return "'"+string+"'"
 
-def call(args, debug=False):
+def call(args, version, debug=False, ):
     """Converts callList into functionString."""
     if not isinstance(args, list):
         raise UdebsParserError("There is a bug in the parser, call recived '{}'".format(args))
@@ -259,15 +196,15 @@ def call(args, debug=False):
         print("call:", args)
 
     #Find keyword
-    keywords = [i for i in args if i in variables.keywords]
+    keywords = [i for i in args if i in variables.keywords(version)]
 
     #If there are too many keywords, some might stand alone.
     if len(keywords) > 1:
         for key in keywords[:]:
-            values = variables.keywords[key]
+            values = variables.keywords(version)[key]
             arguments = sum(len(values.get(i, [])) for i in ["args", "kwargs", "default"])
             if arguments == 0 and not values.get("all", False):
-                new = call([key])
+                new = call([key], version)
                 args[args.index(key)] = new
                 keywords.remove(key)
 
@@ -279,7 +216,7 @@ def call(args, debug=False):
     elif len(keywords) == 0:
         value = "("
         for i in args:
-            value +=formatS(i, debug)+","
+            value +=formatS(i, version, debug)+","
         computed = value[:-1] + ")"
         if debug:
             print("computed:", computed)
@@ -289,7 +226,7 @@ def call(args, debug=False):
 
     #Get and fix data for this keyword.
     data = copy.copy(variables.default)
-    data.update(variables.keywords[keyword])
+    data.update(variables.keywords(version)[keyword])
 
     #Create dict of values
     current = args.index(keyword)
@@ -313,21 +250,21 @@ def call(args, debug=False):
             del nodes[value]
         else:
             newvalue = value
-        kwargs[key] = formatS(newvalue, debug)
+        kwargs[key] = formatS(newvalue, version, debug)
 
     arguments = []
     #Insert positional arguments
     for key in data["args"]:
         if key in nodes:
-            arguments.append(formatS(nodes[key], debug))
+            arguments.append(formatS(nodes[key], version, debug))
             del nodes[key]
         else:
-            arguments.append(formatS(key, debug))
+            arguments.append(formatS(key, version, debug))
 
     #Insert ... arguments.
     if data["all"]:
         for key in sorted(list(nodes.keys())):
-            arguments.append(formatS(nodes[key], debug))
+            arguments.append(formatS(nodes[key], version, debug))
             del nodes[key]
 
     if len(nodes) > 0:
@@ -342,14 +279,19 @@ def call(args, debug=False):
         print("computed:", computed)
     return computed
 
-def split_callstring(raw):
+def split_callstring(raw, version):
     """Converts callString into callList."""
+    if not raw:
+      return ['False']
+
     openBracket = {'(', '{', '['}
     closeBracket = {')', '}', ']'}
+    quotes = {'"', "'"}
     string = raw.strip()
     callList = []
     buf = ''
     inBrackets = 0
+    inQuotes = False
     dotLegal = True
 
     for char in string:
@@ -359,6 +301,12 @@ def split_callstring(raw):
                 inBrackets +=1
             elif char in closeBracket:
                 inBrackets -=1
+            buf += char
+            continue
+
+        elif inQuotes:
+            if char in quotes:
+                inQuotes = False
             buf += char
             continue
 
@@ -372,6 +320,11 @@ def split_callstring(raw):
             if buf:
                 callList.append(buf)
                 buf = ''
+            continue
+
+        elif char in quotes:
+            inQuotes = True
+            buf += char
             continue
 
         #Dot split
@@ -395,6 +348,8 @@ def split_callstring(raw):
         raise UdebsSyntaxError("Brackets are mismatched. '{}'".format(raw))
 
     if '' in callList:
+        if len(callList) == 1:
+            return ['False']
         raise UdebsSyntaxError("Empty element in callList. '{}'".format(raw))
 
     #Length one special cases.
@@ -403,22 +358,22 @@ def split_callstring(raw):
 
         #unnecessary brackets. (Future fix: deal with this at start of function as these are common.)
         if value[0] in openBracket and value[-1] in closeBracket:
-            return split_callstring(value[1:-1])
+            return split_callstring(value[1:-1], version)
 
         #Prefix calling.
-        if value not in variables.keywords:
-            if value[0] in variables.keywords:
+        if value not in variables.keywords(version):
+            if value[0] in variables.keywords(version):
                 return [value[0], value[1:]]
 
     return callList
 
-def interpret(string, debug=False, first=True):
+def interpret(string, version=1, debug=False, first=True):
     """Recursive function that parses callString"""
     #Small hack for solitary keywords
-    if first and string in variables.keywords:
-        return call([string])
+    if first and string in variables.keywords(version):
+        return call([string], version)
 
-    _list = split_callstring(string)
+    _list = split_callstring(string, version)
     #Exit condition
     if len(_list) == 1:
         return _list[0]
@@ -426,10 +381,10 @@ def interpret(string, debug=False, first=True):
     if debug:
         print("Interpret:", string)
 
-    _list = [interpret(i, debug, False) for i in _list]
-    return call(_list, debug)
+    _list = [interpret(i, version, debug, False) for i in _list]
+    return call(_list, version, debug)
 
 if __name__ == "__main__":
     with open("keywords.json") as fp:
         importModule(json.load(fp), {'self': None})
-    interpret(sys.argv[1], debug=True)
+    interpret(sys.argv[1], 2, debug=True)

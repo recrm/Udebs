@@ -12,7 +12,7 @@ surface = pygame.display.set_mode((ts*10, ts*10), 0, 32)
 mainClock = pygame.time.Clock()
 
 #Tiles
-sheet = pygame.image.load("texture/wood.png").convert_alpha()
+sheet = pygame.image.load("static/wood.png").convert_alpha()
 tiles = ["white", "black", "T", "B", "R", "L", "TL", "TR", "BL", "BR"]
 positions = [(0, 0),(0, 2),(3, 0),(3, 2),(4, 1),(2, 1),(2, 0),(4, 0),(2, 2),(4, 2)]
 board = {}
@@ -20,7 +20,7 @@ for k, (x,y) in zip(tiles, positions):
     board[k] = sheet.subsurface(pygame.Rect(x*ts, y*ts, ts, ts))
 
 #Sprites
-sheet = pygame.image.load("texture/chess_3.png").convert_alpha()
+sheet = pygame.image.load("static/chess_3.png").convert_alpha()
 tiles = ["P", "R", "N", "B", "Q", "K"]
 positions = [0,1,2,3,4,5]
 sprites = {"B": {}, "W": {}}

@@ -39,8 +39,11 @@ def battleWrite(env, location, pretty=False):
         compile_ = e.SubElement(config, 'compile')
         compile_.text = str(env.compile)
     if env.revert != 1:
-        compile_ = e.SubElement(config, 'revert')
-        compile_.text = str(env.compile - 1)
+        revert_ = e.SubElement(config, 'revert')
+        revert_.text = str(env.revert - 1)
+    if env.version != 1:
+        version_ = e.SubElement(config, 'version')
+        version_.text = str(env.version)
 
     #map
     maps = e.SubElement(root, 'maps')
@@ -110,7 +113,7 @@ def battleWrite(env, location, pretty=False):
                 for item in value:
                     entry_node = e.SubElement(stat_node, 'i')
                     entry_node.text = str(item)
-    
+
     def indent(elem, level=0):
         i = "\n" + level*"  "
         if len(elem):
@@ -174,6 +177,10 @@ def battleStart(xml_file, debug=False):
         logging = config.findtext('logging')
         if logging is not None:
             field.logging = eval(logging)
+
+        version = config.findtext('version')
+        if version is not None:
+            field.version = eval(version)
 
     defs = root.find("definitions")
     if defs is not None:
@@ -287,7 +294,7 @@ def battleStart(xml_file, debug=False):
                 for value in find_list:
                     if field.compile and lst in {"effect", "require"}:
                         require = True if lst == "require" else False
-                        value.text = main.Script(value.text, require, debug)
+                        value.text = main.Script(value.text, require, debug, version=field.version)
                     new_list.append(value.text)
             setattr(new_entity, lst, new_list)
 
@@ -303,11 +310,8 @@ def battleStart(xml_file, debug=False):
 
     field.controlLog("INITIALIZING", field.name)
     if 'tick' not in field:
-        field.controlLog("warning, no tick is defined.")
+        field.controlLog("warning, no tick is defined.\n")
 
     if field.revert > 1:
         field.state.append(copy.copy(field))
-    print()
     return field
-
-

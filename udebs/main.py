@@ -1,28 +1,43 @@
 from udebs import interpret
-from collections import MutableMapping
 import random
-import sys
 import math
 import copy
 import itertools
-import re
-import json
 import collections
-import os
 
 #Loads functions from keywords.json into the interpreter.
-path = os.path.dirname(__file__)
-with open(path + "/keywords.json") as fp:
-    interpret.importModule(json.load(fp), {'self': None})
+interpret.importSystemModule("udebs", {"self": None})
 
 #---------------------------------------------------
 #                 Main Class                       -
 #---------------------------------------------------
 
-class Instance(MutableMapping):
+class Instance(collections.MutableMapping):
     """
-    Main instance class. This is an object that represents
-    the state space of the entire game.
+    Main instance class that represents the state space of the entire game.
+
+    Note on naming convention:
+
+    All methods begining with 'get' return information about the game's state
+    space and are not allowed to change the state itself.
+
+    All methods beggining with 'control' manage some aspect of the state space
+    and return true if changes were (probobaly) made and false otherwise.
+
+    Functions marked below as public are simply function recomended for use by
+    users. All other functions are fair game, but their usage is either tailored
+    to the Udebs scripting language or likely to change in the future.
+
+    Public Functions.
+
+    getState( target, string ) Gets the associated stat from target.
+    getDistance( target, target, string ) Gets distance between two targets.
+    getLog() Gets all currently saved log entries.
+    getRevert( int ) Gets previous recorded game states.
+
+
+
+
     """
     def __init__(self):
         #config
@@ -31,6 +46,7 @@ class Instance(MutableMapping):
         self.name = 'Unknown'
         self.logging = True
         self.revert = 1
+        self.version = 1
 
         #definitions
         self.lists = {'group', 'effect', 'require'}
@@ -139,12 +155,13 @@ class Instance(MutableMapping):
 
         #If tuple, this is a location.
         elif ttype is tuple:
-            unit = self[self.getMap(target)]
+            unit = self.getTarget(self.getMap(target))
             if unit.immutable:
                 unit = copy.copy(unit)
                 unit.update(target)
             return unit
 
+        #If type is a list individually check each element.
         elif ttype is list:
             value = map(self.getTarget, target)
             if multi:
@@ -339,7 +356,7 @@ class Instance(MutableMapping):
     def getLog(self):
         """Returns list of log entries made since last call."""
         test = copy.copy(self.log)
-        self.controlLog(clear=True)
+#        self.controlLog(clear=True)
         return test
 
     def getMap(self, target="map"):
@@ -476,10 +493,10 @@ class Instance(MutableMapping):
             while again:
                 again = False
                 for delay in self.delay[:]:
-                    if delay.ticks <= 0:
+                    if delay['ticks'] <= 0:
                         self.delay.remove(delay)
-                        env = self.getEnv(delay.caster,delay.target,delay.move)
-                        self.controlEffect(env, delay.script)
+                        env = self.getEnv(delay['caster'], delay['target'], delay['move'])
+                        self.controlEffect(env, delay['script'])
                         again = True
 
             self.controlRevert()
@@ -494,7 +511,7 @@ class Instance(MutableMapping):
                 if self.testRequire(env) == True:
                     self.controlEffect(env)
             for delay in self.delay:
-                delay.ticks -=1
+                delay['ticks'] -=1
             checkdelay()
 
         return True
@@ -716,11 +733,17 @@ class Instance(MutableMapping):
         """
         Creates a new delay object.
 
-        To do: create an actual delay object.
         """
-        new_delay = Delay(caster, target, move, string, delay)
-        self.controlLog("effect added to delay for", delay)
+        new_delay = {
+            "caster": caster,
+            "target": target,
+            "move": move,
+            "script": Script(string, raw=False, require=False, version=self.version),
+            "ticks": delay
+        }
+
         self.delay.append(new_delay)
+        self.controlLog("effect added to delay for", delay)
         return True
 
     def controlMove(self, caster, targets , moves, force=False):
@@ -746,7 +769,10 @@ class Instance(MutableMapping):
                                     target.name, "failed because", check)
                     continue
 
-                self.controlLog(caster.name, "uses", move.name, "on", target.name)
+                if caster == target == 'empty':
+                    self.controlLog(move, "has been triggered.")
+                else:
+                    self.controlLog(caster.name, "uses", move.name, "on", target.name)
                 self.controlEffect(env)
                 flag = True
 
@@ -776,8 +802,8 @@ class Instance(MutableMapping):
                     if command == "require":
                         return effect.raw
 
-            except:
-                print("invalid\n\n", effect.raw, "\n\ninterpreted as\n\n", effect.interpret)
+            except Exception:
+                print("invalid '{}' \ninterpreted as '{}'".format(effect.raw, effect.interpret))
                 raise
 
         return True
@@ -812,7 +838,7 @@ class Instance(MutableMapping):
         clone.controlTime(time)
 
         #Test for condition
-        effects = [Script(string, raw=False, require=True)]
+        effects = [Script(string, raw=False, require=True, version=self.version)]
         return clone.testMove(caster, target, move, effects)
 
     def testBlock(self, start, finish, move):
@@ -923,7 +949,9 @@ class Entity:
         self.group.append(self.name)
 
     def __eq__(self, other):
-        if not isinstance(other, Entity):
+        try:
+            other = self.field.getTarget(other)
+        except Exception:
             return False
 
         values = [
@@ -934,6 +962,9 @@ class Entity:
         for stat in itertools.chain(self.field.stats, self.field.lists, self.field.strings):
             values.append(getattr(self, stat) == getattr(other, stat))
         return all(values)
+
+    def __str__(self):
+        return self.name
 
     def __repr__(self):
         return "<entity: "+self.name+">"
@@ -960,7 +991,12 @@ class Entity:
         if target:
             if len(target) < 3:
                 target = (target[0], target[1], "map")
-            self.loc = target
+
+            if self.field.getMap(target[2]).onboard(target):
+                self.loc = target
+            else:
+                self.loc = False
+
             return
 
         if not self.immutable:
@@ -978,11 +1014,11 @@ class Entity:
         self.field[name] = self
 
 class Script:
-    def __init__(self, effect, require=False, debug=False, raw=True):
+    def __init__(self, effect, require=False, debug=False, raw=True, version=1):
         command = 'eval' if require else 'exec'
         self.raw = effect
         if raw:
-            self.interpret = interpret.interpret(effect, debug)
+            self.interpret = interpret.interpret(effect, version, debug)
         else:
             self.interpret = effect
         self.code = compile(self.interpret, '<string>', command)
@@ -996,16 +1032,7 @@ class Script:
     def __repr__(self):
         return self.raw
 
-class Delay:
-    def __init__(self, caster, target, move, string, ticks):
-        self.caster = caster
-        self.target = target
-        self.move = move
-        self.script = Script(string, raw=False, require=False)
-        self.ticks = ticks
-
-
-class Board(MutableMapping):
+class Board(collections.MutableMapping):
     def __init__(self):
         """Initiation is found in loadxml.battleStart.addMap."""
         self._map = []
@@ -1065,6 +1092,13 @@ class Board(MutableMapping):
             return max([len(x) for x in self._map])
         except ValueError:
             return 0
+
+    def onboard(self, loc):
+        try:
+            self[loc]
+            return True
+        except Exception:
+            return False
 
     def find(self, string):
         "Get location of object."
