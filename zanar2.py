@@ -2,7 +2,7 @@
 import sys
 import re
 import random
-import pygame 
+import pygame
 from pygame.locals import *
 import udebs
 
@@ -84,7 +84,7 @@ def ListBox(array, coord, rec, collide=False, mouse=False, high=False, font=smal
             temp_background = GREEN if item == high else background
             drawText(item, font, xpos, ypos, font_color, temp_background)
         x +=1
-        
+
     return "empty"
 
 #Update the main screens.
@@ -98,7 +98,7 @@ def updateOverWorld():
             else:
                 color = WHITE
             pygame.draw.rect(mainSurface, color, pygame.Rect((50*x, 50*y), (49, 49)))
-            unit = main_map.getMap((x, y))
+            unit = main_map.getName((x, y))
             if unit != 'empty':
                 sprite_symbol = main_map.getStat(unit, 'sprite')
                 mainSurface.blit(basicFont.render(sprite_symbol, True, BLACK, color), (x*50+10, y*50+10))
@@ -106,7 +106,7 @@ def updateOverWorld():
     drawText("Level " + str(battle.getStat("recruiter", "LVL")), basicFont, 200,450, GREEN, BLACK)
     main_map.controlLog("Overworld Updated")
     pygame.display.update()
-    
+
 def updateRPG(char=False, moveHigh=False, unitHigh=False):
     #draw menu
     mainSurface.fill(WHITE)
@@ -117,11 +117,11 @@ def updateRPG(char=False, moveHigh=False, unitHigh=False):
         drawText(battle.getStat(char, "DESC"), basicFont, 200, 20, BLACK, WHITE)
         movelist = battle.getStat(char, "movelist")
         ListBox(movelist, (3, 2), topRect, high=moveHigh)
-    
+
     #Draw battlefield
     for x in range(3):
         for y in range(3):
-            unit = battle.getMap((x, y))
+            unit = battle.getName((x, y))
             if unit != "empty" and "ko" not in battle.getStat(unit, "status"):
                 size = 50 if unit == "boss" else 10
                 fun = battle.getStat
@@ -139,7 +139,7 @@ def updateRPG(char=False, moveHigh=False, unitHigh=False):
             yield unit
             yield str(battle.getStat(unit, "HP"))
             yield str(battle.getStat(unit, "MP"))
-            
+
     ListBox(lstats(), (3,4), bottomRect, background=BLACK, font_color=GREEN)
     pygame.display.update()
 
@@ -189,7 +189,7 @@ def subBattle(monster="monster"):
     fight_music.fadeout(1000)
     message("You WIN!!")
     sound_overworld.play(-1)
-        
+
 def setChar(new):
     char = new
     updateRPG(new)
@@ -199,7 +199,7 @@ def setChar(new):
         for event in pygame.event.get():
             if event.type == QUIT:
                 eventQuit()
-            
+
             elif event.type == MOUSEBUTTONDOWN:
                 mouse = pygame.mouse.get_pos()
                 if topRect.collidepoint(mouse):
@@ -207,7 +207,7 @@ def setChar(new):
                     test = ListBox(movelist, (3,2), topRect, True, mouse)
                     if test != "empty" and test:
                         move = False if move == test else test
-                        
+
                 elif middleRect.collidepoint(mouse):
                     x = 1 if mouse[0] > 200 else 0
                     if mouse[1] < 200:
@@ -216,16 +216,16 @@ def setChar(new):
                         y = 1
                     else:
                         y = 2
-                    
+
                     target = "empty" if target == (x,y) else (x,y)
-                            
+
                 updateRPG(char, moveHigh=move, unitHigh=target)
-            
+
             if move and (battle.getStat(move, "skip") or target != "empty"):
                 battle.castMove(char, target, move)
                 updateRPG()
                 return
-                
+
         mainClock.tick(60)
 
 local = {
@@ -266,8 +266,8 @@ local = {
     }
 }
 glob = {
-    "message": message, 
-    "playSound": playSound, 
+    "message": message,
+    "playSound": playSound,
     "updateOverWorld": updateOverWorld,
     "eventQuit": eventQuit,
     "getItem": getItem,
@@ -287,7 +287,7 @@ def main():
         for event in pygame.event.get():
             if event.type == QUIT:
                 eventQuit()
-            
+
             elif event.type == MOUSEBUTTONDOWN:
                 mouse = pygame.mouse.get_pos()
                 for x in range(8):
@@ -295,14 +295,14 @@ def main():
                         if pygame.Rect(49*x, 49*y, 49, 49).collidepoint(mouse):
                             main_map.castMove("hero", (x, y), "hero_travel")
                             main_map.controlTime(1)
-                        
+
             elif event.type == KEYDOWN and event.key == K_q:
                 sound_fx['select'].play()
                 menuScreen()
                 updateOverWorld()
-        
+
         mainClock.tick(60)
-        
+
 #Code for equip menu, most of this is done outside Udebs.
 def menuScreen():
     #Define order equipment is displayed
@@ -313,7 +313,7 @@ def menuScreen():
             yield unit
             yield battle.getListGroup(unit, "equip", 'weapon') if all else unit
             yield battle.getListGroup(unit, "equip", 'hat') if all else unit
-                
+
     #Define order stats are displayed
     def lStats():
         stats = ("HP", "MP", "MEL", "MGK")
@@ -324,9 +324,9 @@ def menuScreen():
             if stat in ("HP", "MP"):
                 value += "/" + str(battle.getStat(char, "MAX" + stat))
             yield value
-    
+
     char = "fighter"
-    
+
     def updateMenu():
         mainSurface.fill(WHITE)
 
@@ -337,10 +337,10 @@ def menuScreen():
             pygame.draw.line(mainSurface, BLACK, (20,i), (380,i))
         for i in (133, 266):
             pygame.draw.line(mainSurface, BLACK, (i, 120), (i, 380))
-        
+
         #Header
         drawText(battle.getStat(char, "DESC"), basicFont, 200, 25, BLACK, WHITE)
-        
+
         #Stats
         ListBox(lStats(), (4, 2), topRect)
         #equipment
@@ -348,25 +348,25 @@ def menuScreen():
         #inventory
         inventory = battle.getStat("party", "inventory")
         ListBox(inventory, (4, 3), bottomRect)
-        
-        pygame.display.update()    
-    
+
+        pygame.display.update()
+
     updateMenu()
     while True:
         for event in pygame.event.get():
             if event.type == QUIT:
                 eventQuit()
-            
+
             elif event.type == KEYDOWN:
                 return
-            
+
             elif event.type == MOUSEBUTTONDOWN:
                 mouse = pygame.mouse.get_pos()
                 if middleRect.collidepoint(mouse):
                     test = ListBox(lEquip(all=False), (3,4), middleRect, True, mouse)
                     if test:
                         char = test
-                    
+
                 elif bottomRect.collidepoint(mouse):
                     inventory = battle.getStat("party", "inventory")
                     item = ListBox(inventory, (4,3), bottomRect, True, mouse)
@@ -374,9 +374,9 @@ def menuScreen():
                         battle.controlMove(char, battle.getStat(char, "equip"), "unequip")
                     else:
                         battle.castMove("empty", char, item)
-                            
+
                 updateMenu()
-        
+
         mainClock.tick(60)
 
 if __name__ == "__main__":

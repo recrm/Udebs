@@ -122,31 +122,25 @@ class variables:
 
         return found
 
-    def importVar(module, version=False):
-        if not version:
-            version = "other"
-
-        variables.modules[version].append(module)
-
-def importModule(dicts={}, globs={}, version=False):
+def importModule(dicts={}, globs={}, version="other"):
     """
     Allows user to extend base variables available to the interpreter.
     Should be run before the instance object is created.
     """
-    variables.importVar(dicts, version)
+    variables.modules[version].append(dicts)
     variables.env.update(globs)
 
-def importSystemModule(name, globs):
+def importSystemModule(name, globs={}):
     """Convenience script for import system keywords."""
     versions = [1,2]
     path = os.path.dirname(__file__)
     for version in versions:
-        filename = path + "/keywords/" + name + "-" + str(version) + ".json"
+        filename = "{}/keywords/{}-{}.json".format(path, name, str(version))
         with open(filename) as fp:
             importModule(json.load(fp), globs, version)
 
 #Import base
-importSystemModule("base", {})
+importSystemModule("base")
 
 def _getEnv(local, glob=False):
     """Retrieves a copy of the base variables."""
@@ -268,8 +262,7 @@ def call(args, version, debug=False, ):
             del nodes[key]
 
     if len(nodes) > 0:
-        raise UdebsSyntaxError("Keyword contains unused arguments. '{}'".format(args))
-
+        raise UdebsSyntaxError("Keyword contains unused arguments. '{}'".format(" ".join(nodes.values())))
     #Insert keyword arguments.
     for key in sorted(kwargs.keys()):
         arguments.append(str(key) + "=" + str(kwargs[key]))

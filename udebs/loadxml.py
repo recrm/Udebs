@@ -39,11 +39,14 @@ def battleWrite(env, location, pretty=False):
         compile_ = e.SubElement(config, 'compile')
         compile_.text = str(env.compile)
     if env.revert != 1:
-        revert_ = e.SubElement(config, 'revert')
-        revert_.text = str(env.revert - 1)
+        revert = e.SubElement(config, 'revert')
+        revert.text = str(env.revert - 1)
     if env.version != 1:
-        version_ = e.SubElement(config, 'version')
-        version_.text = str(env.version)
+        version = e.SubElement(config, 'version')
+        version.text = str(env.version)
+    if env.inheritance != True:
+        inheritance = e.SubElement(config, 'version')
+        inheritance.text = str(env.inheritance)
 
     #map
     maps = e.SubElement(root, 'maps')
@@ -67,6 +70,13 @@ def battleWrite(env, location, pretty=False):
         time = e.SubElement(var, 'time')
         time.text = str(env.time)
 
+    if env.log != []:
+        log = e.SubElement(var, 'log')
+        for item in env.log:
+            node = e.SubElement(log, 'i')
+            node.text = item
+
+    #Delay has changed, this is probobly broken.
     if env.delay != []:
         delay = e.SubElement(var, 'delay')
         for item in env.delay:
@@ -81,24 +91,21 @@ def battleWrite(env, location, pretty=False):
                 else:
                     node.attrib[key] = str(value)
 
-    if env.log != []:
-        log = e.SubElement(var, 'log')
-        for item in env.log:
-            node = e.SubElement(log, 'i')
-            node.text = item
-
     #entities
     stats = env.stats.union(env.strings, env.lists)
     entities = e.SubElement(root, 'entities')
     for entity in env.values():
         if entity.name == 'empty':
             continue
+
         entity_node = e.SubElement(entities, entity.name)
+
         if entity.immutable:
             entity_node.attrib['immutable'] = ''
-        for stat in stats:
 
+        for stat in stats:
             value = getattr(entity, stat)
+
             if stat == 'group':
                 value = [i for i in value if i != entity.name]
             if value in [0, '', list()]:
@@ -114,6 +121,7 @@ def battleWrite(env, location, pretty=False):
                     entry_node = e.SubElement(stat_node, 'i')
                     entry_node.text = str(item)
 
+    #This is a pretty printing algorithm I stole from the internet.
     def indent(elem, level=0):
         i = "\n" + level*"  "
         if len(elem):
@@ -131,8 +139,8 @@ def battleWrite(env, location, pretty=False):
 
     if pretty:
         indent(root)
-    e.ElementTree(root).write(location)
 
+    e.ElementTree(root).write(location)
     return True
 
 #Creates and instance object from xml file.
@@ -152,6 +160,7 @@ def battleStart(xml_file, debug=False):
     #ENV
     field = main.Instance()
 
+    #Config
     config = root.find("config")
     if config is not None:
 
@@ -161,7 +170,7 @@ def battleStart(xml_file, debug=False):
 
         revert = config.findtext("revert")
         if revert is not None:
-            field.revert = eval(revert) + 1
+            field.revert = int(revert) + 1
 
         comp = config.findtext("compile")
         if comp is not None:
@@ -180,8 +189,13 @@ def battleStart(xml_file, debug=False):
 
         version = config.findtext('version')
         if version is not None:
-            field.version = eval(version)
+            field.version = int(version)
 
+        inheritance = config.findtext('inheritance')
+        if inheritance is not None:
+            field.inheritance = eval(inheritance)
+
+    #Definition
     defs = root.find("definitions")
     if defs is not None:
         def_stats = defs.find("stats")
@@ -201,47 +215,58 @@ def battleStart(xml_file, debug=False):
             for stat in def_strings:
                 field.strings.add(stat.tag)
 
+    #Maps
     def addMap(field_map):
-        new_map = main.Board()
-        new_map.name = field_map.tag
-        empty = field_map.find('empty')
+        name = field_map.tag
+
+        empty = "empty"
+        field_empty = field_map.find('empty')
         if field_map.get('empty') is not None:
-            new_map.empty = field_map.get('empty')
+            empty = field_map.get('empty')
 
         dim_map = field_map.find("dim")
         if dim_map is not None:
-            x = int(dim_map.find('x').text)
-            y = int(dim_map.find('y').text)
-            for element in range(x):
-                new_map._map.append([new_map.empty for i in range(y)])
-        else:
-            temp = []
-            for row in field_map:
-                temp.append(re.split("\W*,\W*", row.text))
-            new_map._map = [list(i) for i in zip(*temp)]
-        return new_map
+            dim = (
+                int(dim_map.find('x').text),
+                int(dim_map.find('y').text)
+            )
 
-    #VAR
+        else:
+            dim = []
+            for row in field_map:
+                dim.append(re.split("\W*,\W*", row.text))
+            dim = [list(i) for i in zip(*dim)]
+
+        new_map = main.Board(name, dim, empty)
+
+        #Add to field
+        if field_map.get('rmap') is not None:
+            field.rmap.add(new_map.name)
+
+        field.map[new_map.name] = new_map
+
     field_maps = root.find("maps")
     if field_maps is not None:
         for map_ in field_maps:
-            new_map = addMap(map_)
-            field.map[new_map.name] = new_map
-            if map_.get('rmap') is not None:
-                field.rmap.add(map_.tag)
+            addMap(map_)
 
-    else:
-        field_map = root.find("map")
-        if field_map is not None:
-            new_map = addMap(field_map)
-            field.map[new_map.name] = new_map
+    field_map = root.find("map")
+    if field_map is not None:
+        addMap(field_map)
 
+    #Var (Rarely used).
     var = root.find('var')
     if var is not None:
         time = var.find('time')
         if time is not None:
             field.time = int(time.text)
 
+        log = var.find('log')
+        if log is not None:
+            for item in log:
+                field.log.append(item.text)
+
+        #Delay has changed, this is probobly broken.
         delay = var.find('delay')
         if delay is not None:
             for item in delay:
@@ -258,20 +283,12 @@ def battleStart(xml_file, debug=False):
                             pass
                 field.delay.append(item.attrib)
 
-        log = var.find('log')
-        if log is not None:
-            for item in log:
-                field.log.append(item.text)
-
-    #Set empty
-    empty = main.Entity(field)
-    empty.immutable = True
-    empty.record()
+    #Entities
+    main.Entity(field, "empty", True)
 
     #Create all entity type objects.
     def addObject(item):
         new_entity = main.Entity(field, item.tag)
-        new_entity.name = item.tag
         if item.get('immutable') is not None:
             new_entity.immutable = True
 
@@ -293,25 +310,22 @@ def battleStart(xml_file, debug=False):
                     find_list = [find_list]
                 for value in find_list:
                     if field.compile and lst in {"effect", "require"}:
-                        require = True if lst == "require" else False
+                        require = (lst == "require")
                         value.text = main.Script(value.text, require, debug, version=field.version)
                     new_list.append(value.text)
             setattr(new_entity, lst, new_list)
 
-        new_entity.update()
-        new_entity.record()
-
-        return new_entity
-
     entities = root.find("entities")
     if entities is not None:
         for item in entities:
-            new_entity = addObject(item)
+            addObject(item)
 
+    #Final cleanup
     field.controlLog("INITIALIZING", field.name)
     if 'tick' not in field:
         field.controlLog("warning, no tick is defined.\n")
 
     if field.revert > 1:
-        field.state.append(copy.copy(field))
+        field.state.append(copy.deepcopy(field))
+
     return field

@@ -7,13 +7,13 @@
     },
     "GETS": {
         "f": "self.controlList",
-        "args": ["-$1", "$1", "$2", "add"],
-        "default": {"-$1": "$caster"}
+        "args": ["-$2", "-$1", "$1", "add"],
+        "default": {"-$2": "$caster"}
     },
     "LOSES": {
         "f": "self.controlList",
-        "args": ["-$1", "$1", "$2", "remove"],
-        "default": {"-$1": "$caster"}
+        "args": ["-$2", "-$1", "-$1", "remove"],
+        "default": {"-$2": "$caster"}
     },
     "CLEAR": {
         "f": "self.controlList",
@@ -22,13 +22,24 @@
     },
     "CHANGE": {
         "f": "self.controlStat",
-        "args": ["-$1", "$1", "$2"],
-        "default": {"-$1": "$caster"}
+        "args": ["-$2", "-$1", "$1"],
+        "default": {"-$2": "$caster"}
     },
+
+    "#": "CHANGE convinience wrappers.",
+    "+=": {
+        "f": "self.controlStat",
+        "args": ["-$2", "-$1", "$1"]
+    },
+    "-=": {
+        "f": "self.controlStat",
+        "args": ["-$2", "-$1", "$1", -1]
+    },
+
     "REPLACE": {
         "f": "self.controlString",
-        "args": ["-$1", "$1", "$2"],
-        "default": {"-$1": "$caster"}
+        "args": ["-$2", "-$1", "$1"],
+        "default": {"-$2": "$caster"}
     },
     "RECRUIT": {
         "f": "self.controlRecruit",

@@ -53,7 +53,7 @@ def check(king, color, instance):
     if king.name == "empty":
         y = -1 if color == "black" else 1
         for x in [-1, 1]:
-            unit = instance.getMap((king.loc[0]+x, king.loc[1]+y))
+            unit = instance.getName((king.loc[0]+x, king.loc[1]+y))
             if unit and "pawn" in unit:
                 if color in instance.getStat(unit, "group"):
                     return False
@@ -87,7 +87,7 @@ def redrawBoard():
         for y in range(10):
 
             target = (x-1, y-1)
-            unit = main_map.getMap(target)
+            unit = main_map.getName(target)
             tile = main_map.getStat((x, y, "board"), "sprite")
 
             #background
@@ -160,7 +160,7 @@ while True:
                                             break
 
                             if len(high) > 0:
-                                activeUnit = main_map.getMap(target)
+                                activeUnit = main_map.getName(target)
 
                         redrawBoard()
 

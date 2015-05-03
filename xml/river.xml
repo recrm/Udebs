@@ -3,18 +3,19 @@
 <config>
     <hex>True</hex>
     <logging>False</logging>
+    <version>2</version>
 </config>
 
 <definitions>
     <stats>
-        <W />
-        <D />
-        <S />
+        <water />
+        <dirt />
+        <erosion />
         <hardness />
     </stats>
     <lists>
         <change />
-    </lists>   
+    </lists>
     <strings>
         <colour />
     </strings>
@@ -32,95 +33,108 @@
     <init>
         <effect>
             <i>total = (FILL (0 0) empty)</i>
-            <i>RECRUIT land $total</i>
+            <i>land RECRUIT $total</i>
             <i>CAST $total terrain</i>
-            <i>MOVE source (0 0)</i>
-            <i>MOVE pit (15 15)</i>
+            <i>source MOVE (0 0)</i>
+            <i>pit MOVE (15 15)</i>
+            <i>CAST empty updatecolour</i>
+            <i>DELAY (INIT rain) (10000 + DICE.1000)</i>
         </effect>
     </init>
-    
+
+    <rain>
+        <effect>
+            <i>(FILL (0 0) empty) water += 10</i>
+            <i>DELAY (INIT rain) (10000 + DICE.1000)</i>
+        </effect>
+    </rain>
+
     <terrain>
         <effect>
-            <i>CHANGE $T hardness DICE.200</i>
-            <i>CHANGE $T D DICE.10</i>
+            <i>$target hardness += DICE.200</i>
+            <i>$target dirt += DICE.10</i>
         </effect>
     </terrain>
-    
+
     <tick>
         <effect>
-            <i>CLEAR tick change</i>
-            <i>CHANGE source W 1</i>
-            <i>CAST pit drain</i>
+            <i>tick CLEAR change</i>
+            <i>source water += 1</i>
+            <i>pit water += (400 - pit.STAT.water)</i>
             <i>outflow = FILL.source.adjacent</i>
-            <i>GAINS tick change $outflow</i>
+            <i>tick GAINS change $outflow</i>
             <i>source CAST $outflow flow</i>
         </effect>
     </tick>
-    
-    <drain>
-        <require>STAT.pit.W &gt; 500</require>
-        <effect>CHANGE pit W -((STAT.pit.W - 499) / 2)</effect>
-    </drain>
-            
-    
+
     <adjacent>
         <require>
             <i>DISTANCE.hex == 1</i>
-            <i>LOC.$T not-in STAT.tick.change</i>
+            <i>$target.LOC not-in tick.STAT.change</i>
         </require>
     </adjacent>
-        
-    <!-- moves --> 
-    
+
+    <!-- moves -->
+
     <flow>
         <require>
-            <i>difference = 
-                 (+ STAT.$C.W 
-                    STAT.$C.D 
-                    -(STAT $T W) 
-                    -(STAT $T D))</i>
+            <i>difference =
+                 (+ $caster.STAT.water
+                    $caster.STAT.dirt
+                    -($target STAT water)
+                    -($target STAT dirt))</i>
             <i>|$difference &gt; 1</i>
-            <i>flowout = 
-                 (if ($difference &gt; 0) 
-                     $caster 
+            <i>flowout =
+                 (if ($difference &gt; 0)
+                     $caster
                      $target)</i>
-            <i>STAT.$flowout.W &gt; 0</i>
-            <i>flowin = 
-                 (if ($difference &lt; 0) 
-                     $caster 
-                     $target)</i>
-        </require> 
-        <effect>
-            <i>amount = 
-                 (min STAT.$flowout.W 
-                      ((|$difference + 1) / 2))</i>
-            <i>CHANGE $flowin W $amount</i>
-            <i>CHANGE $flowout W -$amount</i>
-            <i>CHANGE $flowout S 1</i>
-            <i>CAST $flowout erode</i>
-            <i>CAST $target colourchange</i>
-            <i>inflow = (FILL $target adjacent)</i>
-            <i>GETS tick change $inflow</i>
-            <i>$target CAST $inflow flow</i>
-        </effect>
-    </flow> 
-    
-    <erode>
-        <require>
-            <i>hard = STAT.$T.hardness</i>
-            <i>STAT.$T.S >= $hard</i>
-            <i>NAME.$T != source</i>
+            <i>$flowout.STAT.water &gt; 0</i>
+            <i>flowin =
+                 (if ($difference &gt; 0)
+                     $target
+                     $caster)</i>
         </require>
         <effect>
-            <i>CHANGE $T S -$hard</i>
-            <i>CHANGE $T D -1</i>
-            <i>CHANGE (FILL.$T.adjacent SUB DICE.5) D 1</i>
+            <i>amount =
+                 (min $flowout.STAT.water
+                      ((|$difference + 1) / 2))</i>
+            <i>$flowin water += $amount</i>
+            <i>$flowout water -= $amount</i>
+            <i>$flowout erosion += 1</i>
+            <i>CAST $flowout erode</i>
+            <i>inflow = (FILL $target adjacent)</i>
+            <i>tick change GETS $inflow</i>
+            <i>$target CAST $inflow flow</i>
+        </effect>
+    </flow>
+
+    <erode>
+        <require>
+            <i>$target.STAT.dirt &gt; 0</i>
+            <i>hard = $target.STAT.hardness</i>
+            <i>$target.STAT.erosion >= $hard</i>
+            <i>$target.NAME != source</i>
+        </require>
+        <effect>
+            <i>$target erosion -= $hard</i>
+            <i>$target dirt -= 1</i>
+            <i>(FILL.$target.adjacent elem DICE.5) dirt += 1</i>
         </effect>
     </erode>
-    
+
+    <!-- colour updates every 50 ticks -->
+
+    <updatecolour>
+        <effect>
+            <i>CAST (FILL (0 0) empty) colourchange</i>
+            <i>DELAY (CAST empty updatecolour) 50</i>
+        </effect>
+    </updatecolour>
+
     <colourchange>
-        <require>NAME.$T != pit</require>
-        <effect>REPLACE $T colour (STAT.$move.change SUB (min (STAT.$T.W / 10) 4))</effect>
+        <effect>
+            <i>$target colour REPLACE ($move.STAT.change elem (min ($target.STAT.water / 10) 4))</i>
+        </effect>
         <change>
             <i>sand</i>
             <i>dirt</i>
@@ -129,25 +143,24 @@
             <i>deep</i>
         </change>
     </colourchange>
-    
+
     <!-- land squares -->
 
     <land>
-        <D>500</D>
+        <dirt>500</dirt>
         <colour>sand</colour>
     </land>
-    
+
     <source>
-        <D>0</D>
-        <W>500</W>
+        <water>500</water>
         <colour>deep</colour>
-    </source>    
-    
+    </source>
+
     <pit>
-        <D>10</D>
-        <colour>black</colour>
+        <water>200</water>
+        <colour>deep</colour>
     </pit>
-    
+
 </entities>
 
 </udebs>

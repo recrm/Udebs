@@ -58,7 +58,7 @@ def eventUpdate():
             pygame.draw.polygon(mainSurface, colour, hexa.points, 0)
             pygame.draw.polygon(mainSurface, BLACK, hexa.points, 1)
 
-            unit = main_map.getMap(loc)
+            unit = main_map.getName(loc)
             if unit != 'empty':
                 sprite_symbol = main_map.getStat(unit, 'sprite')
                 mainSurface.blit(mainFont.render(sprite_symbol, True, BLACK, colour), hexa.square)

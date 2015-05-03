@@ -61,7 +61,7 @@ def drawSurface():
 
     i = 15
     for stat in field.stats.union(field.strings):
-        value = field.getStat((x,y), stat)
+        value = field.getStat(loc, stat)
         mainSurface.blit(basicFont.render(stat+": "+str(value), True, WHITE, BLACK), (700,i))
         i += 15
 
@@ -82,8 +82,8 @@ while True:
 
         elif event.type == MOUSEBUTTONDOWN:
             mouse = pygame.mouse.get_pos()
-            for y in range(field.getMap().y()):
-                for x in range(field.getMap().x()):
+            for y in range(field.getMap().y):
+                for x in range(field.getMap().x):
                     if hexagon(x, y, ts).square.collidepoint(mouse):
                         loc = (x, y, "map")
 
@@ -93,9 +93,8 @@ while True:
 
     drawSurface()
 
-    if not pause and field.time < 10000:
+    if not pause and field.time < 1000000:
         field.controlTime(50)
     mainClock.tick(60)
-    if field.time >= 10000:
+    if field.time >= 1000001:
         sys.exit()
-

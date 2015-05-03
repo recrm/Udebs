@@ -4,6 +4,7 @@ import math
 import copy
 import itertools
 import collections
+import sys
 
 #Loads functions from keywords.json into the interpreter.
 interpret.importSystemModule("udebs", {"self": None})
@@ -47,6 +48,7 @@ class Instance(collections.MutableMapping):
         self.logging = True
         self.revert = 1
         self.version = 1
+        self.inheritance = True
 
         #definitions
         self.lists = {'group', 'effect', 'require'}
@@ -79,6 +81,8 @@ class Instance(collections.MutableMapping):
             self.name == other.name,
             self.logging == other.logging,
             self.revert == other.revert,
+            self.version == other.version,
+            self.inheritance == other.inheritance,
 
             #definitions
             self.lists == other.lists,
@@ -98,15 +102,20 @@ class Instance(collections.MutableMapping):
         check.extend(self[entity] == other[entity] for entity in self)
         return all(check)
 
-    def __copy__(self):
-        new = Instance()
-        new.__dict__.update(self.__dict__)
-        new.delay = copy.deepcopy(self.delay)
-        new.map = copy.deepcopy(self.map)
-        new._data = copy.deepcopy(self._data)
+    def __deepcopy__(self, memo):
+        new = type(self)()
+        for k,v in self.__dict__.items():
+            if k == "state":
+                setattr(new, k, [])
+            else:
+                setattr(new, k, copy.deepcopy(v, memo))
+
         for entity in new:
             new[entity].field = new
-        new.state = None
+
+        for map_ in new.map:
+            new.map[map_].field = new
+
         return new
 
     def __getitem__(self, key):
@@ -141,7 +150,7 @@ class Instance(collections.MutableMapping):
 
         """
         if target == False:
-            target = "empty"
+            return self['empty']
 
         ttype = type(target)
 
@@ -151,14 +160,23 @@ class Instance(collections.MutableMapping):
 
         #If string, return associated entity.
         elif ttype is str:
-            return self[target]
+            try:
+                return self[target]
+            except KeyError:
+                raise UndefinedSelectorError(target, "entity")
 
         #If tuple, this is a location.
         elif ttype is tuple:
-            unit = self.getTarget(self.getMap(target))
+            map_ = self.getMap(target)
+            try:
+                unit = self[map_[target]]
+            except IndexError:
+                unit = self[map_.empty]
+
             if unit.immutable:
-                unit = copy.copy(unit)
+                unit = copy.deepcopy(unit)
                 unit.update(target)
+
             return unit
 
         #If type is a list individually check each element.
@@ -168,7 +186,7 @@ class Instance(collections.MutableMapping):
                 return list(value)
             return next(value)
 
-        raise UndefinedSelectorError(target)
+        raise UndefinedSelectorError(target, "entity")
 
     def getStat(self, target, stat, maps=True):
         """Returns stat of entity object plus linked group objects.
@@ -177,35 +195,44 @@ class Instance(collections.MutableMapping):
         stat - Stat defined in env.lists, env.stats, or env.strings.
         maps - Boolean turns on and off inheritance from other maps.
 
-        *Note: This function is a massive bottleneck*
-
         """
-        target = self.getTarget(target)
+
+        if not isinstance(target, Entity):
+            target = self.getTarget(target)
+
+        if not self.inheritance:
+            return getattr(target, stat)
 
         #self and grouped objects
         def iterValues(target):
             #classes
             for item in target.group:
-                yield getattr(self[item], stat)
+                value = getattr(self[item], stat)
+                if value:
+                    yield value
 
                 #special lists
                 for lst in self.rlist:
                     for unit in getattr(self[item], lst):
-                        yield self.getStat(self[unit], stat)
+                        value = self.getStat(self[unit], stat)
+                        if value:
+                            yield value
 
             #map locations
             if maps and target.loc:
-                current = target.loc[2] if len(target.loc) >=3 else "map"
+                current = self.getMap(target.loc)
                 for map_ in self.rmap:
                     if map_ != current:
                         new_loc = (target.loc[0], target.loc[1], map_)
-                        yield self.getStat(new_loc, stat, False)
+                        value = self.getStat(new_loc, stat, False)
+                        if value:
+                            yield value
 
         if stat == 'group':
             return target.group
         elif stat in self.strings:
             try:
-                return next(s for s in iterValues(target) if s)
+                return next(iterValues(target))
             except StopIteration:
                 return ""
         elif stat in self.stats:
@@ -224,8 +251,13 @@ class Instance(collections.MutableMapping):
 
         """
         #Note: Dictonary switch method doubles this functions run time.
-        one = self.getTarget(one).loc
-        two = self.getTarget(two).loc
+        if not isinstance(one, Entity):
+            one = self.getTarget(one)
+        if not isinstance(two, Entity):
+            two = self.getTarget(two)
+
+        one = one.loc
+        two = two.loc
 
         if not one or not two:
             return float("inf")
@@ -258,9 +290,12 @@ class Instance(collections.MutableMapping):
         """
         Creates an environment object. From three entity targets.
         """
-        caster = self.getTarget(caster)
-        target = self.getTarget(target)
-        move = self.getTarget(move)
+        if not isinstance(caster, Entity):
+            caster = self.getTarget(caster)
+        if not isinstance(target, Entity):
+            target = self.getTarget(target)
+        if not isinstance(move, Entity):
+            move = self.getTarget(move)
 
         var_local = {
             "caster": caster,
@@ -277,8 +312,10 @@ class Instance(collections.MutableMapping):
         """
         Iterates over concentric circles of adjacent tiles
         """
-        center = self.getTarget(center)
-        move = self.getTarget(move)
+        if not isinstance(center, Entity):
+            center = self.getTarget(center)
+        if not isinstance(move, Entity):
+            move = self.getTarget(move)
 
         if not center.loc:
             yield list()
@@ -295,7 +332,7 @@ class Instance(collections.MutableMapping):
             yield sorted(list(new))
             new = set()
             for node in next:
-                if not self.getMap(node):
+                if not self.testValidLoc(node):
                     continue
                 if self.testMove(center, node, move):
                     new.add(node)
@@ -313,8 +350,10 @@ class Instance(collections.MutableMapping):
 
         Returns empty list if there is no path.
         """
-        start = self.getTarget(start)
-        finish = self.getTarget(finish)
+        if not isinstance(start, Entity):
+            start = self.getTarget(start)
+        if not isinstance(finish, Entity):
+            finish = self.getTarget(finish)
         pointer = {}
 
         if start == finish:
@@ -355,50 +394,44 @@ class Instance(collections.MutableMapping):
     #Random other get functions.
     def getLog(self):
         """Returns list of log entries made since last call."""
-        test = copy.copy(self.log)
+#        test = copy.copy(self.log)
 #        self.controlLog(clear=True)
-        return test
+#        return test
+        return self.log
 
     def getMap(self, target="map"):
         """Returns first location for string in env.map."""
+        if not target:
+            return False
+
         ttype = type(target)
         if ttype is Board:
             return target
+        elif ttype is tuple:
+            return self.getMap("map" if len(target) < 3 else target[2])
         elif ttype is str:
             try:
                 return self.map[target]
             except KeyError:
-                raise UndefinedSelectorError(target)
-
-        #Should split this into two functions.
-        elif ttype is tuple:
-            string = target[2] if len(target) >=3 else 'map'
-            map_ = self.getMap(string)
-            try:
-                value = map_[target]
-            except IndexError:
-                value = False
-            return value
+                raise UndefinedSelectorError(target, "map")
         else:
-            raise UndefinedSelectorError(target)
-
-    def getLocation(self, target):
-        """Returns location of entity selector."""
-        return self.getTarget(target).loc
+            raise UndefinedSelectorError(target, "map")
 
     def getRevert(self, value=0):
         index = -(value +1)
         try:
-            new = copy.copy(self.state[index])
+            new = copy.deepcopy(self.state[index])
         except IndexError:
             return False
+
         new.state = self.state[:index+1]
         return new
 
     #Simple get functions.
     def getGroup(self, group, inc_self=False):
         """Return all objects belonging to group."""
-        group = self.getTarget(group)
+        if not isinstance(group, Entity):
+            group = self.getTarget(group)
 
         found = []
         for unit in self:
@@ -434,7 +467,9 @@ class Instance(collections.MutableMapping):
         group - Entity selector representing group.
 
         """
-        group = self.getTarget(group)
+        if not isinstance(group, Entity):
+            group = self.getTarget(group)
+
         start = self.getStat(target, lst)
         for item in start:
             if group.name in self.getStat(item, 'group'):
@@ -458,23 +493,29 @@ class Instance(collections.MutableMapping):
 
     #Entity helper get functions.
     def getX(self, entity):
-        entity = self.getTarget(entity)
+        if not isinstance(entity, Entity):
+            entity = self.getTarget(entity)
+
         if entity.loc:
             return entity.loc[0]
         return False
 
     def getY(self, entity):
-        entity = self.getTarget(entity)
+        if not isinstance(entity, Entity):
+            entity = self.getTarget(entity)
+
         if entity.loc:
             return entity.loc[1]
         return False
 
     def getLoc(self, entity):
-        entity = self.getTarget(entity)
+        if not isinstance(entity, Entity):
+            entity = self.getTarget(entity)
         return entity.loc
 
     def getName(self, entity):
-        entity = self.getTarget(entity)
+        if not isinstance(entity, Entity):
+            entity = self.getTarget(entity)
         return entity.name
 
     #---------------------------------------------------
@@ -519,7 +560,7 @@ class Instance(collections.MutableMapping):
     def controlRevert(self):
         """Controls saving of new states."""
         if self.revert > 1 and self.state:
-            clone = copy.copy(self)
+            clone = copy.deepcopy(self)
             self.state.append(clone)
             if len(self.state) > self.revert:
                 self.state = self.state[1:]
@@ -544,7 +585,7 @@ class Instance(collections.MutableMapping):
         print(log)
         return True
 
-    def controlStat(self, targets, stat, increment ):
+    def controlStat(self, targets, stat, increment, multiplyer=1):
         """Changes stored stat of target by increment.
 
         targets - Multiple Entity selector
@@ -552,8 +593,10 @@ class Instance(collections.MutableMapping):
         increment - integer to change stat by.
 
         """
-        targets = self.getTarget(targets, multi=True)
-        increment = int(increment)
+        if not isinstance(targets, Entity):
+            targets = self.getTarget(targets, multi=True)
+
+        increment = int(increment * multiplyer)
         if increment == 0:
             return False
 
@@ -564,8 +607,7 @@ class Instance(collections.MutableMapping):
 
             newValue = getattr(target, stat) + increment
             setattr(target, stat, newValue)
-            if stat is not 'increment':
-                self.controlLog(target.name, stat, "changed by", increment, "is now", self.getStat(target, stat))
+            self.controlLog(target.name, stat, "changed by", increment, "is now", self.getStat(target, stat))
             flag = True
 
         return flag
@@ -574,11 +616,12 @@ class Instance(collections.MutableMapping):
         """Changes stored stat of target by increment.
 
         targets - Multiple Entity selector
-        stat - Defined statistic to change
-        increment - String to change stat to.
+        str - String stat to change.
+        new - New value of string.
 
         """
-        targets = self.getTarget(targets, multi=True)
+        if not isinstance(targets, Entity):
+            targets = self.getTarget(targets, multi=True)
 
         flag = False
         for target in targets:
@@ -600,7 +643,9 @@ class Instance(collections.MutableMapping):
         increment - String to add to or remove from list.
 
         """
-        targets = self.getTarget(targets, multi=True)
+        if not isinstance(targets, Entity):
+            targets = self.getTarget(targets, multi=True)
+
         if isinstance(entries, str):
             entries = [entries]
 
@@ -642,7 +687,9 @@ class Instance(collections.MutableMapping):
         Controls the delete of unused entities.
         Warning. Experimental, not recomended.
         """
-        targets = self.getTarget(targets, multi=True)
+        if not isinstance(targets, Entity):
+            targets = self.getTarget(targets, multi=True)
+
         for target in targets:
             if not target.immutable:
                 self.controlLog(target.name, "has been removed from the game.")
@@ -658,8 +705,11 @@ class Instance(collections.MutableMapping):
         clone - Target object to clone.
         positions - List of locations to clone the object to. (None creates an offboard unit.)
         """
-        positions = self.getTarget(positions, multi=True)
-        clone = self.getTarget(clone)
+        if not isinstance(positions, Entity):
+            positions = self.getTarget(positions, multi=True)
+        if not isinstance(clone, Entity):
+            clone = self.getTarget(clone)
+
         new_unit = None
 
         if clone.immutable:
@@ -667,22 +717,11 @@ class Instance(collections.MutableMapping):
             return False
 
         for position in positions:
-
-            new_unit = copy.copy(clone)
-
-            #change name
-            self.controlStat(clone, 'increment', 1)
-            new_unit.name = clone.name + str(clone.increment)
-
-            #change group
-            new_unit.group.remove(clone.name)
-            new_unit.group = [new_unit.name] + new_unit.group
-
-            #add object to env
-            new_unit.record()
-            self.controlLog(new_unit.name, "has been recruited")
+            #Get name of new unit
+            new_unit = clone.clone()
 
             #travel object to location
+            self.controlLog(new_unit.name, "has been recruited")
             if position is not None:
                 self.controlTravel(new_unit, position)
 
@@ -695,27 +734,23 @@ class Instance(collections.MutableMapping):
         caster - Target object to move.
         targets - Location to move object to. (Multiple only for immutable. Otherwise caster is moved multiple times.)
         """
-        caster = self.getTarget(caster)
-        targets = self.getTarget(targets, multi=True)
+        if not isinstance(caster, Entity):
+            caster = self.getTarget(caster)
+        if not isinstance(targets, Entity):
+            targets = self.getTarget(targets, multi=True)
 
         for target in targets:
-            if caster == target:
+
+            #Check for some common case warnings.
+            if caster.loc == target.loc:
                 self.controlLog("Warning: tried to move unit to itself.")
-                return False
-
-            #check if targetLoc is valid
-            map_caster = self.getMap(caster.loc[2]) if caster.loc else False
-            map_target = self.getMap(target.loc[2]) if target.loc else False
-
-            if not caster.loc and not target.loc:
-                self.controlLog("Warning: tried to move offboard to offboard")
                 return False
 
             #move units
             if target.loc:
-                map_target[target.loc] = caster.name
-            if caster.loc:
-                del map_caster[caster.loc]
+                self.getMap(target.loc)[target.loc] = caster.name
+            if caster.loc and not caster.immutable:
+                del self.getMap(caster.loc)[caster.loc]
 
             #update units
             target.update()
@@ -755,9 +790,13 @@ class Instance(collections.MutableMapping):
         moves - Target objects of events to trigger.
         force - Boolean to trigger skipping of require check. (Rarely used)
         """
-        caster = self.getTarget(caster)
-        targets = self.getTarget(targets, multi=True)
-        moves = self.getTarget(moves, multi=True)
+        if not isinstance(caster, Entity):
+            caster = self.getTarget(caster)
+        if not isinstance(targets, Entity):
+            targets = self.getTarget(targets, multi=True)
+        if not isinstance(moves, Entity):
+            moves = self.getTarget(moves, multi=True)
+
         flag = False
         for target in targets:
             for move in moves:
@@ -780,9 +819,18 @@ class Instance(collections.MutableMapping):
 
     def controlInit(self, move, time=0, force=False):
         """Wrapper of controlMove where caster and target are unimportant."""
+        if not isinstance(move, Entity):
+            try:
+                move = self.getTarget(move)
+            except UndefinedSelectorError:
+                new = Entity(self, "__string__")
+                new.effect.append(Script(move, version=self.version))
+                move = new
+
         if self.controlMove("empty", "empty", move, force):
             self.controlTime(time)
             return True
+
         return False
 
     def controlEffect(self, env, effects=False, command="effect"):
@@ -804,6 +852,7 @@ class Instance(collections.MutableMapping):
 
             except Exception:
                 print("invalid '{}' \ninterpreted as '{}'".format(effect.raw, effect.interpret))
+                print()
                 raise
 
         return True
@@ -820,12 +869,15 @@ class Instance(collections.MutableMapping):
         caster, target, move - event to triger.
         time - how much time to pass after event.
         """
-        caster = self.getTarget(caster)
-        target = self.getTarget(target)
-        move = self.getTarget(move)
+        if not isinstance(caster, Entity):
+            caster = self.getTarget(caster)
+        if not isinstance(target, Entity):
+            target = self.getTarget(target)
+        if not isinstance(move, Entity):
+            move = self.getTarget(move)
 
         #create test instance
-        clone = copy.copy(self)
+        clone = copy.deepcopy(self)
         clone.logging = False
 
         #convert instance targets into clone targets.
@@ -844,7 +896,8 @@ class Instance(collections.MutableMapping):
     def testBlock(self, start, finish, move):
         """Tests to see if there exists a path from start to finish."""
 
-        finish = self.getTarget(finish)
+        if not isinstance(finish, Entity):
+            finish = self.getTarget(finish)
 
         for i in self.getAdjacent(start, move):
             for q in i:
@@ -862,6 +915,14 @@ class Instance(collections.MutableMapping):
     def testRequire(self, env, effects=False):
         """Require wrapper for controlEffect."""
         return self.controlEffect(env, effects, "require")
+
+    def testValidLoc(self, loc):
+        map_ = self.getMap(loc)
+        try:
+            unit = map_[loc]
+            return True
+        except Exception:
+            return False
 
     #---------------------------------------------------
     #                   Other Functions                -
@@ -904,12 +965,6 @@ class Instance(collections.MutableMapping):
 #                 Other Objects                    -
 #---------------------------------------------------
 
-class UndefinedEntityError(Exception):
-    def __init__(self, entity):
-        self.entity = entity
-    def __str__(self):
-        return repr(self.entity)+" is not a defined entity."
-
 class UndefinedStatError(Exception):
     def __init__(self, stat):
         self.stat = stat
@@ -917,10 +972,11 @@ class UndefinedStatError(Exception):
         return repr(self.stat)+" is not a defined stat."
 
 class UndefinedSelectorError(Exception):
-    def __init__(self, target):
+    def __init__(self, target, _type):
         self.selector = target
+        self.type = _type
     def __str__(self):
-        return repr(self.selector)+" is not a valid target selector."
+        return "{} is not a valid {} selector.".format(repr(self.selector), self.type)
 
 class UndefinedMetricError(Exception):
     def __init__(self, metric):
@@ -928,25 +984,26 @@ class UndefinedMetricError(Exception):
     def __str__(self):
         return repr(self.metric)+" is not a valid distance metric."
 
-class OffBoardError(Exception):
-    def __init__(self, location):
-        self.location = location
-    def __str__(self):
-        return repr(self.location) + " is not a valid target location."
-
 class Entity:
-    def __init__(self, field=Instance(), name="empty"):
+    def __init__(self, field, name=False, immutable=False):
         self.name = name
-        self.loc = False
-        self.immutable = False
         self.field = field
+        self.immutable = immutable
+
+        self.loc = False
         for stat in field.stats:
             setattr(self, stat, 0)
         for lists in field.lists:
             setattr(self, lists, [])
         for string in field.strings:
             setattr(self, string, '')
-        self.group.append(self.name)
+
+        self.group = [self.name]
+
+        if name:
+            self.field[self.name] = self
+            self.update()
+
 
     def __eq__(self, other):
         try:
@@ -972,46 +1029,60 @@ class Entity:
     def __iter__(self):
         yield self
 
-    #Accidentally copying the entity.field attribute causes severe issues.
-    #Entity.field should always always be nothing but a pointer.
-    def __copy__(self):
-        new = Entity()
+    def __deepcopy__(self, memo):
+        "Prevents field attribute from being copied."
+        new = Entity(self.field)
         for k, v in self.__dict__.items():
-            if isinstance(v, list):
-                setattr(new, k, copy.copy(v))
-            else:
+            if k == "field":
                 setattr(new, k, v)
+            else:
+                setattr(new, k, copy.deepcopy(v, memo))
 
         return new
 
-    def __deepcopy__(self, other):
-        return copy.copy(self)
+    def clone(self):
+        "Makes a new Entity from old entity."
+        if self.immutable:
+            return self
+
+        #Create new
+        new = copy.deepcopy(self)
+
+        #Set name of new
+        self.increment +=1
+        name = self.name + str(self.increment)
+        new.name = name
+
+        #Setup new group and inc
+        new.group.remove(self.name)
+        new.group = [name] + new.group
+        new.increment = 0
+
+        #Add new to field.
+        new.field[name] = new
+        new.update()
+
+        return new
 
     def update(self, target=False):
+        "Updates stored location with system location."
         if target:
             if len(target) < 3:
                 target = (target[0], target[1], "map")
 
-            if self.field.getMap(target[2]).onboard(target):
+            if self.field.testValidLoc(target):
                 self.loc = target
-            else:
-                self.loc = False
+                return self.loc
 
-            return
-
-        if not self.immutable:
+        elif not self.immutable:
             for map_ in self.field.map.values():
                 test = map_.find(self.name)
                 if test:
                     self.loc = test
-                    return
+                    return self.loc
 
         self.loc = False
-
-    def record(self, name=False):
-        if not name:
-            name = self.name
-        self.field[name] = self
+        return self.loc
 
 class Script:
     def __init__(self, effect, require=False, debug=False, raw=True, version=1):
@@ -1027,17 +1098,24 @@ class Script:
         yield self
 
     def __eq__(self, other):
-        return isinstance(other, script) and self.raw == other.raw
+        return isinstance(other, Script) and self.raw == other.raw
 
     def __repr__(self):
         return self.raw
 
 class Board(collections.MutableMapping):
-    def __init__(self):
-        """Initiation is found in loadxml.battleStart.addMap."""
-        self._map = []
-        self.name = "unknown"
-        self.empty = "empty"
+    def __init__(self, name=False, dim=[1,1], empty="empty"):
+        self.name = name
+        self.empty = empty
+
+        #Set up maps.
+        if isinstance(dim, tuple):
+            self._map = []
+            for e in range(dim[0]):
+                self._map.append([empty for i in range(dim[1])])
+
+        elif isinstance(dim, list):
+            new_map._map = dim
 
     def __eq__(self, other):
         if not isinstance(other, Board):
@@ -1092,13 +1170,6 @@ class Board(collections.MutableMapping):
             return max([len(x) for x in self._map])
         except ValueError:
             return 0
-
-    def onboard(self, loc):
-        try:
-            self[loc]
-            return True
-        except Exception:
-            return False
 
     def find(self, string):
         "Get location of object."
