@@ -1,10 +1,5 @@
 {
     "#": "Entity actions.",
-    "CAST": {
-        "f": "self.controlMove",
-        "args": ["-$1", "$1", "$2"],
-        "default": {"-$1": "$caster"}
-    },
     "GETS": {
         "f": "self.controlList",
         "args": ["-$2", "-$1", "$1", "add"],
@@ -16,23 +11,23 @@
         "default": {"-$2": "$caster"}
     },
     "CLEAR": {
-        "f": "self.controlList",
-        "args": ["-$1", "$1", "empty", "clear"],
+        "f": "self.controlClear",
+        "args": ["-$1", "$1"],
         "default": {"-$1": "$caster"}
     },
     "CHANGE": {
-        "f": "self.controlStat",
+        "f": "self.controlIncrement",
         "args": ["-$2", "-$1", "$1"],
         "default": {"-$2": "$caster"}
     },
 
     "#": "CHANGE convinience wrappers.",
     "+=": {
-        "f": "self.controlStat",
+        "f": "self.controlIncrement",
         "args": ["-$2", "-$1", "$1"]
     },
     "-=": {
-        "f": "self.controlStat",
+        "f": "self.controlIncrement",
         "args": ["-$2", "-$1", "$1", -1]
     },
 
@@ -52,8 +47,12 @@
         "default": {"-$1": "$caster"}
     },
 
-    "#": "Environment actions.",
-
+    "#": "Callback actions.",
+    "CAST": {
+        "f": "self.controlMove",
+        "args": ["-$1", "$1", "$2"],
+        "default": {"-$1": "$caster"}
+    },
     "INIT": {
         "f": "self.controlInit",
         "args": ["$1"]
@@ -65,7 +64,6 @@
     },
 
     "#": "Get from entity.",
-
     "STAT": {
         "f": "self.getStat",
         "args": ["-$1", "$1"],

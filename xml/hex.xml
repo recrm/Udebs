@@ -16,7 +16,7 @@
     </lists>
 </definitions>
 
-<map>
+<map type='hex'>
     <dim>
         <x>8</x>
         <y>8</y>
@@ -24,7 +24,7 @@
 </map>
 
 <entities>
-    
+
     <!-- scripts -->
     <init>
         <effect>
@@ -32,7 +32,7 @@
             <i>token TRAVEL (0 0)</i>
         </effect>
     </init>
-    
+
 <!--    Metrics-->
     <notempty>
         <require>NAME.$T == empty</require>
@@ -44,14 +44,14 @@
             <i>(DISTANCE hex) &lt;= (STAT $caster ACT)</i>
         </require>
     </suptravel>
-    
+
     <ridge>
         <require>
             <i>(DISTANCE x) &lt;= 2</i>
             <i>(DISTANCE y) == 0</i>
         </require>
     </ridge>
-    
+
 <!--    Events-->
     <click>
         <effect>
@@ -59,14 +59,14 @@
             <i>CAST $T query</i>
         </effect>
     </click>
-    
+
     <query>
         <effect>
             <i>CLEAR token direction</i>
-            <i>GETS token direction PATH.token.$T.notempty</i>
+            <i>GETS token direction PATH.token.$target.notempty</i>
         </effect>
     </query>
-    
+
     <travel>
         <effect>
             <i>MOVE $caster $target</i>
@@ -75,20 +75,20 @@
             <i>(DISTANCE suptravel) &lt;= (STAT $caster ACT)</i>
         </require>
     </travel>
-    
+
     <earthquake>
         <effect>
-            <i>RECRUIT earth (FILL $target ridge)</i>
+            <i>RECRUIT earth FILL.$target.ridge</i>
         </effect>
-    </earthquake>    
+    </earthquake>
 
 <!--Units-->
     <earth>
         <sprite>M</sprite>
     </earth>
-    
+
     <token>
-        <ID>token</ID>     
+        <ID>token</ID>
         <sprite>K</sprite>
         <ACT>2</ACT>
     </token>

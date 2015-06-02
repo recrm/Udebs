@@ -28,11 +28,11 @@
         "args": ["$1", "$2", "$3", "remove"]
     },
     "CLEAR": {
-        "f": "self.controlList",
-        "args": ["$1", "$2", "empty", "clear"]
+        "f": "self.controlClear",
+        "args": ["$1", "$2"]
     },
     "CHANGE": {
-        "f": "self.controlStat",
+        "f": "self.controlIncrement",
         "args": ["$1", "$2", "$3"]
     },
     "REPLACE": {

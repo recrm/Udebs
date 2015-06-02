@@ -5,6 +5,7 @@ import random
 import pygame
 from pygame.locals import *
 import udebs
+import logging
 
 """
 To do.
@@ -104,7 +105,7 @@ def updateOverWorld():
                 mainSurface.blit(basicFont.render(sprite_symbol, True, BLACK, color), (x*50+10, y*50+10))
 
     drawText("Level " + str(battle.getStat("recruiter", "LVL")), basicFont, 200,450, GREEN, BLACK)
-    main_map.controlLog("Overworld Updated")
+    logging.info("Overworld Updated")
     pygame.display.update()
 
 def updateRPG(char=False, moveHigh=False, unitHigh=False):
@@ -161,7 +162,7 @@ def battleFinish():
 
 def playSound(sound, times):
     sound_fx[sound].play(times)
-    main_map.controlLog("played sound effect", sound)
+    logging.info("played sound effect {}".format(sound))
 
 def eventQuit():
     pygame.quit()
@@ -169,9 +170,7 @@ def eventQuit():
 
 def getItem():
     battle.controlMove('party', 'treasure', 'get_item')
-    for log in battle.getLog():
-        if "added to party inventory" in log:
-            return re.split("\W+", log)[0]
+    return battle.getEntity('party')['inventory'][-1]
 
 def subBattle(monster="monster"):
     sound_overworld.fadeout(1000)

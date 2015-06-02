@@ -7,6 +7,9 @@ import itertools
 import copy
 import os
 
+#---------------------------------------------------
+#            Imports and Variables                 -
+#---------------------------------------------------
 class standard:
     """
     Basic functionality built into the Udebs scripting language.
@@ -88,7 +91,6 @@ class standard:
     def length(list_):
         return len(list(list_))
 
-
 class variables:
     modules = {
         1: [],
@@ -96,12 +98,9 @@ class variables:
         "other": [],
     }
     env = {
-        "__builtin__": None,
+        "__builtins__": {"abs": abs, "min": min, "max": max},
         "standard": standard,
         "storage": {},
-        "abs": abs,
-        "min": min,
-        "max": max
     }
     default = {
         "f": "",
@@ -139,9 +138,6 @@ def importSystemModule(name, globs={}):
         with open(filename) as fp:
             importModule(json.load(fp), globs, version)
 
-#Import base
-importSystemModule("base")
-
 def _getEnv(local, glob=False):
     """Retrieves a copy of the base variables."""
     value = copy.copy(variables.env)
@@ -150,18 +146,9 @@ def _getEnv(local, glob=False):
     value["storage"] = local
     return value
 
-class UdebsSyntaxError(Exception):
-    def __init__(self, string):
-        self.message = string
-    def __str__(self):
-        return repr(self.message)
-
-class UdebsParserError(Exception):
-    def __init__(self, string):
-        self.message = string
-    def __str__(self):
-        return repr(self.message)
-
+#---------------------------------------------------
+#            Interpreter Functions                 -
+#---------------------------------------------------
 def formatS(string, version, debug):
     """Converts a string into its python representation."""
     string = str(string)
@@ -263,6 +250,7 @@ def call(args, version, debug=False, ):
 
     if len(nodes) > 0:
         raise UdebsSyntaxError("Keyword contains unused arguments. '{}'".format(" ".join(nodes.values())))
+
     #Insert keyword arguments.
     for key in sorted(kwargs.keys()):
         arguments.append(str(key) + "=" + str(kwargs[key]))
@@ -329,7 +317,8 @@ def split_callstring(raw, version):
         #Found opening Bracket
         if char in openBracket:
             if len(buf) > 1:
-                raise UdebsSyntaxError("Too many bits before bracket. '{}'".format(raw))
+                #This is a function call, string has already been interpreted.
+                return [raw]
             inBrackets +=1
 
         #Everything else
@@ -377,7 +366,51 @@ def interpret(string, version=1, debug=False, first=True):
     _list = [interpret(i, version, debug, False) for i in _list]
     return call(_list, version, debug)
 
+#---------------------------------------------------
+#                Script Main Class                 -
+#---------------------------------------------------
+class Script:
+    def __init__(self, effect, version=1, debug=False):
+        #Raw text given to script.
+        self.raw = effect
+        self.interpret = interpret(effect, version, debug)
+        self.code = compile(self.interpret, '<string>', "eval")
+
+    def __repr__(self):
+        return self.raw
+
+    def call(self, env):
+        try:
+            return eval(self.code, env)
+        except Exception:
+            raise UdebsExecutionError(self)
+
+        return True
+
+#---------------------------------------------------
+#                     Errors                       -
+#---------------------------------------------------
+class UdebsSyntaxError(Exception):
+    def __init__(self, string):
+        self.message = string
+    def __str__(self):
+        return repr(self.message)
+
+class UdebsExecutionError(Exception):
+    def __init__(self, script):
+        self.script = script
+    def __str__(self):
+        return "invalid '{}' \ninterpreted as '{}'".format(self.script.raw, self.script.interpret)
+
+class UdebsParserError(Exception):
+    def __init__(self, string):
+        self.message = string
+    def __str__(self):
+        return repr(self.message)
+
+#---------------------------------------------------
+#                     Runtime                      -
+#---------------------------------------------------
+importSystemModule("base")
 if __name__ == "__main__":
-    with open("keywords.json") as fp:
-        importModule(json.load(fp), {'self': None})
-    interpret(sys.argv[1], 2, debug=True)
+    print("final:", interpret(sys.argv[1], 2, debug=True))

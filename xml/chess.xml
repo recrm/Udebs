@@ -2,7 +2,6 @@
 
 <config>
     <revert>100</revert>
-    <hex>diag</hex>
 </config>
 
 <definitions>
@@ -21,13 +20,13 @@
 </definitions>
 
 <maps>
-    <board>
+    <board type="diag">
         <dim>
             <x>10</x>
             <y>10</y>
         </dim>
     </board>
-    <map>
+    <map type="diag">
         <dim>
             <x>8</x>
             <y>8</y>
@@ -40,82 +39,82 @@
     <topleft immutable="">
         <sprite>TL</sprite>
     </topleft>
-    
+
     <topright immutable="">
         <sprite>TR</sprite>
     </topright>
-    
+
     <bottomleft immutable="">
         <sprite>BL</sprite>
     </bottomleft>
-    
+
     <bottomright immutable="">
         <sprite>BR</sprite>
     </bottomright>
-    
+
     <top immutable="">
         <sprite>T</sprite>
     </top>
-    
+
     <bottom immutable="">
         <sprite>B</sprite>
     </bottom>
-    
+
     <left immutable="">
         <sprite>L</sprite>
     </left>
-    
+
     <right immutable="">
         <sprite>R</sprite>
     </right>
-    
+
     <white_square immutable="">
         <sprite>white</sprite>
     </white_square>
-    
+
     <black_square immutable="">
         <sprite>black</sprite>
     </black_square>
-    
+
     <!-- fill -->
     <fill_horizontal>
         <require>(DISTANCE y) == 0</require>
     </fill_horizontal>
-    
+
     <fill_vertical>
         <require>(DISTANCE x) == 0</require>
     </fill_vertical>
-    
+
     <fill_diag>
         <require>((XLOC.$T + YLOC.$T) % 2) == 0</require>
     </fill_diag>
-    
+
     <diagonal>
         <require>(DISTANCE x) == (DISTANCE y)</require>
     </diagonal>
-    
+
     <nonempty>
         <require>(NAME $T) != empty</require>
     </nonempty>
-    
+
     <isempty>
         <require>(NAME $T) == empty</require>
     </isempty>
-    
+
     <blockx>
         <require>
             <i>(NAME $T) == empty</i>
             <i>((DISTANCE x) * (DISTANCE y)) == 0</i>
         </require>
     </blockx>
-    
+
     <blockdiag>
         <require>
             <i>(NAME $T) == empty</i>
             <i>(DISTANCE x) == (DISTANCE y)</i>
         </require>
     </blockdiag>
-    
+
     <!-- init -->
     <init>
         <effect>
@@ -124,7 +123,7 @@
             <i>CAST empty wrecruit</i>
         </effect>
     </init>
-    
+
     <boardrecruit>
         <effect>
             <i>MOVE black_square (FILL (4 4 board) isempty)</i>
@@ -139,7 +138,7 @@
             <i>MOVE bottomright (9 9 board)</i>
         </effect>
     </boardrecruit>
-    
+
     <brecruit>
         <effect>
             <i>RECRUIT pawn (FILL (0 1) fill_horizontal)</i>
@@ -154,7 +153,7 @@
             <i>GETS (FILL (0 1) nonempty) group black</i>
         </effect>
     </brecruit>
-    
+
     <wrecruit>
         <effect>
             <i>RECRUIT pawn (FILL (0 6) fill_horizontal)</i>
@@ -170,50 +169,50 @@
         </effect>
     </wrecruit>
 
-    
+
     <!-- statuses groups-->
     <status_group>
         <require>(NAME $move) not-in (STAT $target status)</require>
         <effect>GETS $target status (NAME $move)</effect>
     </status_group>
-    
+
     <!-- statuses -->
     <moved_once>
         <group>status_group</group>
     </moved_once>
-    
+
     <promote>
-        <require>(Y $caster) in (0 7)</require>
+        <require>(YLOC $caster) in (0 7)</require>
         <effect>
             <i>new = (RECRUIT queen $caster)</i>
             <i>GETS $new group (CLASS $caster tick)</i>
         </effect>
         <group>status_group</group>
     </promote>
-    
+
     <passant_danger>
         <effect>DELAY (LOSES $target status passant_danger) 2</effect>
         <group>status_group</group>
     </passant_danger>
-    
+
     <captured>
         <require>(NAME $T) != empty</require>
         <group>status_group</group>
     </captured>
-    
+
     <!-- moves groups -->
 
     <time>
         <require>
             <i>STAT.$C.ACT &gt;= 2</i>
-            <i>FUTURE (check (SEARCH kings CLASS.$caster.tick) CLASS.$caster.tick) 1</i>
+<!--            <i>FUTURE (check (SEARCH kings CLASS.$caster.tick) CLASS.$caster.tick) 1</i>-->
         </require>
         <effect>
 <!--            <i>CHANGE CLASS.$C.tick ACT -(STAT.$C.ACT)</i>-->
             <i>CAST $caster moved_once</i>
         </effect>
     </time>
-    
+
     <normal>
         <require>
             <i>(CLASS $caster tick) not-in (STAT $target group)</i>
@@ -228,14 +227,14 @@
         <require>(YLOC.$T * STAT.$C.FLP) &lt; (YLOC.$C * STAT.$C.FLP)</require>
         <effect>CAST $caster promote</effect>
     </pawn_move>
-    
+
     <!-- moves -->
 
     <pawn_travel>
         <require>
             <i>(DISTANCE y) == 1</i>
             <i>(DISTANCE x) == 0</i>
-            <i>(NAME $T) == empty</i>            
+            <i>(NAME $T) == empty</i>
         </require>
         <group>
             <i>normal</i>
@@ -259,7 +258,7 @@
             <i>time</i>
         </group>
     </pawn_double>
-    
+
     <pawn_capture>
         <require>
             <i>== (DISTANCE x) (DISTANCE y) 1</i>
@@ -288,7 +287,7 @@
             <i>time</i>
         </group>
     </pawn_passant>
-    
+
     <rook_travel>
         <require>
             <i>((DISTANCE x) * (DISTANCE y)) == 0</i>
@@ -299,7 +298,7 @@
             <i>time</i>
         </group>
     </rook_travel>
-    
+
     <knight_travel>
         <require>D
             <i>(DISTANCE p1) == 3</i>
@@ -311,7 +310,7 @@
             <i>time</i>
         </group>
     </knight_travel>
-    
+
     <bishop_travel>
         <require>
             <i>(DISTANCE y) == (DISTANCE x)</i>
@@ -322,7 +321,7 @@
             <i>time</i>
         </group>
     </bishop_travel>
-    
+
     <king_travel>
         <require>(DISTANCE pinf) == 1</require>
         <group>
@@ -330,7 +329,7 @@
             <i>time</i>
         </group>
     </king_travel>
-    
+
     <king_kcastle>
         <require>
             <i>rook in (NAME $T)</i>
@@ -351,7 +350,7 @@
             <i>time</i>
         </group>
     </king_kcastle>
-    
+
     <king_qcastle>
         <require>
             <i>rook in (NAME $T)</i>
@@ -372,17 +371,17 @@
             <i>time</i>
         </group>
     </king_qcastle>
-    
+
     <!-- unit groups -->
 
     <tick>
         <effect>CHANGE (ALL tick) ACT 1</effect>
     </tick>
-    
+
     <kings />
-    
+
     <!-- units -->
-    
+
     <pawn>
         <movelist>
             <i>pawn_travel</i>
@@ -392,22 +391,22 @@
         </movelist>
         <sprite>P</sprite>
     </pawn>
-    
+
     <rook>
         <movelist>rook_travel</movelist>
         <sprite>R</sprite>
     </rook>
-    
+
     <knight>
         <movelist>knight_travel</movelist>
         <sprite>N</sprite>
     </knight>
-    
+
     <bishop>
         <movelist>bishop_travel</movelist>
         <sprite>B</sprite>
     </bishop>
-    
+
     <queen>
         <movelist>
             <i>bishop_travel</i>
@@ -415,7 +414,7 @@
         </movelist>
         <sprite>Q</sprite>
     </queen>
-    
+
     <king>
         <movelist>
             <i>king_kcastle</i>
@@ -425,16 +424,16 @@
         <sprite>K</sprite>
         <group>kings</group>
     </king>
-    
+
     <!-- Tick -->
-    
+
     <black>
         <ACT>1</ACT>
         <FLP>-1</FLP>
         <colour>B</colour>
         <group>tick</group>
     </black>
-    
+
     <white>
         <ACT>2</ACT>
         <FLP>1</FLP>

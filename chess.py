@@ -46,7 +46,7 @@ def check(king, color, instance):
     king - Spot to check if under attack.
     color - Player that can't be under attack.
     """
-    king = instance.getTarget(king)
+    king = instance.getEntity(king)
     color = "black" if color == "white" else "white"
 
     #stupid case specific fix for castling because pawns move wierd.
@@ -72,6 +72,7 @@ module = {"check": {
 udebs.importModule(module, {"check": check})
 main_map = udebs.battleStart("xml/chess.xml")
 main_map.controlInit('init')
+main_map.resetState()
 
 #globals
 BLACK = (0,0,0)
@@ -127,7 +128,7 @@ while True:
             eventQuit()
 
         elif event.type == KEYDOWN and event.key == K_q:
-            test = main_map.getRevert(2)
+            test = main_map.getRevert(1)
             if test:
                 eventClear()
                 main_map = test

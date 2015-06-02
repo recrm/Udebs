@@ -1,6 +1,8 @@
 import copy
 import re
-from udebs import main
+import sys
+import logging
+from udebs import board, entity, instance, interpret
 from xml.etree import ElementTree
 
 #creates an xml file from instance object.
@@ -29,24 +31,15 @@ def battleWrite(env, location, pretty=False):
     if env.name != 'Unknown':
         name = e.SubElement(config, 'name')
         name.text = env.name
-    if env.hex != False:
-        hexmap = e.SubElement(config, 'hex')
-        hexmap.text = str(env.hex)
     if env.logging != True:
         logging = e.SubElement(config, 'logging')
         logging.text = str(env.logging)
-    if env.compile != True:
-        compile_ = e.SubElement(config, 'compile')
-        compile_.text = str(env.compile)
     if env.revert != 1:
         revert = e.SubElement(config, 'revert')
         revert.text = str(env.revert - 1)
     if env.version != 1:
         version = e.SubElement(config, 'version')
         version.text = str(env.version)
-    if env.inheritance != True:
-        inheritance = e.SubElement(config, 'version')
-        inheritance.text = str(env.inheritance)
 
     #map
     maps = e.SubElement(root, 'maps')
@@ -54,8 +47,11 @@ def battleWrite(env, location, pretty=False):
         node = e.SubElement(maps, map_.name)
         if map_.name in env.rmap:
             node.attrib['rmap'] = ''
-        if map_.name != 'empty':
+        if map_.empty != 'empty':
             node.attrib['empty'] = map_.empty
+        if map_.type != False:
+            node.attrib['type'] = map_.type
+
         scan = [list(i) for i in zip(*map_._map)]
         for row in scan:
             middle = e.SubElement(node, 'row')
@@ -69,12 +65,6 @@ def battleWrite(env, location, pretty=False):
     if env.time != 0:
         time = e.SubElement(var, 'time')
         time.text = str(env.time)
-
-    if env.log != []:
-        log = e.SubElement(var, 'log')
-        for item in env.log:
-            node = e.SubElement(log, 'i')
-            node.text = item
 
     #Delay has changed, this is probobly broken.
     if env.delay != []:
@@ -104,7 +94,7 @@ def battleWrite(env, location, pretty=False):
             entity_node.attrib['immutable'] = ''
 
         for stat in stats:
-            value = getattr(entity, stat)
+            value = entity[stat]
 
             if stat == 'group':
                 value = [i for i in value if i != entity.name]
@@ -158,7 +148,7 @@ def battleStart(xml_file, debug=False):
         root = ElementTree.fromstring(xml_file)
 
     #ENV
-    field = main.Instance()
+    field = instance.Instance()
 
     #Config
     config = root.find("config")
@@ -172,28 +162,16 @@ def battleStart(xml_file, debug=False):
         if revert is not None:
             field.revert = int(revert) + 1
 
-        comp = config.findtext("compile")
-        if comp is not None:
-            field.compile = eval(comp)
-
-        logichex = config.findtext("hex")
-        if logichex is not None:
-            if logichex != "diag":
-                field.hex = eval(logichex)
-            else:
-                field.hex = logichex
-
-        logging = config.findtext('logging')
-        if logging is not None:
-            field.logging = eval(logging)
+        log = config.findtext('logging')
+        if log is not None:
+            field.logging = eval(log)
 
         version = config.findtext('version')
         if version is not None:
             field.version = int(version)
 
-        inheritance = config.findtext('inheritance')
-        if inheritance is not None:
-            field.inheritance = eval(inheritance)
+    if field.logging:
+        logging.basicConfig(stream=sys.stdout, level=logging.INFO, format="%(message)s")
 
     #Definition
     defs = root.find("definitions")
@@ -217,16 +195,22 @@ def battleStart(xml_file, debug=False):
 
     #Maps
     def addMap(field_map):
-        name = field_map.tag
+        options = {"name": field_map.tag}
 
-        empty = "empty"
-        field_empty = field_map.find('empty')
+        #Attributes
         if field_map.get('empty') is not None:
-            empty = field_map.get('empty')
+            options["empty"] = field_map.get('empty')
 
+        if field_map.get('rmap') is not None:
+            options["rmap"] = field_map.get('rmap')
+
+        if field_map.get('type') is not None:
+            options["type"] = field_map.get('type')
+
+        #dimensions.
         dim_map = field_map.find("dim")
         if dim_map is not None:
-            dim = (
+            options['dim'] = (
                 int(dim_map.find('x').text),
                 int(dim_map.find('y').text)
             )
@@ -235,14 +219,10 @@ def battleStart(xml_file, debug=False):
             dim = []
             for row in field_map:
                 dim.append(re.split("\W*,\W*", row.text))
-            dim = [list(i) for i in zip(*dim)]
-
-        new_map = main.Board(name, dim, empty)
+            options['dim'] = [list(i) for i in zip(*dim)]
 
         #Add to field
-        if field_map.get('rmap') is not None:
-            field.rmap.add(new_map.name)
-
+        new_map = board.Board(options)
         field.map[new_map.name] = new_map
 
     field_maps = root.find("maps")
@@ -284,36 +264,38 @@ def battleStart(xml_file, debug=False):
                 field.delay.append(item.attrib)
 
     #Entities
-    main.Entity(field, "empty", True)
+    entity.Entity(field, {"name": "empty", "immutable": True})
 
     #Create all entity type objects.
     def addObject(item):
-        new_entity = main.Entity(field, item.tag)
+        options = {"name": item.tag}
         if item.get('immutable') is not None:
-            new_entity.immutable = True
+            options["immutable"] = True
 
         for stat in field.stats:
             elem = item.find(stat)
-            add_attr = int(elem.text) if elem is not None else 0
-            setattr(new_entity, stat, add_attr)
+            if elem is not None:
+                options[stat] = int(elem.text)
 
         for string in field.strings:
             value = item.findtext(string)
-            add_attr = value if value is not None else ""
-            setattr(new_entity, string, add_attr)
+            if value is not None:
+                options[string] = value
 
         for lst in field.lists:
-            new_list = getattr(new_entity, lst)
+            new_list = []
             find_list = item.find(lst)
             if find_list is not None:
                 if len(find_list) == 0:
                     find_list = [find_list]
                 for value in find_list:
-                    if field.compile and lst in {"effect", "require"}:
+                    if lst in {"effect", "require"}:
                         require = (lst == "require")
-                        value.text = main.Script(value.text, require, debug, version=field.version)
+                        value.text = interpret.Script(value.text, field.version, debug)
                     new_list.append(value.text)
-            setattr(new_entity, lst, new_list)
+            options[lst] = new_list
+
+        entity.Entity(field, options)
 
     entities = root.find("entities")
     if entities is not None:
@@ -321,9 +303,9 @@ def battleStart(xml_file, debug=False):
             addObject(item)
 
     #Final cleanup
-    field.controlLog("INITIALIZING", field.name)
+    logging.info("INITIALIZING {}".format(field.name))
     if 'tick' not in field:
-        field.controlLog("warning, no tick is defined.\n")
+        logging.info("warning, no tick is defined.\n")
 
     if field.revert > 1:
         field.state.append(copy.deepcopy(field))

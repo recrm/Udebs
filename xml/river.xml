@@ -21,7 +21,7 @@
     </strings>
 </definitions>
 
-<map>
+<map type="hex">
     <dim>
         <x>16</x>
         <y>16</y>
