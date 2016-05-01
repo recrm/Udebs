@@ -34,9 +34,9 @@ def battleWrite(env, location, pretty=False):
     if env.logging != True:
         logging = e.SubElement(config, 'logging')
         logging.text = str(env.logging)
-    if env.revert != 1:
+    if env.revert != 0:
         revert = e.SubElement(config, 'revert')
-        revert.text = str(env.revert - 1)
+        revert.text = str(env.revert)
     if env.version != 1:
         version = e.SubElement(config, 'version')
         version.text = str(env.version)
@@ -160,7 +160,7 @@ def battleStart(xml_file, debug=False):
 
         revert = config.findtext("revert")
         if revert is not None:
-            field.revert = int(revert) + 1
+            field.revert = int(revert)
 
         log = config.findtext('logging')
         if log is not None:
@@ -307,7 +307,7 @@ def battleStart(xml_file, debug=False):
     if 'tick' not in field:
         logging.info("warning, no tick is defined.\n")
 
-    if field.revert > 1:
+    if field.revert:
         field.state.append(copy.deepcopy(field))
 
     return field

@@ -7,9 +7,6 @@ import collections
 import sys
 import logging
 
-#Loads functions from keywords.json into the interpreter.
-interpret.importSystemModule("udebs", {"self": None})
-
 #---------------------------------------------------
 #                 Main Class                       -
 #---------------------------------------------------
@@ -42,7 +39,7 @@ class Instance(collections.MutableMapping):
         #config
         self.name = 'Unknown'
         self.logging = True
-        self.revert = 1
+        self.revert = 0
         self.version = 1
 
         #definitions
@@ -50,7 +47,7 @@ class Instance(collections.MutableMapping):
         self.stats = {'increment'}
         self.strings = set()
         #rlist and rmap are flags that indicate objects entities should inherit from.
-        self.rlist = set()
+        self.rlist = {'group'}
         self.rmap = set()
 
         #var
@@ -58,49 +55,39 @@ class Instance(collections.MutableMapping):
         self.delay = []
         self.map = {}
         self.log = []
-        self.state = []
 
         #Other
         self.rand = random.Random()
+        self.state = []
 
         #internal use only.
         self._data = {}
+        self.nameless = {}
 
     def __eq__(self, other):
         if not isinstance(other, Instance):
             return False
 
-        check = [
-            self.name == other.name,
-            self.logging == other.logging,
-            self.revert == other.revert,
-            self.version == other.version,
+        for k,v in self.__dict__.items():
+            if k != "state" and v != getattr(other, k):
+                return False
 
-            #definitions
-            self.lists == other.lists,
-            self.stats == other.stats,
-            self.strings == other.strings,
-            self.rlist == other.rlist,
-            self.rmap == other.rmap,
-
-            #var
-            self.time == other.time,
-            self.delay == other.delay,
-            self.map == other.map,
-            len(self) == len(other),
-        ]
-        #Note: self.state is specifically ignored.
-        check.extend(self[e] == other[e] for e in self)
-        return all(check)
+        return True
 
     def __deepcopy__(self, memo):
         new = Instance()
+
+        #Prevent state from being copied.
         for k, v in self.__dict__.items():
             if k != "state":
                 setattr(new, k, copy.deepcopy(v, memo))
 
-        for e in new:
-            new[e].field = new
+        #Set all saved Entities to this field.
+        for e in new.values():
+            e.field = new
+
+        for e in new.nameless.values():
+            e.field = new
 
         return new
 
@@ -143,12 +130,44 @@ class Instance(collections.MutableMapping):
         if ttype is entity.Entity:
             return target
 
+        #Interpretted callback
+        elif ttype is interpret.UdebsStr:
+            if target in self.nameless:
+                return self.nameless[target]
+
+            #Freaking writing a parser sigh.
+            scripts = []
+            if target[0] == "(":
+                buf = ''
+                bracket = 0
+
+                for char in target[1:-1]:
+                    if char == "(":
+                        bracket +=1
+
+                    if char == ")":
+                        bracket -=1
+
+                    if not bracket and char == ",":
+                        scripts.append(interpret.UdebsStr(buf))
+                        buf = ''
+                        continue
+
+                    buf += char
+                scripts.append(interpret.UdebsStr(buf))
+
+            else:
+                scripts.append(target)
+
+            require = [interpret.Script(script, self.version) for script in scripts]
+            self.nameless[target] = entity.Entity(self, {"require": require})
+            return self.nameless[target]
+
         #If string, return associated entity.
         elif ttype is str:
-            try:
+            if target in self:
                 return self[target]
-            except KeyError:
-                raise UndefinedSelectorError(target, "entity")
+            raise UndefinedSelectorError(target, "entity")
 
         #If tuple, this is a location.
         elif ttype is tuple:
@@ -169,10 +188,10 @@ class Instance(collections.MutableMapping):
 
         #If type is a list individually check each element.
         elif ttype is list:
-            value = list(map(self.getEntity, target))
+            value = map(self.getEntity, target)
             if multi:
-                return value
-            return value[0]
+                return list(value)
+            return next(value)
 
         raise UndefinedSelectorError(target, "entity")
 
@@ -228,11 +247,10 @@ class Instance(collections.MutableMapping):
             checkdelay()
 
             #Append new version to state.
-            if self.revert > 1:
-                clone = copy.deepcopy(self)
-                self.state.append(clone)
-                if len(self.state) > self.revert:
-                    self.state = self.state[1:]
+            if self.revert:
+                self.state.append(copy.deepcopy(self))
+            while len(self.state) > self.revert:
+                self.state = self.state[1:]
 
         return True
 
@@ -250,7 +268,7 @@ class Instance(collections.MutableMapping):
         new.state = self.state[:index+1]
         return new
 
-    def controlDelay(self, caster, target, move, string, delay):
+    def controlDelay(self, caster, target, move, callback, delay):
         """
         Creates a new delay object.
 
@@ -267,7 +285,7 @@ class Instance(collections.MutableMapping):
 
         new_delay = {
             "env": env,
-            "script": interpret.Script(string, self.version),
+            "script": self.getEntity(callback),
             "ticks": delay
         }
 
@@ -319,18 +337,15 @@ class Instance(collections.MutableMapping):
         """
         #self and grouped objects
         def iterValues(target):
-            #classes
-            for item in target['group']:
-                value = self[item][stat]
-                if value:
-                    yield value
+            if target[stat]:
+                yield target[stat]
 
-                #special lists
-                for lst in self.rlist:
-                    for unit in self[item][lst]:
-                        value = self.getStat(self[unit], stat)
-                        if value:
-                            yield value
+            #class and rlist
+            for lst in self.rlist:
+                for unit in target[lst]:
+                    value = self.getStat(self[unit], stat)
+                    if value:
+                        yield value
 
             #map locations
             if maps and target.loc:
@@ -342,7 +357,8 @@ class Instance(collections.MutableMapping):
                         if value:
                             yield value
 
-        target = self.getEntity(target)
+        if not isinstance(target, entity.Entity):
+            target = self.getEntity(target)
 
         if stat in {'group', 'increment'}:
             return target[stat]
@@ -358,7 +374,7 @@ class Instance(collections.MutableMapping):
         else:
             raise UndefinedStatError(stat)
 
-    def getGroup(self, group, inc_self=False):
+    def getGroup(self, group):
         """Return all objects belonging to group."""
         group = self.getEntity(group)
 
@@ -366,8 +382,6 @@ class Instance(collections.MutableMapping):
         for unit in self:
             if group.name in self.getStat(unit, 'group'):
                 found.append(unit)
-        if not inc_self:
-            found.remove(group.name)
         return found
 
     def getListStat(self, lst, stat):
@@ -567,16 +581,6 @@ class Instance(collections.MutableMapping):
                 self.getMap(caster.loc).controlBump(caster.loc)
 
             caster.controlLoc()
-
-    #---------------------------------------------------
-    #                    Other                         -
-    #---------------------------------------------------
-    def asEntity(self, script, stat_list):
-        """Convets individual scripts to callable functions."""
-        if isinstance(script, str):
-            script = interpret.Script(script, self.version)
-
-        return entity.Entity(self, {stat_list: [script]})
 
 #---------------------------------------------------
 #                     Errors                       -

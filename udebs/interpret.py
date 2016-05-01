@@ -91,6 +91,9 @@ class standard:
     def length(list_):
         return len(list(list_))
 
+    def quote(string):
+        return UdebsStr(string)
+
 class variables:
     modules = {
         1: [],
@@ -108,7 +111,7 @@ class variables:
         "kwargs": {},
         "all": False,
         "default": {},
-        "string": [],
+         "string": [],
     }
 
     def keywords(version=1):
@@ -149,7 +152,7 @@ def _getEnv(local, glob=False):
 #---------------------------------------------------
 #            Interpreter Functions                 -
 #---------------------------------------------------
-def formatS(string, version, debug):
+def formatS(string, version):
     """Converts a string into its python representation."""
     string = str(string)
     if string.isdigit():
@@ -164,44 +167,25 @@ def formatS(string, version, debug):
         return string
     #In case prefix notation used in keyword defaults.
     elif string[0] in variables.keywords(version):
-        return interpret(string, version, debug)
+        return interpret(string, version)
     else:
         return "'"+string+"'"
 
-def call(args, version, debug=False, ):
+def call(args, version):
     """Converts callList into functionString."""
     if not isinstance(args, list):
         raise UdebsParserError("There is a bug in the parser, call recived '{}'".format(args))
 
-    if debug:
-        print("call:", args)
-
     #Find keyword
     keywords = [i for i in args if i in variables.keywords(version)]
 
-    #If there are too many keywords, some might stand alone.
-    if len(keywords) > 1:
-        for key in keywords[:]:
-            values = variables.keywords(version)[key]
-            arguments = sum(len(values.get(i, [])) for i in ["args", "kwargs", "default"])
-            if arguments == 0 and not values.get("all", False):
-                new = call([key], version)
-                args[args.index(key)] = new
-                keywords.remove(key)
-
-    #Still to many keywords is a syntax error.
+    #Too many keywords is a syntax error.
     if len(keywords) > 1:
         raise UdebsSyntaxError("CallList contains to many keywords '{}'".format(args))
 
     #No keywords creates a tuple object.
     elif len(keywords) == 0:
-        value = "("
-        for i in args:
-            value +=formatS(i, version, debug)+","
-        computed = value[:-1] + ")"
-        if debug:
-            print("computed:", computed)
-        return computed
+        return "(" + ",".join(formatS(i,version) for i in args) + ")"
 
     keyword = keywords[0]
 
@@ -219,7 +203,7 @@ def call(args, version, debug=False, ):
         if args[index] != keyword:
             nodes[value] = args[index]
 
-    #Force strings into long arguments.
+    #Force strings into quoted arguments.
     for string in data["string"]:
         nodes[string] = "'"+str(nodes[string]).replace("'", "\\'")+"'"
 
@@ -231,21 +215,21 @@ def call(args, version, debug=False, ):
             del nodes[value]
         else:
             newvalue = value
-        kwargs[key] = formatS(newvalue, version, debug)
+        kwargs[key] = formatS(newvalue, version)
 
     arguments = []
     #Insert positional arguments
     for key in data["args"]:
         if key in nodes:
-            arguments.append(formatS(nodes[key], version, debug))
+            arguments.append(formatS(nodes[key], version))
             del nodes[key]
         else:
-            arguments.append(formatS(key, version, debug))
+            arguments.append(formatS(key, version))
 
     #Insert ... arguments.
     if data["all"]:
         for key in sorted(list(nodes.keys())):
-            arguments.append(formatS(nodes[key], version, debug))
+            arguments.append(formatS(nodes[key], version))
             del nodes[key]
 
     if len(nodes) > 0:
@@ -255,92 +239,61 @@ def call(args, version, debug=False, ):
     for key in sorted(kwargs.keys()):
         arguments.append(str(key) + "=" + str(kwargs[key]))
 
-    computed = data["f"] + "(" + ",".join(arguments) + ")"
-    if debug:
-        print("computed:", computed)
-    return computed
+    return data["f"] + "(" + ",".join(arguments) + ")"
 
 def split_callstring(raw, version):
     """Converts callString into callList."""
-    if not raw:
-      return ['False']
-
     openBracket = {'(', '{', '['}
     closeBracket = {')', '}', ']'}
-    quotes = {'"', "'"}
-    string = raw.strip()
     callList = []
     buf = ''
     inBrackets = 0
     inQuotes = False
     dotLegal = True
 
-    for char in string:
-        #Ignore everything until matching bracket is found.
-        if inBrackets:
+    for char in raw.strip():
+
+        if char in {'"', "'"}:
+            inQuotes = not inQuotes
+
+        elif not inQuotes:
             if char in openBracket:
                 inBrackets +=1
+
             elif char in closeBracket:
                 inBrackets -=1
-            buf += char
-            continue
 
-        elif inQuotes:
-            if char in quotes:
-                inQuotes = False
-            buf += char
-            continue
+            elif not inBrackets:
+                if dotLegal:
+                    if char == ".":
+                        callList.append(buf)
+                        buf = ''
+                        continue
 
-        #Normal whitespace split`
-        elif char.isspace():
-            if dotLegal:
-                dotLegal = False
-                if callList:
-                    buf = ".".join(callList)+"."+buf
-                    callList = []
-            if buf:
-                callList.append(buf)
-                buf = ''
-            continue
+                    elif char.isspace():
+                        dotLegal = False
+                        if callList:
+                            callList = [".".join(callList) + "." + buf]
+                            buf = ''
 
-        elif char in quotes:
-            inQuotes = True
-            buf += char
-            continue
+                if char.isspace():
+                    if buf:
+                        callList.append(buf)
+                        buf = ''
+                    continue
 
-        #Dot split
-        elif dotLegal and char == ".":
-            callList.append(buf)
-            buf = ''
-            continue
-
-        #Found opening Bracket
-        if char in openBracket:
-            if len(buf) > 1:
-                #This is a function call, string has already been interpreted.
-                return [raw]
-            inBrackets +=1
-
-        #Everything else
         buf += char
-
     callList.append(buf)
 
     if inBrackets:
         raise UdebsSyntaxError("Brackets are mismatched. '{}'".format(raw))
 
     if '' in callList:
-        if len(callList) == 1:
-            return ['False']
         raise UdebsSyntaxError("Empty element in callList. '{}'".format(raw))
 
     #Length one special cases.
     if len(callList) == 1:
         value = callList[0]
-
-        #unnecessary brackets. (Future fix: deal with this at start of function as these are common.)
-        if value[0] in openBracket and value[-1] in closeBracket:
-            return split_callstring(value[1:-1], version)
 
         #Prefix calling.
         if value not in variables.keywords(version):
@@ -349,32 +302,51 @@ def split_callstring(raw, version):
 
     return callList
 
-def interpret(string, version=1, debug=False, first=True):
+def interpret(string, version=1, debug=False):
     """Recursive function that parses callString"""
-    #Small hack for solitary keywords
-    if first and string in variables.keywords(version):
-        return call([string], version)
-
     _list = split_callstring(string, version)
-    #Exit condition
-    if len(_list) == 1:
-        return _list[0]
-
     if debug:
         print("Interpret:", string)
+        print("Split:", _list)
 
-    _list = [interpret(i, version, debug, False) for i in _list]
-    return call(_list, version, debug)
+    found = []
+    for entry in _list:
+        if entry[0] == "(" and entry[-1] == ")":
+            found.append(interpret(entry[1:-1], version, debug))
+        elif "." in entry:
+            found.append(interpret(entry, version, debug))
+        elif entry[0] in variables.keywords(version) and entry not in variables.keywords(version):
+            found.append(interpret(entry, version, debug))
+        else:
+            found.append(entry)
+
+    comp = call(found, version)
+    if debug:
+        print("call:", _list)
+        print("computed:", comp)
+
+    return UdebsStr(comp)
 
 #---------------------------------------------------
 #                Script Main Class                 -
 #---------------------------------------------------
+#An easy way to distinguish between interpreted strings.
+class UdebsStr(str):
+    pass
+
 class Script:
     def __init__(self, effect, version=1, debug=False):
         #Raw text given to script.
         self.raw = effect
-        self.interpret = interpret(effect, version, debug)
-        self.code = compile(self.interpret, '<string>', "eval")
+        self.interpret = effect
+        if not isinstance(effect, UdebsStr):
+            self.interpret = interpret(effect, version, debug)
+
+        try:
+            self.code = compile(self.interpret, '<string>', "eval")
+        except SyntaxError:
+            print(self.raw)
+            raise
 
     def __repr__(self):
         return self.raw
@@ -412,5 +384,6 @@ class UdebsParserError(Exception):
 #                     Runtime                      -
 #---------------------------------------------------
 importSystemModule("base")
+importSystemModule("udebs")
 if __name__ == "__main__":
     print("final:", interpret(sys.argv[1], 2, debug=True))

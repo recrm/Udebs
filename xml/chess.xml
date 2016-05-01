@@ -76,30 +76,10 @@
         <sprite>black</sprite>
     </black_square>
 
-    <!-- fill -->
+    <!-- callback -->
     <fill_horizontal>
         <require>(DISTANCE y) == 0</require>
     </fill_horizontal>
-
-    <fill_vertical>
-        <require>(DISTANCE x) == 0</require>
-    </fill_vertical>
-
-    <fill_diag>
-        <require>((XLOC.$T + YLOC.$T) % 2) == 0</require>
-    </fill_diag>
-
-    <diagonal>
-        <require>(DISTANCE x) == (DISTANCE y)</require>
-    </diagonal>
-
-    <nonempty>
-        <require>(NAME $T) != empty</require>
-    </nonempty>
-
-    <isempty>
-        <require>(NAME $T) == empty</require>
-    </isempty>
 
     <blockx>
         <require>
@@ -107,13 +87,6 @@
             <i>((DISTANCE x) * (DISTANCE y)) == 0</i>
         </require>
     </blockx>
-
-    <blockdiag>
-        <require>
-            <i>(NAME $T) == empty</i>
-            <i>(DISTANCE x) == (DISTANCE y)</i>
-        </require>
-    </blockdiag>
 
     <!-- init -->
     <init>
@@ -126,12 +99,13 @@
 
     <boardrecruit>
         <effect>
-            <i>MOVE black_square (FILL (4 4 board) isempty)</i>
-            <i>MOVE white_square (FILL (4 4 board) fill_diag)</i>
+            <i>vertical = `((DISTANCE x) == 0)</i>
+            <i>MOVE black_square (FILL (4 4 board) `((NAME $T) == empty))</i>
+            <i>MOVE white_square (FILL (4 4 board) `(((XLOC.$T + YLOC.$T) % 2) == 0))</i>
             <i>MOVE top (FILL (0 0 board) fill_horizontal)</i>
             <i>MOVE bottom (FILL (9 9 board) fill_horizontal)</i>
-            <i>MOVE left (FILL (0 0 board) fill_vertical)</i>
-            <i>MOVE right (FILL (9 9 board) fill_vertical)</i>
+            <i>MOVE left (FILL (0 0 board) $vertical)</i>
+            <i>MOVE right (FILL (9 9 board) $vertical)</i>
             <i>MOVE topleft (0 0 board)</i>
             <i>MOVE topright (9 0 board)</i>
             <i>MOVE bottomleft (0 9 board)</i>
@@ -150,7 +124,7 @@
             <i>RECRUIT bishop (5 0)</i>
             <i>RECRUIT king (4 0)</i>
             <i>RECRUIT queen (3 0)</i>
-            <i>GETS (FILL (0 1) nonempty) group black</i>
+            <i>GETS (FILL (0 1) `(NAME.$T != empty)) group black</i>
         </effect>
     </brecruit>
 
@@ -165,7 +139,7 @@
             <i>RECRUIT bishop (5 7)</i>
             <i>RECRUIT king (4 7)</i>
             <i>RECRUIT queen (3 7)</i>
-            <i>GETS (FILL (0 6) nonempty) group white</i>
+            <i>GETS (FILL (0 6) `(NAME.$T != empty)) group white</i>
         </effect>
     </wrecruit>
 
@@ -191,7 +165,7 @@
     </promote>
 
     <passant_danger>
-        <effect>DELAY (LOSES $target status passant_danger) 2</effect>
+        <effect>DELAY `(LOSES $target status passant_danger) 2</effect>
         <group>status_group</group>
     </passant_danger>
 
@@ -314,7 +288,10 @@
     <bishop_travel>
         <require>
             <i>(DISTANCE y) == (DISTANCE x)</i>
-            <i>BLOCK blockdiag</i>
+            <i>BLOCK `(
+                ((NAME $T) == empty)
+                ((DISTANCE x) == (DISTANCE y))
+            )</i>
         </require>
         <group>
             <i>normal</i>

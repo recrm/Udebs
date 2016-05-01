@@ -60,19 +60,21 @@ class Board(collections.MutableMapping):
 
     @property
     def y(self):
-        try:
-            return max([len(x) for x in self._map])
-        except ValueError:
-            return 0
+        if not hasattr(self, "_y"):
+            try:
+                self._y = max([len(x) for x in self._map])
+            except ValueError:
+                self._y = 0
+        return self._y
 
     #---------------------------------------------------
     #                    Methods                       -
     #---------------------------------------------------
     def getLoc(self, string):
         """Return loc of first instance of string in map.
-        
+
         string - Name to search force
-        
+
         """
         for loc in self:
             if self[loc] == string:
@@ -118,11 +120,11 @@ class Board(collections.MutableMapping):
     def getAdjacent(self, center, callback=False, pointer=None):
         """
         Iterates over concentric circles of adjacent tiles.
-        
+
         center - starting local
         callback - Callback used to determine what is a valid tile.
         pointer - Optional dict to store pathing data.
-        
+
         """
         if not self.testLoc(center):
             yield list()
@@ -155,7 +157,7 @@ class Board(collections.MutableMapping):
         move - Callback used to determine what is a valid tile.
 
         Returns empty list if there is no path.
-        
+
         """
         pointer = {}
 
@@ -184,7 +186,7 @@ class Board(collections.MutableMapping):
         center - Starting loc
         callback - Callback used to determine what is a valid tile.
         distance - Maximum fill distance from target.
-        
+
         """
         found = []
         count = 0
@@ -203,7 +205,7 @@ class Board(collections.MutableMapping):
         Test a loc to see if it is valid.
 
         loc - Starting loc
-        
+
         """
         if loc:
             x = loc[0]
@@ -222,10 +224,10 @@ class Board(collections.MutableMapping):
     def testBlock(self, start, finish, callback):
         """
         Tests to see if there exists a path from start to finish.
-        
+
         start, finish - Starting and finishing locations.
         callback - Callback used to determine what is a valid tile.
-        
+
         """
         for i in self.getAdjacent(start, callback):
             for q in i:
@@ -236,10 +238,10 @@ class Board(collections.MutableMapping):
     def adjacent(self, location, pointer=None):
         """
         Returns rough index of tiles adjacent to given tile.
-        
+
         location - Any tuple location.
         pointer - optional pointer dict to keep track of path.
-        
+
         """
         x = location[0]
         y = location[1]
@@ -251,34 +253,34 @@ class Board(collections.MutableMapping):
             (x +1, y, map_),
             (x, y -1, map_),
         }
-        
+
         if self.type:
             found.add((x -1, y +1, map_))
             found.add((x +1, y -1, map_))
-        
+
         if self.type == "diag":
             found.add((x +1, y +1, map_))
             found.add((x -1, y -1, map_))
-        
+
         if isinstance(pointer, dict):
             for item in found:
                 if item not in pointer:
                     pointer[item] = location
 
         return found
-        
+
     def controlMove(self, name, loc):
         if not self.testLoc(loc):
             return False
         self[loc] = name
         return True
-        
+
     def controlBump(self, loc):
         if not self.testLoc(loc):
             return False
-        del self[loc] 
+        del self[loc]
         return True
-        
+
 class UndefinedMetricError(Exception):
     def __init__(self, metric):
         self.metric = metric

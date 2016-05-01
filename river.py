@@ -96,5 +96,5 @@ while True:
     if not pause and field.time < 1000000:
         field.controlTime(50)
     mainClock.tick(60)
-    if field.time >= 1000001:
+    if field.time >= 1000:
         sys.exit()

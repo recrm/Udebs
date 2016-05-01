@@ -38,14 +38,14 @@
             <i>source MOVE (0 0)</i>
             <i>pit MOVE (15 15)</i>
             <i>CAST empty updatecolour</i>
-            <i>DELAY (INIT rain) (10000 + DICE.1000)</i>
+            <i>DELAY `(INIT rain) (10000 + DICE.1000)</i>
         </effect>
     </init>
 
     <rain>
         <effect>
             <i>(FILL (0 0) empty) water += 10</i>
-            <i>DELAY (INIT rain) (10000 + DICE.1000)</i>
+            <i>DELAY `(INIT rain) (10000 + DICE.1000)</i>
         </effect>
     </rain>
 
@@ -127,7 +127,7 @@
     <updatecolour>
         <effect>
             <i>CAST (FILL (0 0) empty) colourchange</i>
-            <i>DELAY (CAST empty updatecolour) 50</i>
+            <i>DELAY `(CAST empty updatecolour) 50</i>
         </effect>
     </updatecolour>
 

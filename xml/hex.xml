@@ -34,9 +34,7 @@
     </init>
 
 <!--    Metrics-->
-    <notempty>
-        <require>NAME.$T == empty</require>
-    </notempty>
+    
 
     <suptravel>
         <require>
@@ -44,13 +42,6 @@
             <i>(DISTANCE hex) &lt;= (STAT $caster ACT)</i>
         </require>
     </suptravel>
-
-    <ridge>
-        <require>
-            <i>(DISTANCE x) &lt;= 2</i>
-            <i>(DISTANCE y) == 0</i>
-        </require>
-    </ridge>
 
 <!--    Events-->
     <click>
@@ -63,23 +54,20 @@
     <query>
         <effect>
             <i>CLEAR token direction</i>
-            <i>GETS token direction PATH.token.$target.notempty</i>
+            <i>GETS token direction (PATH token $target `(NAME.$T == empty))</i>
         </effect>
     </query>
 
     <travel>
-        <effect>
-            <i>MOVE $caster $target</i>
-        </effect>
-        <require>
-            <i>(DISTANCE suptravel) &lt;= (STAT $caster ACT)</i>
-        </require>
+        <require>(DISTANCE suptravel) &lt;= (STAT $caster ACT)</require>
+        <effect>MOVE $caster $target</effect>
     </travel>
 
     <earthquake>
-        <effect>
-            <i>RECRUIT earth FILL.$target.ridge</i>
-        </effect>
+        <effect>RECRUIT earth (FILL $target `(
+            ((DISTANCE x) &lt;= 2)
+            ((DISTANCE y) == 0)
+        ))</effect>
     </earthquake>
 
 <!--Units-->

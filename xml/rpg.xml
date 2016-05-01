@@ -147,7 +147,7 @@
     
     <damage>
         <DESC>Damaging moves</DESC>
-        <effect>DELAY (CAST $target ko) 0</effect>
+        <effect>DELAY `(CAST $target ko) 0</effect>
     </damage>
     
     <!-- Moves -->
@@ -161,7 +161,7 @@
         <effect>
             <i>CHANGE $target HP -(STAT.$target.HP)</i>
             <i>LOSES $target group monster</i>
-            <i>DELAY (CAST $T party_KO) 0</i>
+            <i>DELAY `(CAST $T party_KO) 0</i>
         </effect>
         <group>
             <i>globe</i>
@@ -219,7 +219,7 @@
     <poison>
         <DESC>DROPS THE CHARACTERS HEALTH ONCE USING A DELAYED CHAIN move</DESC>
         <require>DICE.5 > 2</require>
-        <effect>DELAY (CAST $target poison_active) 2</effect>
+        <effect>DELAY `(CAST $target poison_active) 2</effect>
         <group>
             <i>globe</i>
             <i>status</i>
@@ -234,7 +234,7 @@
         <effect>
             <i>soundFX hurt</i>
             <i>CHANGE $target HP -(5 + DICE.5)</i>
-            <i>DELAY (CAST $target poison_active) 2</i>
+            <i>DELAY `(CAST $target poison_active) 2</i>
         </effect>
         <require>
             <i>poison in STAT.$target.status</i>
@@ -250,7 +250,7 @@
         <skip>skip</skip>
         <effect>
             <i>soundFX charge</i>
-            <i>DELAY (CAST $caster defend_active) 2</i>
+            <i>DELAY `(CAST $caster defend_active) 2</i>
         </effect>
         <require>$C == $T</require>
         <group>
@@ -273,7 +273,7 @@
         <effect>
             <i>soundFX charge</i>
             <i>GETS $caster status charge</i>
-            <i>DELAY (CAST $target charge_active) 2</i>
+            <i>DELAY `(CAST $target charge_active) 2</i>
         </effect>
         <group>
             <i>active</i>
@@ -341,12 +341,12 @@
     <!-- Healing moves groups -->
     <health>
         <DESC>Healing moves</DESC>
-        <effect>DELAY (CAST $target overheal) 0</effect>
+        <effect>DELAY `(CAST $target overheal) 0</effect>
     </health>
     
     <regen>
         <DESC>Mana Regen Moves</DESC>
-        <effect>DELAY (CAST $target overmana) 0</effect>
+        <effect>DELAY `(CAST $target overmana) 0</effect>
     </regen>
     
     <!-- Healing moves -->
@@ -431,7 +431,7 @@
         <DESC>Doomsday</DESC>
         <effect>
             <i>soundFX charge</i>
-            <i>DELAY (CAST $target doom_active) 4</i>
+            <i>DELAY `(CAST $target doom_active) 4</i>
         </effect>
         <group>
             <i>active</i>

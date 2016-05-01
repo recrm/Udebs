@@ -59,8 +59,7 @@
     },
     "DELAY": {
         "f": "self.controlDelay",
-        "args": ["$caster", "$target", "$move", "$1", "$2"],
-        "string": ["$1"]
+        "args": ["$caster", "$target", "$move", "$1", "$2"]
     },
 
     "#": "Get from entity.",
@@ -141,7 +140,11 @@
     "FUTURE": {
         "f": "self.testFuture",
         "args": ["$caster", "$target", "$move", "$1", "$2"],
-        "default": {"$2": 0},
-        "string": ["$1"]
+        "default": {"$2": 0}
+    },
+    "if": {
+        "f": "self.logicif",
+        "args": ["$1", "$2", "$3"],
+        "default": {"$2": true, "$3": false}
     }
 }

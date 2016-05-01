@@ -16,8 +16,7 @@
     },
     "DELAY": {
         "f": "self.controlDelay",
-        "args": ["$caster", "$target", "$move", "$1", "$2"],
-        "string": ["$1"]
+        "args": ["$caster", "$target", "$move", "$1", "$2"]
     },
     "GETS": {
         "f": "self.controlList",
@@ -106,8 +105,7 @@
     "FUTURE": {
         "f": "self.testFuture",
         "args": ["$caster", "$target", "$move", "$1", "$2"],
-        "default": {"$2": 0},
-        "string": ["$1"]
+        "default": {"$2": 0}
     },
     "BLOCK": {
         "f": "self.testBlock",

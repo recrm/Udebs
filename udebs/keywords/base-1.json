@@ -97,5 +97,10 @@
     "length": {
         "f": "standard.length",
         "args": ["$1"]
+    },
+    "`": {
+        "f": "standard.quote",
+        "args": ["$1"],
+        "string": ["$1"]
     }
 }

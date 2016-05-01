@@ -12,17 +12,13 @@ class Entity(collections.MutableMapping):
         self.loc = options.get("loc", False)
         self.immutable = False
 
-        self.__data = {}
+        self.data = {}
         for stat in field.stats:
-            self.__data[stat] = options.get(stat, 0)
+            self[stat] = options.get(stat, 0)
         for lists in field.lists:
-            self.__data[lists] = options.get(lists, [])
+            self[lists] = options.get(lists, [])
         for string in field.strings:
-            self.__data[string] = options.get(string, '')
-
-        if "group" in self.__data:
-            if self.name not in self.__data['group']:
-                self['group'] = [self.name] + self['group']
+            self[string] = options.get(string, '')
 
         self.immutable = options.get("immutable", False)
 
@@ -36,29 +32,27 @@ class Entity(collections.MutableMapping):
         except Exception:
             return False
 
-        values = [
-            self.name == other.name,
-            self.loc == other.loc,
-            self.immutable == other.immutable,
-            self.__data == other.__data,
-        ]
-        return all(values)
+        for k, v in self.__dict__.items():
+            if k != "field" and v != getattr(other, k):
+                return False
+
+        return True
 
     def __getitem__(self, key):
-        return self.__data[key]
+        return self.data[key]
 
     def __setitem__(self, key, value):
         if not self.immutable:
-            self.__data[key] = value
+            self.data[key] = value
 
     def __delitem__(self, key):
         return
 
     def __iter__(self):
-        return iter(self.__data)
+        return iter(self.data)
 
     def __len__(self):
-        return len(self.__data)
+        return len(self.data)
 
     def __str__(self):
         return self.name
@@ -72,10 +66,9 @@ class Entity(collections.MutableMapping):
     def __deepcopy__(self, memo):
         "Prevents field attribute from being copied."
         new = Entity(self.field)
-        new.name = self.name
-        new.loc = self.loc
-        new.immutable = self.immutable
-        new.__data = copy.deepcopy(self.__data)
+        for k, v in self.__dict__.items():
+            if k != "field":
+                setattr(new, k, copy.deepcopy(v, memo))
 
         return new
 
@@ -139,8 +132,6 @@ class Entity(collections.MutableMapping):
         new.name = name
 
         #Setup new group and inc
-        new['group'].remove(self.name)
-        new['group'] = [name] + new['group']
         new['increment'] = 0
 
         #Add new to field
@@ -176,11 +167,7 @@ class Entity(collections.MutableMapping):
         if self.immutable:
             return False
 
-        list_ = self[lst]
-        list_.clear()
-        if lst == "group":
-            list_.append(self.name)
-
+        self[lst].clear()
         return True
 
     def controlListAdd(self, lst, entry):
@@ -193,7 +180,6 @@ class Entity(collections.MutableMapping):
                 return False
             entry = entry.name
         self[lst].append(entry)
-
         return True
 
     def controlListRemove(self, lst, entry):

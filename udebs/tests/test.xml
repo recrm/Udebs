@@ -1,0 +1,76 @@
+<udebs>
+<config>
+    <hex>True</hex>
+    <name>testing</name>
+    <logging>False</logging>
+    <version>2</version>
+</config>
+<definitions>
+    <stats>
+        <ACT />
+    </stats>
+    <strings>
+        <DESC />
+    </strings>
+    <lists>
+        <equipment />
+        <inventory rlist='' />
+    </lists>
+</definitions>
+<maps>
+    <one rmap=''>
+        <dim>
+            <x>4</x>
+            <y>4</y>
+        </dim>
+    </one>
+    <two empty='immune'>
+        <row>unit1, unit2</row>
+        <row>immune, immune</row>
+        <row>immune, empty</row>
+    </two>
+    <map>
+        <dim>
+            <x>5</x>
+            <y>6</y>
+        </dim>
+    </map>
+
+</maps>
+<var>
+    <time>4</time>
+    <log>
+        <i>This is a log entry</i>
+        <i>This is another log entry</i>
+    </log>
+</var>
+<entities>
+    <immune immutable='' />
+    <unit1>
+        <group>group1</group>
+        <ACT>5</ACT>
+        <inventory>
+            <i>move1</i>
+        </inventory>
+    </unit1>
+    <unit2 />
+    <notempty>
+        <require>$target.NAME != immune</require>
+    </notempty>
+
+    <sideways>
+        <require>
+            <i>DISTANCE.x == 0</i>
+        </require>
+    </sideways>
+
+    <move1>
+        <ACT>5</ACT>
+        <equipment>1</equipment>
+    </move1>
+    <group1>
+        <ACT>5</ACT>
+        <equipment>1</equipment>
+    </group1>
+</entities>
+</udebs>
