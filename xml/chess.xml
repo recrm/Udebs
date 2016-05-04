@@ -2,6 +2,7 @@
 
 <config>
     <revert>100</revert>
+    <logging>False</logging>
 </config>
 
 <definitions>
@@ -179,10 +180,12 @@
     <time>
         <require>
             <i>STAT.$C.ACT &gt;= 2</i>
-<!--            <i>FUTURE (check (SEARCH kings CLASS.$caster.tick) CLASS.$caster.tick) 1</i>-->
+<!--            This Line prevents the king from moving into check, slowest check in the game.-->
+            <i>FUTURE `(check (SEARCH kings CLASS.$caster.tick) CLASS.$caster.tick) 1</i>
         </require>
         <effect>
-<!--            <i>CHANGE CLASS.$C.tick ACT -(STAT.$C.ACT)</i>-->
+<!--            This Line Forces turn order.-->
+            <i>CHANGE CLASS.$C.tick ACT -(STAT.$C.ACT)</i>
             <i>CAST $caster moved_once</i>
         </effect>
     </time>

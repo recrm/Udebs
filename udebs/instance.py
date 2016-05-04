@@ -6,6 +6,19 @@ import itertools
 import collections
 import sys
 import logging
+import traceback
+
+#---------------------------------------------------
+#                  Utilities                       -
+#---------------------------------------------------
+
+def norecurse(f):
+    def func(*args, **kwargs):
+        trace = [i[2] for i in traceback.extract_stack() if i[2] == f.__name__]
+        if len(trace) > 0:
+            return True
+        return f(*args, **kwargs)
+    return func
 
 #---------------------------------------------------
 #                 Main Class                       -
@@ -123,6 +136,9 @@ class Instance(collections.MutableMapping):
         """
         if target == False:
             return self['empty']
+
+        if target == "bump":
+            return self["empty"]
 
         ttype = type(target)
 
@@ -293,6 +309,7 @@ class Instance(collections.MutableMapping):
         logging.info("effect added to delay for {}".format(delay))
         return True
 
+    @norecurse
     def testFuture(self, caster, target, move, string, time=0):
         """
         Experimental function. Checks if condition is true in the future.
@@ -301,6 +318,9 @@ class Instance(collections.MutableMapping):
         caster, target, move - event to triger.
         time - how much time to pass after event.
         """
+
+        logging.info("Testing future condition.")
+
         caster = self.getEntity(caster)
         target = self.getEntity(target)
         move = self.getEntity(move)
@@ -317,12 +337,12 @@ class Instance(collections.MutableMapping):
         move.controlEffect(caster, target)
         clone.controlTime(time)
 
-        #Test for condition
-#        for effect in effects:
-#            if self.asEntity(interpret.Script(effect, raw=False, require=True, version=self.version).testRequire
+        effects = clone.getEntity(string)
+        test = clone.testMove(caster, target, effects)
 
-        effects = [interpret.Script(string, raw=False, require=True, version=self.version)]
-        return clone.testMove(caster, target, move, effects)
+        logging.info("Done testing future condition.")
+        logging.info("")
+        return test
 
     #---------------------------------------------------
     #           Coorporate get functions               -
@@ -377,12 +397,7 @@ class Instance(collections.MutableMapping):
     def getGroup(self, group):
         """Return all objects belonging to group."""
         group = self.getEntity(group)
-
-        found = []
-        for unit in self:
-            if group.name in self.getStat(unit, 'group'):
-                found.append(unit)
-        return found
+        return [unit for unit in self if group.name in self.getStat(unit, "group")]
 
     def getListStat(self, lst, stat):
         """Returns combination of all stats for objects in a units list.
@@ -441,12 +456,18 @@ class Instance(collections.MutableMapping):
         targets = self.getEntity(targets, multi=True)
         moves = self.getEntity(moves, multi=True)
 
+        value = False
+
         for target in targets:
             for move in moves:
                 logging.info("{} uses {} on {}".format(caster, move, target.loc if target.immutable else target))
                 test = move.call(caster, target)
                 if test != True:
                     logging.info("failed because {}".format(test))
+                else:
+                    value = True
+
+        return value
 
     def controlInit(self, moves, time=0):
         """Wrapper of controlMove where caster and target are unimportant."""
@@ -542,12 +563,18 @@ class Instance(collections.MutableMapping):
     def getPath(self, caster, target, callback):
         caster = self.getEntity(caster).loc
         target = self.getEntity(target).loc
+        if caster == False or target == False:
+            return []
+
         callback = self.getEntity(callback)
         return self.getMap(caster).getPath(caster, target, callback)
 
     def getDistance(self, caster, target, method):
         caster = self.getEntity(caster).loc
         target = self.getEntity(target).loc
+        if caster == False or target == False:
+            return float("inf")
+
         if method in self:
             method = self.getEntity(method)
 
@@ -556,11 +583,17 @@ class Instance(collections.MutableMapping):
     def testBlock(self, caster, target, callback):
         caster = self.getEntity(caster).loc
         target = self.getEntity(target).loc
+        if caster == False or target == False:
+            return False
+
         callback = self.getEntity(callback)
         return self.getMap(caster).testBlock(caster, target, callback)
 
     def getFill(self, center, callback=False, distance=float("inf")):
         center = self.getEntity(center).loc
+        if center == False:
+            return []
+
         callback = self.getEntity(callback)
         return self.getMap(center).getFill(center, callback, distance)
 

@@ -88,7 +88,7 @@ class Entity(collections.MutableMapping):
 
     def controlEffect(self, env, target=False):
         if target:
-            env = self.getEnv(caster, target)
+            env = self.getEnv(env, target)
 
         for i in self.field.getStat(self, 'effect'):
             i.call(env)

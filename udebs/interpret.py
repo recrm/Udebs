@@ -155,6 +155,8 @@ def _getEnv(local, glob=False):
 def formatS(string, version):
     """Converts a string into its python representation."""
     string = str(string)
+    if string == "self":
+        return string
     if string.isdigit():
         return string
     #String quoted by user.
@@ -304,28 +306,33 @@ def split_callstring(raw, version):
 
 def interpret(string, version=1, debug=False):
     """Recursive function that parses callString"""
-    _list = split_callstring(string, version)
-    if debug:
-        print("Interpret:", string)
-        print("Split:", _list)
+    try:
+        _list = split_callstring(string, version)
+        if debug:
+            print("Interpret:", string)
+            print("Split:", _list)
 
-    found = []
-    for entry in _list:
-        if entry[0] == "(" and entry[-1] == ")":
-            found.append(interpret(entry[1:-1], version, debug))
-        elif "." in entry:
-            found.append(interpret(entry, version, debug))
-        elif entry[0] in variables.keywords(version) and entry not in variables.keywords(version):
-            found.append(interpret(entry, version, debug))
-        else:
-            found.append(entry)
+        found = []
+        for entry in _list:
+            if entry[0] == "(" and entry[-1] == ")":
+                found.append(interpret(entry[1:-1], version, debug))
+            elif "." in entry:
+                found.append(interpret(entry, version, debug))
+            elif entry[0] in variables.keywords(version) and entry not in variables.keywords(version):
+                found.append(interpret(entry, version, debug))
+            else:
+                found.append(entry)
 
-    comp = call(found, version)
-    if debug:
-        print("call:", _list)
-        print("computed:", comp)
+        comp = call(found, version)
+        if debug:
+            print("call:", _list)
+            print("computed:", comp)
 
-    return UdebsStr(comp)
+        return UdebsStr(comp)
+
+    except:
+        print(string)
+        raise
 
 #---------------------------------------------------
 #                Script Main Class                 -

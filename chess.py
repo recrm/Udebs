@@ -28,17 +28,7 @@ for col, y in [("W", 0), ("B", 1)]:
     for rank, x in zip(tiles, positions):
         sprites[col][rank] = sheet.subsurface(pygame.Rect(x*ts, y*ts*2, ts, 2*ts))
 
-#Setup udebs.
-def norecurse(f):
-    """Returns True is a function calls itself."""
-    def func(*args, **kwargs):
-        trace = [i[2] for i in traceback.extract_stack() if i[2] == f.__name__]
-        if len(trace) > 0:
-            return True
-        return f(*args, **kwargs)
-    return func
-
-@norecurse
+@udebs.norecurse
 def check(king, color, instance):
     """
     Check if space is under attack.
@@ -59,10 +49,12 @@ def check(king, color, instance):
                     return False
 
     for unit in instance.getGroup(color):
-        for move in instance.getStat(unit, 'movelist'):
-            if move not in {"pawn_travel", "pawn_double", "king_kcastle", "king_qcastle"}:
-                if instance.testMove(unit, king, move):
-                    return False
+        if "captured" not in instance.getStat(unit, "status"):
+            for move in instance.getStat(unit, 'movelist'):
+                if move not in {"pawn_travel", "pawn_double", "king_kcastle", "king_qcastle"}:
+                    if instance.testMove(unit, king, move):
+                        return False
+
     return True
 
 module = {"check": {

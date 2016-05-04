@@ -59,6 +59,11 @@
         "f": "standard.logicor",
         "all": true
     },
+    "if": {
+        "f": "standard.logicif",
+        "args": ["$1", "$2", "$3"],
+        "default": {"$2": true, "$3": false}
+    },
     "|": {
         "f": "abs",
         "args": ["$1"]

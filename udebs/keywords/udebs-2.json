@@ -141,10 +141,5 @@
         "f": "self.testFuture",
         "args": ["$caster", "$target", "$move", "$1", "$2"],
         "default": {"$2": 0}
-    },
-    "if": {
-        "f": "self.logicif",
-        "args": ["$1", "$2", "$3"],
-        "default": {"$2": true, "$3": false}
     }
 }

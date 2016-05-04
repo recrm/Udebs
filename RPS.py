@@ -8,6 +8,7 @@ xml = """
 <definitions>
     <strings>
         <beats />
+        <played />
     </strings>
     <stats>
         <lives />
@@ -24,58 +25,62 @@ xml = """
         <effect>
             <i>print "You have" user.STAT.lives lives</i>
             <i>print "Your opponent has" computer.STAT.lives lives</i>
-            <i>user = CHOICE.human</i>
-            <i>computer = CHOICE.computer</i>
-            <i>print "computer plays" $computer</i>
-            <i>winner =
-                (if ($user.STAT.beats == $computer)
-                    user
-                    computer)</i>
-            <i>losser =
-                (if ($winner == $user)
-                    computer
-                    user)</i>
-            <i>CAST $winner victory</i>
-            <i>CAST $losser defeat</i>
+            <i>user played REPLACE CHOICE.user</i>
+            <i>computer played REPLACE CHOICE.computer</i>
+            <i>print "computer plays" computer.STAT.played</i>
+            <i>user CAST computer victory</i>
+            <i>computer CAST user victory</i>
+            <i>user CAST computer tie</i>
             <i>INIT gameover</i>
         </effect>
     </rps>
 
+    <victory>
+        <require>($caster.STAT.played STAT beats) == $target.STAT.played</require>
+        <effect>
+            <i>print $caster "wins!!!"</i>
+            <i>$target lives CHANGE -1</i>
+            <i>print $target "has lost a life"</i>
+        </effect>
+    </victory>
+
+    <tie>
+        <require>$target.STAT.played == $caster.STAT.played</require>
+        <effect>print "There was a tie"</effect>
+    </tie>
+
     <gameover>
-        <require>(user.STAT.lives * computer.STAT.lives) == 0</require>
+        <require>(user.STAT.lives * computer.STAT.lives) &lt;= 0</require>
         <effect>
             <i>print "The game is over"</i>
             <i>EXIT</i>
         </effect>
     </gameover>
 
-    <victory>
-        <effect>print $target "wins!!!"</effect>
-    </victory>
-
-    <defeat>
-        <effect>
-            <i>$target CHANGE lives -1</i>
-            <i>print $target "has lost a life."</i>
-        </effect>
-    </defeat>
-
-    <rock>
-        <beats>scissors</beats>
-    </rock>
-
-    <paper>
-        <beats>rock</beats>
-    </paper>
-
-    <scissors>
-        <beats>paper</beats>
-    </scissors>
+    <!-- Game unit groups -->
+    <action/>
 
     <character>
         <lives>5</lives>
     </character>
 
+    <!-- Legal actions -->
+    <rock>
+        <beats>scissors</beats>
+        <group>action</group>
+    </rock>
+
+    <paper>
+        <beats>rock</beats>
+        <group>action</group>
+    </paper>
+
+    <scissors>
+        <beats>paper</beats>
+        <group>action</group>
+    </scissors>
+
+    <!-- Players -->
     <user>
         <group>character</group>
     </user>
@@ -89,11 +94,12 @@ xml = """
 </udebs>
 """
 
-def choice(target, state):
-    print("going into choice")
-    if target == "human":
+game = None
+
+def choice(target):
+    if target == "user":
         choice = input("What will you play? ")
-        while choice not in state.getGroup('action'):
+        while choice not in game.getGroup('action'):
             choice = input("That is not a valid action. Try again. ")
     else:
         choice = random.choice(['rock', 'paper', 'scissors'])
@@ -106,7 +112,7 @@ def exit():
 module = {
     "CHOICE": {
         "f": "choice",
-        "args": ["$1", "self"],
+        "args": ["$1"],
     },
     "EXIT": {
         "f": "exit",

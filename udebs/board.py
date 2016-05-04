@@ -67,6 +67,10 @@ class Board(collections.MutableMapping):
                 self._y = 0
         return self._y
 
+    @property
+    def map(self):
+        return self._map
+
     #---------------------------------------------------
     #                    Methods                       -
     #---------------------------------------------------
