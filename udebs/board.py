@@ -1,4 +1,3 @@
-import random
 import collections
 
 class Board(collections.MutableMapping):
@@ -131,7 +130,7 @@ class Board(collections.MutableMapping):
 
         """
         if not self.testLoc(center):
-            yield list()
+            yield []
             return
 
         new = {center}
@@ -155,10 +154,10 @@ class Board(collections.MutableMapping):
 
     def getPath(self, start, finish, callback=False):
         """
-        Algorithm to find a path between start and finish assuming move.
+        Algorithm to find a path between start and finish assuming callback.
 
         start, finish - Start and finish locations.
-        move - Callback used to determine what is a valid tile.
+        callback - Callback used to determine what is a valid tile.
 
         Returns empty list if there is no path.
 
@@ -182,14 +181,15 @@ class Board(collections.MutableMapping):
             if new == start:
                 found.reverse()
                 return found
-
-    def getFill(self, center, callback=False, distance=float("inf")):
+                
+    def getFill(self, center, callback=False, distance=float("inf"), rand=None):
         """
         Returns a list of map spaces that center fills into.
 
         center - Starting loc
         callback - Callback used to determine what is a valid tile.
         distance - Maximum fill distance from target.
+        rand - Instance of random.Random() to use for data shuffle.
 
         """
         found = []
@@ -201,7 +201,8 @@ class Board(collections.MutableMapping):
                 break
             count +=1
 
-        random.shuffle(found)
+        if rand:
+            rand.shuffle(found)
         return found
 
     def testLoc(self, loc):
@@ -223,6 +224,7 @@ class Board(collections.MutableMapping):
                 if 0 <= x < self.x:
                     if 0 <= y < self.y:
                         return True
+                        
         return False
 
     def testBlock(self, start, finish, callback):
