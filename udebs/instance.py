@@ -1,24 +1,43 @@
-from udebs import interpret, board, entity
+from udebs import interpret, board, entity, dispatchmethod
 import random
-import math
 import copy
 import itertools
 import collections
-import sys
 import logging
 import traceback
+import functools
 
 #---------------------------------------------------
 #                  Utilities                       -
 #---------------------------------------------------
 
 def norecurse(f):
+    """Wrapper function that forces a function to return True if it recurses."""
     def func(*args, **kwargs):
-        trace = [i[2] for i in traceback.extract_stack() if i[2] == f.__name__]
-        if len(trace) > 0:
-            return True
+        for i in traceback.extract_stack():
+            if i[2] == f.__name__:
+                return True
+                
         return f(*args, **kwargs)
+        
     return func
+    
+def lookup(name, table):
+    """Function for adding a basic lookup function to the interpreter."""
+    def wrapper(*args):
+        value = table
+        for i in args:
+            try:
+                value = value[i]
+            except KeyError:
+                return 0
+            
+        return value
+    
+    interpret.importModule({name: {
+        "f": "f_" + name,
+        "all": True,
+    }}, {"f_" + name: wrapper})
 
 #---------------------------------------------------
 #                 Main Class                       -
@@ -42,7 +61,7 @@ class Instance(collections.MutableMapping):
 
     Public Functions.
 
-    getState( target, string ) Gets the associated stat from target.
+    getStat( target, string ) Gets the associated stat from target.
     getDistance( target, target, string ) Gets distance between two targets.
     getLog() Gets all currently saved log entries.
     getRevert( int ) Gets previous recorded game states.
@@ -54,6 +73,7 @@ class Instance(collections.MutableMapping):
         self.logging = True
         self.revert = 0
         self.version = 1
+        self.seed = None
 
         #definitions
         self.lists = {'group', 'effect', 'require'}
@@ -65,9 +85,11 @@ class Instance(collections.MutableMapping):
 
         #var
         self.time = 0
+        self.movestore = {}
+        self.movestage = {}
+        self.cont = True
         self.delay = []
         self.map = {}
-        self.log = []
 
         #Other
         self.rand = random.Random()
@@ -76,6 +98,7 @@ class Instance(collections.MutableMapping):
         #internal use only.
         self._data = {}
         self.nameless = {}
+        
 
     def __eq__(self, other):
         if not isinstance(other, Instance):
@@ -124,9 +147,14 @@ class Instance(collections.MutableMapping):
     def __contains__(self, item):
         return item in self._data
 
+    def exit(self):
+        self.cont = False
+
     #---------------------------------------------------
     #               Selector Function                  -
     #---------------------------------------------------
+    
+    @dispatchmethod.dispatchmethod
     def getEntity(self, target, multi=False):
         """Returns entity object based on given selector.
 
@@ -134,100 +162,112 @@ class Instance(collections.MutableMapping):
         multi - Boolean, allows lists of targets.
 
         """
-        if target == False:
+        raise UndefinedSelectorError(target, "entity")
+        
+    @getEntity.register(entity.Entity)
+    def _(self, target, multi=False):
+        return target
+
+    @getEntity.register(bool)
+    def _(self, target, multi=False):
+        # False is an allowable selector for empty.
+        if target is False:
             return self['empty']
-
-        if target == "bump":
-            return self["empty"]
-
-        ttype = type(target)
-
-        #Already entity return self.
-        if ttype is entity.Entity:
-            return target
-
-        #Interpretted callback
-        elif ttype is interpret.UdebsStr:
-            if target in self.nameless:
-                return self.nameless[target]
-
-            #Freaking writing a parser sigh.
-            scripts = []
-            if target[0] == "(":
-                buf = ''
-                bracket = 0
-
-                for char in target[1:-1]:
-                    if char == "(":
-                        bracket +=1
-
-                    if char == ")":
-                        bracket -=1
-
-                    if not bracket and char == ",":
-                        scripts.append(interpret.UdebsStr(buf))
-                        buf = ''
-                        continue
-
-                    buf += char
-                scripts.append(interpret.UdebsStr(buf))
-
-            else:
-                scripts.append(target)
-
-            require = [interpret.Script(script, self.version) for script in scripts]
-            self.nameless[target] = entity.Entity(self, {"require": require})
-            return self.nameless[target]
-
-        #If string, return associated entity.
-        elif ttype is str:
-            if target in self:
-                return self[target]
-            raise UndefinedSelectorError(target, "entity")
-
-        #If tuple, this is a location.
-        elif ttype is tuple:
-            map_ = self.getMap(target)
-            try:
-                unit = self[map_[target]]
-            except IndexError:
-                unit = self[map_.empty]
-
-            if unit.immutable:
-                if len(target) < 3:
-                    target = (target[0], target[1], "map")
-
-                unit = copy.deepcopy(unit)
-                unit.loc = target
-
-            return unit
-
-        #If type is a list individually check each element.
-        elif ttype is list:
-            value = map(self.getEntity, target)
-            if multi:
-                return list(value)
-            return next(value)
-
         raise UndefinedSelectorError(target, "entity")
 
+    @getEntity.register(str)
+    def _(self, target, multi=False):
+        #If string, return associated entity.
+        if target in self:
+            return self[target]
+        
+        elif target == "bump":
+            return self["empty"]
+        
+        raise UndefinedSelectorError(target, "entity")
+
+    @getEntity.register(interpret.UdebsStr)
+    def _(self, target, multi=False):
+        #Interpretted callback
+        # Nameless has already been processed.
+        if target in self.nameless:
+            return self.nameless[target]
+
+        #Process new nameless.
+        scripts = []
+        if target[0] == "(":
+            buf = ''
+            bracket = 0
+
+            for char in target[1:-1]:
+                if char == "(":
+                    bracket +=1
+
+                if char == ")":
+                    bracket -=1
+
+                if not bracket and char == ",":
+                    scripts.append(interpret.Script(interpret.UdebsStr(buf), self.version))
+                    buf = ''
+                    continue
+
+                buf += char
+            
+            raw = interpret.UdebsStr(buf)
+            scripts.append(interpret.Script(raw, self.version))
+            
+        else:
+            scripts.append(interpret.Script(target, self.version))
+
+        self.nameless[target] = entity.Entity(self, {"require": scripts})
+        return self.nameless[target]
+
+    @getEntity.register(tuple)
+    def _(self, target, multi=False):
+        #If tuple, this is a location.
+        map_ = self.getMap(target)
+        try:
+            unit = self[map_[target]]
+        except IndexError:
+            unit = self[map_.empty]
+
+        if unit.immutable:
+            if len(target) < 3:
+                target = (target[0], target[1], "map")
+
+            unit = copy.deepcopy(unit)
+            unit.loc = target
+
+        return unit
+
+    @getEntity.register(list)
+    def _(self, target, multi=False):
+        #If type is a list individually check each element.
+        value = map(self.getEntity, target)
+        if multi:
+            return list(value)
+        return next(value)
+
     def getMap(self, target="map"):
-        """Returns first location for string in env.map."""
+        """Gets a map by name or object on it."""
         if not target:
             return False
 
-        ttype = type(target)
-        if ttype is entity.Entity:
-            return self.getMap(target.loc)
-        elif ttype is board.Board:
-            return target
-        elif ttype is tuple:
-            return self.getMap("map" if len(target) < 3 else target[2])
-        elif ttype is str:
+        if target.__class__ is str:
             try:
                 return self.map[target]
             except KeyError:
                 raise UndefinedSelectorError(target, "map")
+        
+        elif target.__class__ is entity.Entity:
+            return self.getMap(target.loc)
+        
+        elif target.__class__ is board.Board:
+            return target
+        
+        elif target.__class__ is tuple:
+            return self.getMap("map" if len(target) < 3 else target[2])
+        
         else:
             raise UndefinedSelectorError(target, "map")
 
@@ -250,8 +290,6 @@ class Instance(collections.MutableMapping):
                         delay['script'].call(delay['env'])
                         again = True
 
-            logging.info('')
-
         checkdelay()
         for i in range(time):
             self.time +=1
@@ -265,14 +303,23 @@ class Instance(collections.MutableMapping):
             #Append new version to state.
             if self.revert:
                 self.state.append(copy.deepcopy(self))
-            while len(self.state) > self.revert:
-                self.state = self.state[1:]
-
-        return True
+            
+            logging.info('')
+            
+        # Move staged moves to stored moves.
+        for key, value in self.movestage.items():
+            if key not in self.movestore:
+                self.movestore[key] = []
+                
+            self.movestore[key].extend(value)
+            value.clear()
+            
+        self.state = self.state[-self.revert:]
+        return self.cont
 
     def resetState(self):
-        new = copy.deepcopy(self)
-        self.state = [new]
+        self.state.clear()
+        self.state.append(copy.deepcopy(self))
 
     def getRevert(self, value=0):
         index = -(value +1)
@@ -281,7 +328,7 @@ class Instance(collections.MutableMapping):
         except IndexError:
             return False
 
-        new.state = self.state[:index+1]
+        del self.state[index+1:]
         return new
 
     def controlDelay(self, caster, target, move, callback, delay):
@@ -391,6 +438,10 @@ class Instance(collections.MutableMapping):
                 return next(iterValues(target))
             except StopIteration:
                 return ""
+        
+        # Temporary until I can figure out a better way to do this.
+        elif stat == "envtime":
+            return self.time
         else:
             raise UndefinedStatError(stat)
 
@@ -440,13 +491,18 @@ class Instance(collections.MutableMapping):
     def getSearch(self, *args):
         """Returns a list of objects contained in all groups.
         *args - lists of groups.
-        ind - bool, only return first result if true."""
+        """
         foundIter = iter(args)
         first = foundIter.__next__()
         found = set(self.getGroup(first))
         for arg in args:
             found = found.intersection(self.getGroup(arg))
         return sorted(list(found))
+        
+    def mapIter(self, mapname="map"):
+        map_ = self.getMap(mapname)
+        for loc in map_:
+            yield self[map_[loc]]
 
     #---------------------------------------------------
     #                 Call wrappers                    -
@@ -507,24 +563,24 @@ class Instance(collections.MutableMapping):
 
     def controlClear(self, targets, lst):
         targets = self.getEntity(targets, multi=True)
-
         for target in targets:
             target.controlListClear(lst)
             logging.info("{} {} has been cleared.".format(target, lst))
 
     def controlIncrement(self, targets, stat, increment, multi=1):
+        if increment == 0:
+            return
+        
         targets = self.getEntity(targets, multi=True)
-
         for target in targets:
             target.controlIncrement(stat, increment, multi)
-            logging.info("{} {} changed by {} is now {}".format(target, stat, increment, self.getStat(target, stat)))
+            logging.info("{} {} changed by {} is now {}".format(target, stat, increment*multi, self.getStat(target, stat)))
 
     def controlString(self, targets, stat, value):
         targets = self.getEntity(targets, multi=True)
-        if value:
-            for target in targets:
-                target[stat] = value
-                logging.info("{} {} changed to {}".format(target, stat, value))
+        for target in targets:
+            target[stat] = value
+            logging.info("{} {} changed to {}".format(target, stat, value))
 
     def controlRecruit(self, target, positions):
         target = self.getEntity(target)
@@ -595,7 +651,7 @@ class Instance(collections.MutableMapping):
             return []
 
         callback = self.getEntity(callback)
-        return self.getMap(center).getFill(center, callback, distance)
+        return self.getMap(center).getFill(center, callback, distance, self.rand)
 
     #---------------------------------------------------
     #              Board control wrappers              -
@@ -605,16 +661,16 @@ class Instance(collections.MutableMapping):
         targets = self.getEntity(targets, multi=True)
 
         for target in targets:
+            if not caster.immutable and caster.loc:
+                self.getMap(caster.loc).controlBump(caster.loc)
+            
             if target.loc:
                 self.getMap(target).controlMove(caster.name, target.loc)
                 logging.info("{} has moved to {}".format(caster, target.loc))
                 target.controlLoc()
 
-            if not caster.immutable and caster.loc:
-                self.getMap(caster.loc).controlBump(caster.loc)
-
             caster.controlLoc()
-
+            
 #---------------------------------------------------
 #                     Errors                       -
 #---------------------------------------------------
