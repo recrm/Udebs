@@ -4,7 +4,6 @@ import sys
 import copy
 import json
 import itertools
-import copy
 import os
 
 #---------------------------------------------------
@@ -127,8 +126,14 @@ class variables:
 def importModule(dicts={}, globs={}, version="other"):
     """
     Allows user to extend base variables available to the interpreter.
-    Should be run before the instance object is created.
+    Should be run before the instance object is created.    
     """
+    if isinstance(globs, list):
+        globs = {i.__name__: i for i in globs}
+        
+    elif not isinstance(globs, dict):
+        globs = {globs.__name__: globs}
+    
     variables.modules[version].append(dicts)
     variables.env.update(globs)
 
