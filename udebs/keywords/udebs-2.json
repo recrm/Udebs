@@ -20,6 +20,9 @@
         "args": ["-$2", "-$1", "$1"],
         "default": {"-$2": "$caster"}
     },
+    "EXIT": {
+        "f": "self.exit"
+    },
 
     "#": "CHANGE convinience wrappers.",
     "+=": {
