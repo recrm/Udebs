@@ -1,0 +1,99 @@
+<udebs>
+
+<config>
+    <logging>False</logging>
+    <name>chopsticks</name>
+    <version>2</version>
+</config>
+
+<definitions>
+    <stats>
+        <ACT/>
+        <FIN/>
+    </stats>
+</definitions>
+
+<entities>
+
+    <!--Default-->
+    <unit-move>
+        <require>
+            <i>$caster.STAT.FIN &gt; 0</i>
+            <i>$caster.STAT.ACT &gt;= 2</i>
+        </require>
+        <effect>
+            <i>$caster.CLASS.player ACT CHANGE -($caster.STAT.ACT)</i>
+            <i>ALL.player ACT += 1</i>
+        </effect>
+    </unit-move>
+
+    <!--Unit Groups-->
+    <one>
+        <ACT>2</ACT>
+        <group>player</group>
+    </one>
+
+    <two>
+        <ACT>1</ACT>
+        <group>player</group>
+    </two>
+
+    <player/>
+
+    <!--Units-->
+    <one-left>
+        <group>one</group>
+        <FIN>1</FIN>
+    </one-left>
+
+    <one-right>
+        <group>one</group>
+        <FIN>3</FIN>
+    </one-right>
+
+    <two-left>
+        <group>two</group>
+        <FIN>1</FIN>
+    </two-left>
+
+    <two-right>
+        <group>two</group>
+        <FIN>2</FIN>
+    </two-right>
+
+    <!--Moves-->
+    <attack>
+        <group>unit-move</group>
+        <require>
+            <i>$target.STAT.FIN > 0</i>
+            <i>$caster.CLASS.player not-in $target.STAT.group</i>
+        </require>
+        <effect>
+            <i>$target FIN += $caster.STAT.FIN</i>
+            <i>CAST $target close</i>
+        </effect>
+    </attack>
+
+    <split>
+        <group>unit-move</group>
+        <require>
+            <i>$caster.CLASS.player in $target.STAT.group</i>
+            <i>$target.STAT.FIN == 0</i>
+            <i>($caster.STAT.FIN % 2) == 0</i>
+        </require>
+        <effect>
+            <i>value = ($caster.STAT.FIN / 2)</i>
+            <i>$caster FIN CHANGE -$value</i>
+            <i>$target FIN CHANGE $value</i>
+        </effect>
+    </split>
+
+    <!--Chaincasts    -->
+    <close>
+        <require>$target.STAT.FIN >= 5</require>
+        <effect>$target FIN CHANGE -($target.STAT.FIN)</effect>
+    </close>
+
+</entities>
+
+</udebs>

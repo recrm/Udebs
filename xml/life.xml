@@ -1,0 +1,112 @@
+<udebs>
+
+<config>
+<!--    <revert>20</revert>-->
+    <version>2</version>
+    <logging>False</logging>
+    <seed>4643</seed>
+</config>
+
+<definitions>
+    <stats>
+        <NBR />
+        <LIFE />
+    </stats>
+    
+    <lists>
+        <save />
+    </lists>
+    
+</definitions>
+
+<maps>
+    <map type="diag">
+        <dim>
+            <x>25</x>
+            <y>25</y>
+        </dim>
+    </map>
+</maps>
+
+<entities>
+
+    <!-- Objects -->
+    <cell />
+
+    <!-- Metrics -->
+    <neighbors>
+        <require>DISTANCE.pinf == 1</require>
+    </neighbors>
+    
+    
+    <!-- Count neighbors -->
+    <increment>
+        <require>$target != $caster</require>
+        <effect>DELAY `(tick save GETS $target) 0</effect>
+    </increment>
+    
+    <increment_neighbor>
+        <group>increment</group>
+        <effect>DELAY `($target NBR += 1) 0</effect>
+    </increment_neighbor>
+    
+    <decrement_neighbor>
+        <group>increment</group>
+        <effect>DELAY `($target NBR -= 1) 0</effect>
+    </decrement_neighbor>
+
+    <!-- Life -->
+    <life>
+        <require>
+            <i>$target.STAT.LIFE == 0</i>
+        </require>
+        <effect>
+            <i>$target LIFE REPLACE 1</i>
+            <i>$target CAST FILL.$target.neighbors increment_neighbor</i>
+        </effect>
+    </life>
+    
+    <autolife>
+        <group>life</group>
+        <require>$target.STAT.NBR == 3</require>
+    </autolife>
+    
+    <randomlife>
+        <group>life</group>
+        <require>DICE.4 == 0</require>
+        <effect>tick save GETS $target</effect>
+    </randomlife>
+
+    <!-- Death -->
+    <death>
+        <require>$target.STAT.LIFE == 1</require>
+        <effect>
+            <i>$target LIFE REPLACE 0</i>
+            <i>$target CAST FILL.$target.neighbors decrement_neighbor</i>
+        </effect>
+    </death>
+
+    <autodeath>
+        <group>death</group>
+        <require>($target.STAT.NBR &lt; 2) or ($target.STAT.NBR &gt; 3)</require>
+    </autodeath>
+
+    <!-- Scripts -->
+    <init>
+        <effect>
+            <i>all = (FILL (1 1) empty)</i>
+            <i>cell RECRUIT $all</i>
+            <i>CAST $all randomlife</i>
+        </effect>
+    </init>
+    
+    <tick>
+        <effect>
+            <i>all = (dedup $move.STAT.save)</i>
+            <i>CAST $all autodeath</i>
+            <i>CAST $all autolife</i>
+            <i>tick CLEAR save</i>
+        </effect>
+    </tick>
+</entities>
+</udebs>

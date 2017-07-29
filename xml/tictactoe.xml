@@ -1,0 +1,57 @@
+<udebs>
+
+<config>
+    <version>2</version>
+    <logging>False</logging>
+</config>
+
+<map>
+    <dim>
+        <x>3</x>
+        <y>3</y>
+    </dim>
+</map>
+
+<definitions>
+    <stats>
+        <ACT />
+    </stats>
+    <strings>
+        <token />
+        <leaf />
+    </strings>
+</definitions>
+
+<entities>
+    <player />
+
+    <xPlayer>
+        <group>player</group>
+        <ACT>2</ACT>
+        <token>x</token>
+    </xPlayer>
+
+    <oPlayer>
+        <group>player</group>
+        <ACT>1</ACT>
+        <token>o</token>
+    </oPlayer>
+
+    <x immutable="" />
+    <o immutable="" />
+
+    <placement>
+        <require>
+            <i>$caster.STAT.ACT &gt;= 2</i>
+            <i>$target.NAME == empty</i>
+        </require>
+        <effect>
+            <i>$caster.STAT.token RECRUIT $target</i>
+            <i>$caster ACT -= 2</i>
+            <i>ALL.player ACT += 1</i>
+            <i>player leaf REPLACE (ENDGAME)</i>
+        </effect>
+    </placement>
+
+</entities>
+</udebs>

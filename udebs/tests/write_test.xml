@@ -1,0 +1,66 @@
+<udebs>
+  <definitions>
+    <stats>
+      <ACT />
+    </stats>
+    <lists>
+      <equipment />
+      <inventory rlist="" />
+    </lists>
+    <strings>
+      <DESC />
+    </strings>
+  </definitions>
+  <config>
+    <name>testing</name>
+    <logging>False</logging>
+    <version>2</version>
+  </config>
+  <maps>
+    <map>
+      <row>empty, empty, empty, empty, empty</row>
+      <row>empty, empty, empty, empty, empty</row>
+      <row>empty, empty, empty, empty, empty</row>
+      <row>empty, empty, empty, empty, empty</row>
+      <row>empty, empty, empty, empty, empty</row>
+      <row>empty, empty, empty, empty, empty</row>
+    </map>
+    <one>
+      <row>empty, empty, empty, empty</row>
+      <row>empty, empty, empty, empty</row>
+      <row>empty, empty, empty, empty</row>
+      <row>empty, empty, empty, empty</row>
+    </one>
+    <two empty="immune">
+      <row>unit1, unit2</row>
+      <row>immune, immune</row>
+      <row>immune, empty</row>
+    </two>
+  </maps>
+  <var>
+    <time>4</time>
+  </var>
+  <entities>
+    <move1>
+      <ACT>5</ACT>
+      <equipment>1</equipment>
+    </move1>
+    <notempty>
+      <require>$target.NAME != immune</require>
+    </notempty>
+    <unit1>
+      <group>group1</group>
+      <inventory>move1</inventory>
+      <ACT>5</ACT>
+    </unit1>
+    <unit2 />
+    <sideways>
+      <require>DISTANCE.x == 0</require>
+    </sideways>
+    <immune immutable="" />
+    <group1>
+      <ACT>5</ACT>
+      <equipment>1</equipment>
+    </group1>
+  </entities>
+</udebs>

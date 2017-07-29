@@ -1,0 +1,47 @@
+<udebs>
+
+<config>
+     <logging>False</logging> 
+    <name>Trust</name>
+    <version>2</version>
+</config>
+
+<definitions>
+    <stats>
+        <score />
+    </stats>
+</definitions>
+
+<config>
+    <version>2</version>
+</config>
+
+<entities>
+    <tick>
+        <effect>
+            <i>INIT play</i>
+            <i>INIT end</i>
+        </effect>
+    </tick>
+
+    <play>
+        <effect>
+            <i>a = (CHOICE_H)</i>
+            <i>b = (CHOICE_C)</i>
+            <i>human score += LOOKUP.$a.$b</i>
+            <i>computer score += LOOKUP.$b.$a</i>
+        </effect>
+    </play>
+    
+    <end>
+        <require>STAT.envtime >= LOOKUP.timer</require>
+        <effect>EXIT</effect>
+    </end>
+
+    <!-- Players -->
+    <human />
+
+    <computer />
+</entities>
+
+</udebs>
