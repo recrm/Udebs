@@ -1,9 +1,6 @@
 from udebs import interpret
-import itertools
-import logging
 import copy
 import collections
-import sys
 
 class Entity(collections.MutableMapping):
     def __init__(self, field, options={}):
@@ -159,7 +156,7 @@ class Entity(collections.MutableMapping):
     def controlIncrement(self, stat, increment, multiplyer=1):
         """Changes stored stat of target by increment."""
         increment = int(increment * multiplyer)
-        self[stat] = self[stat] + increment
+        self[stat] += increment
         return increment
 
     def controlListClear(self, lst):
