@@ -40,6 +40,9 @@ def battleWrite(env, location, pretty=False):
     if env.version != 1:
         version = e.SubElement(config, 'version')
         version.text = str(env.version)
+    if env.seed != None:
+        seed = e.SubElement(config, 'seed')
+        seed.text = str(env.seed)
 
     #map
     maps = e.SubElement(root, 'maps')
@@ -169,6 +172,10 @@ def battleStart(xml_file, debug=False):
         version = config.findtext('version')
         if version is not None:
             field.version = int(version)
+            
+        seed = config.findtext('seed')
+        if seed is not None:
+            field.seed = int(seed)
 
     if field.logging:
         logging.basicConfig(stream=sys.stdout, level=logging.INFO, format="%(message)s")
@@ -241,11 +248,6 @@ def battleStart(xml_file, debug=False):
         if time is not None:
             field.time = int(time.text)
 
-        log = var.find('log')
-        if log is not None:
-            for item in log:
-                field.log.append(item.text)
-
         #Delay has changed, this is probobly broken.
         delay = var.find('delay')
         if delay is not None:
@@ -309,5 +311,8 @@ def battleStart(xml_file, debug=False):
 
     if field.revert:
         field.state.append(copy.deepcopy(field))
+
+    if field.seed:
+        field.rand.seed(field.seed)
 
     return field
