@@ -113,7 +113,10 @@
     </monster_activate>
 
     <party_activate>
-        <require>STAT.$T.ACT >= 2</require>
+        <require>
+            <i>STAT.$T.ACT >= 2</i>
+            <i>STAT.$T.HP > 0</i>
+        </require>
         <effect>activate $T</effect>
     </party_activate>
     
@@ -378,7 +381,6 @@
             <i>CHANGE $T HP (STAT.$target.MAXHP - STAT.$target.HP)</i>
             <i>CHANGE $T MP (STAT.$target.MAXMP - STAT.$target.MP)</i>
         </effect>
-        <group>globe</group>
     </full_heal>
     
     <heal>

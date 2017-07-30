@@ -186,7 +186,6 @@ def subBattle(monster="monster"):
     while len(battle.getGroup("monster")) > 0:
         battle.controlTime(1)
     fight_music.fadeout(1000)
-    message("You WIN!!")
     sound_overworld.play(-1)
 
 def setChar(new):
