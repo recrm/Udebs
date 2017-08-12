@@ -137,7 +137,7 @@ def battleWrite(env, location, pretty=False):
     return True
 
 #Creates and instance object from xml file.
-def battleStart(xml_file, debug=False):
+def battleStart(xml_file, debug=False, script="init"):
     """
     Creates an instanance object from given xml file.
 
@@ -306,13 +306,14 @@ def battleStart(xml_file, debug=False):
 
     #Final cleanup
     logging.info("INITIALIZING {}".format(field.name))
-    if 'tick' not in field:
-        logging.info("warning, no tick is defined.\n")
 
     if field.revert:
         field.state.append(copy.deepcopy(field))
 
     if field.seed:
         field.rand.seed(field.seed)
+
+    if script and script in field:
+        field.controlInit(script)
 
     return field

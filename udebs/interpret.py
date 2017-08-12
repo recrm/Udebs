@@ -21,12 +21,19 @@ class standard:
     def logicif(cond, value, other):
         return value if cond else other
 
-    def inside(before, after):
-        return before in after
+    def inside(before, after, amount=1):
+        count = 0
+        for item in after:
+            if item == before:
+                count +=1
+                if count == amount:
+                    return True
+                    
+        return False
 
-    def notin(before, after):
-        return before not in after
-
+    def notin(*args, **kwargs):
+        return not standard.inside(*args, **kwargs)
+        
     def equal(*args):
         x = args[0]
         for y in args:

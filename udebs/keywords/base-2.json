@@ -5,11 +5,13 @@
     },
     "in": {
         "f": "standard.inside",
-        "args": ["-$1", "$1"]
+        "args": ["-$1", "$1", "$2"],
+         "default": {"$2": 1}
     },
     "not-in": {
         "f": "standard.notin",
-        "args": ["-$1", "$1"]
+        "args": ["-$1", "$1", "$2"],
+        "default": {"$2": 1}
     },
     "min": {
         "f": "min",
@@ -106,9 +108,5 @@
         "f": "standard.quote",
         "args": ["$1"],
         "string": ["$1"]
-    },
-    "ind_test": {
-        "f": "standard._print",
-        "args": ["It works!!"]
     }
 }

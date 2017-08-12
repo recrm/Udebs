@@ -63,7 +63,6 @@ module = {"check": {
 }}
 udebs.importModule(module, {"check": check})
 main_map = udebs.battleStart("xml/chess.xml")
-main_map.controlInit('init')
 main_map.resetState()
 
 #globals

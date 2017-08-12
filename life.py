@@ -4,7 +4,6 @@ from pygame.locals import *
 
 def createMap():
     main_map = udebs.battleStart("xml/life.xml")
-    main_map.controlInit('init')
     main_map.resetState()
     return main_map
 

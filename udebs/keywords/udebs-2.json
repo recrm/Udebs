@@ -7,7 +7,7 @@
     },
     "LOSES": {
         "f": "self.controlList",
-        "args": ["-$2", "-$1", "-$1", "remove"],
+        "args": ["-$2", "-$1", "$1", "remove"],
         "default": {"-$2": "$caster"}
     },
     "CLEAR": {
@@ -64,6 +64,11 @@
         "f": "self.controlDelay",
         "args": ["$caster", "$target", "$move", "$1", "$2"]
     },
+    "TIME": {
+        "f": "self.controlTime",
+        "args": ["$1"],
+        "default": {"$1": 0}
+    },
 
     "#": "Get from entity.",
     "STAT": {
@@ -109,6 +114,10 @@
 
     "#": "Get from environment.",
 
+    "SHUFFLE": {
+        "f": "self.shuffle",
+        "args": ["-$2", "-$1"]
+    },
     "DICE": {
         "f": "self.rand.randint",
         "args": [0, "$1"]

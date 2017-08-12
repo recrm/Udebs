@@ -274,7 +274,7 @@ class Instance(collections.MutableMapping):
     #---------------------------------------------------
     #                 Time Management                  -
     #---------------------------------------------------
-    def controlTime(self, time=1):
+    def controlTime(self, time=1, script="tick"):
         """Changes internal time, runs tick script, and updates any delayed effects.
 
         time - Integer representing number of updates.
@@ -290,12 +290,18 @@ class Instance(collections.MutableMapping):
                         delay['script'].call(delay['env'])
                         again = True
 
+        if time == 0:
+            logging.info("")
+        
         checkdelay()
         for i in range(time):
             self.time +=1
+            
             logging.info('Env time is now {}'.format(self.time))
-            if 'tick' in self:
-                self.controlInit(self['tick'])
+            if script in self:
+                self.controlMove(self["empty"], self["empty"], self[script])
+                checkdelay()
+            
             for delay in self.delay:
                 delay['ticks'] -=1
             checkdelay()
@@ -303,8 +309,8 @@ class Instance(collections.MutableMapping):
             #Append new version to state.
             if self.revert:
                 self.state.append(copy.deepcopy(self))
-            
-            logging.info('')
+                
+            logging.info("")
             
         # Move staged moves to stored moves.
         for key, value in self.movestage.items():
@@ -314,6 +320,7 @@ class Instance(collections.MutableMapping):
             self.movestore[key].extend(value)
             value.clear()
             
+#        logging.info("")
         self.state = self.state[-self.revert:]
         return self.cont
 
@@ -448,7 +455,8 @@ class Instance(collections.MutableMapping):
     def getGroup(self, group):
         """Return all objects belonging to group."""
         group = self.getEntity(group)
-        return [unit for unit in self if group.name in self.getStat(unit, "group")]
+        values = [unit for unit in self if group.name in self.getStat(unit, "group")]
+        return sorted(values)
 
     def getListStat(self, lst, stat):
         """Returns combination of all stats for objects in a units list.
@@ -507,32 +515,38 @@ class Instance(collections.MutableMapping):
     #---------------------------------------------------
     #                 Call wrappers                    -
     #---------------------------------------------------
-    def controlMove(self, caster, targets, moves):
+    def controlMove(self, casters, targets, moves):
         """Main function to trigger an event."""
+        casters = self.getEntity(casters, multi=True)
         targets = self.getEntity(targets, multi=True)
         moves = self.getEntity(moves, multi=True)
 
         value = False
 
-        for target in targets:
-            for move in moves:
-                logging.info("{} uses {} on {}".format(caster, move, target.loc if target.immutable else target))
-                test = move.call(caster, target)
-                if test != True:
-                    logging.info("failed because {}".format(test))
-                else:
-                    value = True
+        for caster in casters:
+            for target in targets:
+                for move in moves:
+                    # Logging
+                    if target.name == caster.name == "empty":
+                        logging.info("init {}".format(move))
+                    else:
+                        tname = target
+                        if target.immutable and target.loc:
+                            tname = target.loc
+                        
+                        logging.info("{} uses {} on {}".format(caster, move, tname))
+                    
+                    test = move.call(caster, target)
+                    if test != True:
+                        logging.info("failed because {}".format(test))
+                    else:
+                        value = True
 
         return value
 
     def controlInit(self, moves, time=0):
         """Wrapper of controlMove where caster and target are unimportant."""
-        moves = self.getEntity(moves, multi=True)
-        for move in moves:
-            logging.info("{} has been triggered.".format(move))
-            move.call(self["empty"], self["empty"])
-
-        self.controlTime(time)
+        self.castMove(self["empty"], self["empty"], moves, time)
 
     def castMove(self, caster, target , move, time=0):
         """Wrapper of controlMove that appends a tick."""
@@ -670,6 +684,14 @@ class Instance(collections.MutableMapping):
                 target.controlLoc()
 
             caster.controlLoc()
+            
+    #---------------------------------------------------
+    #                 Misc functions                   -
+    #---------------------------------------------------
+    def shuffle(self, target, stat):
+        target = self.getEntity(target)
+        self.rand.shuffle(target[stat])
+        logging.info("{} {} has been shuffled".format(target, stat))
             
 #---------------------------------------------------
 #                     Errors                       -

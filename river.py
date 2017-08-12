@@ -14,8 +14,6 @@ basicFont = pygame.font.SysFont(None, 20)
 
 #Initialize Udebs
 field = udebs.battleStart("xml/river.xml")
-field.rand.seed(26892201)
-field.controlInit('init')
 
 BLACK = (0,0,0)
 WHITE = (255,255,255)

@@ -20,7 +20,6 @@ pygame.display.set_caption('A simple hex GUI')
 
 #Setup udebs
 main_map = udebs.battleStart("xml/hex.xml")
-main_map.controlInit('init')
 
 class hexagon:
     def __init__(self, a, b, ts):
