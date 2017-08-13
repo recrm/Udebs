@@ -17,11 +17,11 @@ def norecurse(f):
         for i in traceback.extract_stack():
             if i[2] == f.__name__:
                 return True
-                
+
         return f(*args, **kwargs)
-        
+
     return func
-    
+
 def lookup(name, table):
     """Function for adding a basic lookup function to the interpreter."""
     def wrapper(*args):
@@ -31,9 +31,9 @@ def lookup(name, table):
                 value = value[i]
             except KeyError:
                 return 0
-            
+
         return value
-    
+
     interpret.importModule({name: {
         "f": "f_" + name,
         "all": True,
@@ -98,7 +98,7 @@ class Instance(collections.MutableMapping):
         #internal use only.
         self._data = {}
         self.nameless = {}
-        
+
 
     def __eq__(self, other):
         if not isinstance(other, Instance):
@@ -153,7 +153,7 @@ class Instance(collections.MutableMapping):
     #---------------------------------------------------
     #               Selector Function                  -
     #---------------------------------------------------
-    
+
     @dispatchmethod.dispatchmethod
     def getEntity(self, target, multi=False):
         """Returns entity object based on given selector.
@@ -163,7 +163,7 @@ class Instance(collections.MutableMapping):
 
         """
         raise UndefinedSelectorError(target, "entity")
-        
+
     @getEntity.register(entity.Entity)
     def _(self, target, multi=False):
         return target
@@ -180,10 +180,10 @@ class Instance(collections.MutableMapping):
         #If string, return associated entity.
         if target in self:
             return self[target]
-        
+
         elif target == "bump":
             return self["empty"]
-        
+
         raise UndefinedSelectorError(target, "entity")
 
     @getEntity.register(interpret.UdebsStr)
@@ -212,10 +212,10 @@ class Instance(collections.MutableMapping):
                     continue
 
                 buf += char
-            
+
             raw = interpret.UdebsStr(buf)
             scripts.append(interpret.Script(raw, self.version))
-            
+
         else:
             scripts.append(interpret.Script(target, self.version))
 
@@ -258,16 +258,16 @@ class Instance(collections.MutableMapping):
                 return self.map[target]
             except KeyError:
                 raise UndefinedSelectorError(target, "map")
-        
+
         elif target.__class__ is entity.Entity:
             return self.getMap(target.loc)
-        
+
         elif target.__class__ is board.Board:
             return target
-        
+
         elif target.__class__ is tuple:
             return self.getMap("map" if len(target) < 3 else target[2])
-        
+
         else:
             raise UndefinedSelectorError(target, "map")
 
@@ -292,16 +292,16 @@ class Instance(collections.MutableMapping):
 
         if time == 0:
             logging.info("")
-        
+
         checkdelay()
         for i in range(time):
             self.time +=1
-            
+
             logging.info('Env time is now {}'.format(self.time))
             if script in self:
                 self.controlMove(self["empty"], self["empty"], self[script])
                 checkdelay()
-            
+
             for delay in self.delay:
                 delay['ticks'] -=1
             checkdelay()
@@ -309,17 +309,17 @@ class Instance(collections.MutableMapping):
             #Append new version to state.
             if self.revert:
                 self.state.append(copy.deepcopy(self))
-                
+
             logging.info("")
-            
+
         # Move staged moves to stored moves.
         for key, value in self.movestage.items():
             if key not in self.movestore:
                 self.movestore[key] = []
-                
+
             self.movestore[key].extend(value)
             value.clear()
-            
+
 #        logging.info("")
         self.state = self.state[-self.revert:]
         return self.cont
@@ -327,6 +327,8 @@ class Instance(collections.MutableMapping):
     def resetState(self):
         self.state.clear()
         self.state.append(copy.deepcopy(self))
+        self.cont = True
+        self.time = 0
 
     def getRevert(self, value=0):
         index = -(value +1)
@@ -336,6 +338,7 @@ class Instance(collections.MutableMapping):
             return False
 
         del self.state[index+1:]
+        new.state = self.state
         return new
 
     def controlDelay(self, caster, target, move, callback, delay):
@@ -445,7 +448,7 @@ class Instance(collections.MutableMapping):
                 return next(iterValues(target))
             except StopIteration:
                 return ""
-        
+
         # Temporary until I can figure out a better way to do this.
         elif stat == "envtime":
             return self.time
@@ -506,7 +509,7 @@ class Instance(collections.MutableMapping):
         for arg in args:
             found = found.intersection(self.getGroup(arg))
         return sorted(list(found))
-        
+
     def mapIter(self, mapname="map"):
         map_ = self.getMap(mapname)
         for loc in map_:
@@ -533,9 +536,9 @@ class Instance(collections.MutableMapping):
                         tname = target
                         if target.immutable and target.loc:
                             tname = target.loc
-                        
+
                         logging.info("{} uses {} on {}".format(caster, move, tname))
-                    
+
                     test = move.call(caster, target)
                     if test != True:
                         logging.info("failed because {}".format(test))
@@ -584,7 +587,7 @@ class Instance(collections.MutableMapping):
     def controlIncrement(self, targets, stat, increment, multi=1):
         if increment == 0:
             return
-        
+
         targets = self.getEntity(targets, multi=True)
         for target in targets:
             target.controlIncrement(stat, increment, multi)
@@ -677,14 +680,14 @@ class Instance(collections.MutableMapping):
         for target in targets:
             if not caster.immutable and caster.loc:
                 self.getMap(caster.loc).controlBump(caster.loc)
-            
+
             if target.loc:
                 self.getMap(target).controlMove(caster.name, target.loc)
                 logging.info("{} has moved to {}".format(caster, target.loc))
                 target.controlLoc()
 
             caster.controlLoc()
-            
+
     #---------------------------------------------------
     #                 Misc functions                   -
     #---------------------------------------------------
@@ -692,7 +695,7 @@ class Instance(collections.MutableMapping):
         target = self.getEntity(target)
         self.rand.shuffle(target[stat])
         logging.info("{} {} has been shuffled".format(target, stat))
-            
+
 #---------------------------------------------------
 #                     Errors                       -
 #---------------------------------------------------
