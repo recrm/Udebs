@@ -28,12 +28,12 @@ class standard:
                 count +=1
                 if count == amount:
                     return True
-                    
+
         return False
 
     def notin(*args, **kwargs):
         return not standard.inside(*args, **kwargs)
-        
+
     def equal(*args):
         x = args[0]
         for y in args:
@@ -133,14 +133,14 @@ class variables:
 def importModule(dicts={}, globs={}, version="other"):
     """
     Allows user to extend base variables available to the interpreter.
-    Should be run before the instance object is created.    
+    Should be run before the instance object is created.
     """
     if isinstance(globs, list):
         globs = {i.__name__: i for i in globs}
-        
+
     elif not isinstance(globs, dict):
         globs = {globs.__name__: globs}
-    
+
     variables.modules[version].append(dicts)
     variables.env.update(globs)
 

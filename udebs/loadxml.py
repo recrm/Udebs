@@ -172,7 +172,7 @@ def battleStart(xml_file, debug=False, script="init"):
         version = config.findtext('version')
         if version is not None:
             field.version = int(version)
-            
+
         seed = config.findtext('seed')
         if seed is not None:
             field.seed = int(seed)
@@ -292,7 +292,6 @@ def battleStart(xml_file, debug=False, script="init"):
                     find_list = [find_list]
                 for value in find_list:
                     if lst in {"effect", "require"}:
-                        require = (lst == "require")
                         value.text = interpret.Script(value.text, field.version, debug)
                     new_list.append(value.text)
             options[lst] = new_list
