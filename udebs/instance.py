@@ -549,12 +549,14 @@ class Instance(collections.MutableMapping):
 
     def controlInit(self, moves, time=0):
         """Wrapper of controlMove where caster and target are unimportant."""
-        self.castMove(self["empty"], self["empty"], moves, time)
+        return self.castMove(self["empty"], self["empty"], moves, time)
 
     def castMove(self, caster, target , move, time=0):
         """Wrapper of controlMove that appends a tick."""
-        self.controlMove(caster, target, move)
-        self.controlTime(time)
+        value = self.controlMove(caster, target, move)
+        if value:
+            self.controlTime(time)
+        return value
 
     def testMove(self, caster, target, move):
         """Gutted controlMove, returns if event would have activated."""
