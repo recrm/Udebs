@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 import udebs
 
 class TicTacToe(udebs.state.State):
@@ -37,27 +38,28 @@ def endgame(state):
 
     return "t" if tie else ""
 
-module = {"ENDGAME": {
-    "f": "endgame",
-    "args": ["self"],
-}}
-udebs.importModule(module, {"endgame": endgame})
-game = udebs.battleStart("xml/tictactoe.xml")
+if __name__ == "__main__":
+    module = {"ENDGAME": {
+        "f": "endgame",
+        "args": ["self"],
+    }}
+    udebs.importModule(module, {"endgame": endgame})
+    game = udebs.battleStart("xml/tictactoe.xml")
 
-# Setup state
-moves = [
-#    (0,0),
-#    (1,0),
-]
+    # Setup state
+    moves = [
+    #    (0,0),
+    #    (1,0),
+    ]
 
-player = "xPlayer"
-for i in moves:
-    game.controlMove(player, i, "placement")
-    player = ("xPlayer" if player == "oPlayer" else "oPlayer")
+    player = "xPlayer"
+    for i in moves:
+        game.controlMove(player, i, "placement")
+        player = ("xPlayer" if player == "oPlayer" else "oPlayer")
 
-print(game.map["map"].map)
+    print(game.map["map"].map)
 
-# Create state analysis engine
-analysis = TicTacToe(game, "alphaBeta")
-final = analysis.result()
-print("final", final.value)
+    # Create state analysis engine
+    analysis = TicTacToe(game, "alphaBeta")
+    final = analysis.result()
+    print("final", final.value)

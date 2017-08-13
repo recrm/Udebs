@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 import sys
 import csv
 import itertools
@@ -45,7 +46,8 @@ class Chopsticks(state.State):
 
         return None
 
-field = udebs.battleStart("xml/chopsticks.xml")
-env = Chopsticks(field, "bruteForceLoop")
-value = env.result()
-print("final", value.value)
+if __name__ == "__main__":
+    field = udebs.battleStart("xml/chopsticks.xml")
+    env = Chopsticks(field, "bruteForceLoop")
+    value = env.result()
+    print("final", value.value)

@@ -1,35 +1,9 @@
+#!/usr/bin/env python3
 import sys
 import math
 import pygame
 from pygame.locals import *
 import udebs
-
-#initialize pygame and udebs
-ts = 15
-pygame.init()
-pygame.display.set_caption('A simple river simulation')
-mainClock = pygame.time.Clock()
-mainSurface = pygame.display.set_mode((850, 520), 0, 32)
-basicFont = pygame.font.SysFont(None, 20)
-
-#Initialize Udebs
-field = udebs.battleStart("xml/river.xml")
-
-BLACK = (0,0,0)
-WHITE = (255,255,255)
-
-colours = {
-    'black': (0, 0, 0),
-    'grass': (0, 128, 0),
-    'deep': (0, 0, 255),
-    'shallow': (0, 255, 255),
-    'dirt': (139, 69, 19),
-    'sand': (218, 165, 32),
-}
-
-#globals
-loc = (0,0,'map')
-pause = False
 
 class hexagon:
     def __init__(self, a, b, ts):
@@ -69,30 +43,58 @@ def drawSurface():
 
     pygame.display.update()
 
+if __name__ == "__main__":
+    #initialize pygame and udebs
+    ts = 15
+    pygame.init()
+    pygame.display.set_caption('A simple river simulation')
+    mainClock = pygame.time.Clock()
+    mainSurface = pygame.display.set_mode((850, 520), 0, 32)
+    basicFont = pygame.font.SysFont(None, 20)
 
-#game loop
-drawSurface()
-while True:
-    for event in pygame.event.get():
-        if event.type == QUIT:
-            pygame.quit()
-            sys.exit()
+    #Initialize Udebs
+    field = udebs.battleStart("xml/river.xml")
 
-        elif event.type == MOUSEBUTTONDOWN:
-            mouse = pygame.mouse.get_pos()
-            for y in range(field.getMap().y):
-                for x in range(field.getMap().x):
-                    if hexagon(x, y, ts).square.collidepoint(mouse):
-                        loc = (x, y, "map")
+    BLACK = (0,0,0)
+    WHITE = (255,255,255)
 
-        elif event.type == KEYDOWN:
-            if event.key == K_SPACE:
-                pause = not pause
+    colours = {
+        'black': (0, 0, 0),
+        'grass': (0, 128, 0),
+        'deep': (0, 0, 255),
+        'shallow': (0, 255, 255),
+        'dirt': (139, 69, 19),
+        'sand': (218, 165, 32),
+    }
 
+    #globals
+    loc = (0,0,'map')
+    pause = False
+
+
+    #game loop
     drawSurface()
+    while True:
+        for event in pygame.event.get():
+            if event.type == QUIT:
+                pygame.quit()
+                sys.exit()
 
-    if not pause and field.time < 1000000:
-        field.controlTime(50)
-    mainClock.tick(60)
-    if field.time >= 1000:
-        sys.exit()
+            elif event.type == MOUSEBUTTONDOWN:
+                mouse = pygame.mouse.get_pos()
+                for y in range(field.getMap().y):
+                    for x in range(field.getMap().x):
+                        if hexagon(x, y, ts).square.collidepoint(mouse):
+                            loc = (x, y, "map")
+
+            elif event.type == KEYDOWN:
+                if event.key == K_SPACE:
+                    pause = not pause
+
+        drawSurface()
+
+        if not pause and field.time < 1000000:
+            field.controlTime(50)
+        mainClock.tick(60)
+        if field.time >= 1000:
+            sys.exit()

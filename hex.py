@@ -1,25 +1,9 @@
+#!/usr/bin/env python3
 import math
 import pygame
 import sys
 from pygame.locals import *
 import udebs
-
-#definitions
-ts = 20
-BLACK = (0, 0, 0)
-GREEN = (0, 255, 0)
-WHITE = (255, 255, 255)
-RED = (255, 0, 0)
-
-#Setup pygame
-pygame.init()
-mainFont = pygame.font.SysFont(None, 48)
-mainClock = pygame.time.Clock()
-mainSurface = pygame.display.set_mode((500, 400), 0, 32)
-pygame.display.set_caption('A simple hex GUI')
-
-#Setup udebs
-main_map = udebs.battleStart("xml/hex.xml")
 
 class hexagon:
     def __init__(self, a, b, ts):
@@ -64,20 +48,38 @@ def eventUpdate():
 
     pygame.display.update()
 
-#game loop
-eventUpdate()
-while True:
-    for event in pygame.event.get():
-        if event.type == QUIT:
-            pygame.quit()
-            sys.exit()
+if __name__ == "__main__":
+    #definitions
+    ts = 20
+    BLACK = (0, 0, 0)
+    GREEN = (0, 255, 0)
+    WHITE = (255, 255, 255)
+    RED = (255, 0, 0)
 
-        elif event.type == MOUSEBUTTONDOWN:
-            mouse = pygame.mouse.get_pos()
-            for x in range(8):
-                for y in range(8):
-                    if hexagon(x, y, ts).square.collidepoint(mouse):
-                        main_map.controlMove('token', (x,y), 'click')
-                        eventUpdate()
+    #Setup pygame
+    pygame.init()
+    mainFont = pygame.font.SysFont(None, 48)
+    mainClock = pygame.time.Clock()
+    mainSurface = pygame.display.set_mode((500, 400), 0, 32)
+    pygame.display.set_caption('A simple hex GUI')
 
-    mainClock.tick(60)
+    #Setup udebs
+    main_map = udebs.battleStart("xml/hex.xml")
+
+    #game loop
+    eventUpdate()
+    while True:
+        for event in pygame.event.get():
+            if event.type == QUIT:
+                pygame.quit()
+                sys.exit()
+
+            elif event.type == MOUSEBUTTONDOWN:
+                mouse = pygame.mouse.get_pos()
+                for x in range(8):
+                    for y in range(8):
+                        if hexagon(x, y, ts).square.collidepoint(mouse):
+                            main_map.controlMove('token', (x,y), 'click')
+                            eventUpdate()
+
+        mainClock.tick(60)

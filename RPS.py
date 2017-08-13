@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 import udebs
 import random
 import sys
@@ -66,23 +67,15 @@ xml = """
 </udebs>
 """
 
-udebs.randomPlayer("CHOICE_C", "tick", "options")
-udebs.humanPlayer("CHOICE_H", "tick", "options")
-udebs.lookup("LOOKUP", {
-    "rock": {"paper": -1},
-    "paper": {"scissors": -1},
-    "scissors": {"rock": -1},
-})
+if __name__ == "__main__":
+    udebs.randomPlayer("CHOICE_C", "tick", "options")
+    udebs.humanPlayer("CHOICE_H", "tick", "options")
+    udebs.lookup("LOOKUP", {
+        "rock": {"paper": -1},
+        "paper": {"scissors": -1},
+        "scissors": {"rock": -1},
+    })
 
-def exit():
-    sys.exit()
-
-module = {
-    "EXIT": {
-        "f": "exit",
-    },
-}
-udebs.importModule(module, exit)
-game = udebs.battleStart(xml)
-while True:
-    game.controlTime()
+    game = udebs.battleStart(xml)
+    while game.controlTime():
+        pass
