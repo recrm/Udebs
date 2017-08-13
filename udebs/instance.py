@@ -698,6 +698,12 @@ class Instance(collections.MutableMapping):
         self.rand.shuffle(target[stat])
         logging.info("{} {} has been shuffled".format(target, stat))
 
+    def callSingle(self, string):
+        """Call a function directly from a user inputed Udebs String."""
+        code = interpret.Script(string, version=self.version)
+        env = interpret._getEnv({}, {"self": self})
+        return code.call(env)
+
 #---------------------------------------------------
 #                     Errors                       -
 #---------------------------------------------------
