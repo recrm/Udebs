@@ -276,7 +276,7 @@ glob = {
 }
 udebs.importModule(local, glob)
 main_map = udebs.battleStart("xml/zanar2.xml", script=False)
-battle = udebs.battleStart("xml/rpg.xml")
+battle = udebs.battleStart("xml/rpg.xml", script=False)
 
 main_map.controlInit("init")
 def main():

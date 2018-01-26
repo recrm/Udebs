@@ -86,7 +86,7 @@ class Instance(collections.MutableMapping):
         self.rlist = {'group'}
         self.rmap = set()
 
-        #random
+        #internal
         self.rand = random.Random()
 
         #time
@@ -96,8 +96,6 @@ class Instance(collections.MutableMapping):
         self.next = None
 
         #var
-        self.movestore = {}
-        self.movestage = {}
         self.delay = []
         self.map = {}
 
@@ -106,9 +104,6 @@ class Instance(collections.MutableMapping):
 
         #Do not copy
         self.state = []
-
-        #List of attributes that can be shared across copied instances.
-        self.share = {"name", "logging", "revert", "version", "seed", "lists", "stats", "strings", "rlist", "rmap", "rand", "share"}
 
     def __eq__(self, other):
         if not isinstance(other, Instance):
@@ -125,11 +120,10 @@ class Instance(collections.MutableMapping):
 
         #Prevent state from being copied.
         for k, v in self.__dict__.items():
-            if k in self.share:
-                setattr(new, k, v)
-
-            elif k != "state":
+            if k in {"delay", "map", "data"}:
                 setattr(new, k, copy.deepcopy(v, memo))
+            elif k != "state":
+                setattr(new, k, v)
 
         #Set all saved Entities to this field.
         for e in new.values():
@@ -321,14 +315,6 @@ class Instance(collections.MutableMapping):
                 self.state.append(copy.deepcopy(self))
 
             logging.info("")
-
-        # Move staged moves to stored moves.
-        for key, value in self.movestage.items():
-            if key not in self.movestore:
-                self.movestore[key] = []
-
-            self.movestore[key].extend(value)
-            value.clear()
 
         if self.revert:
             self.state = self.state[-self.revert:]
