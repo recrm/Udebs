@@ -306,13 +306,13 @@ def battleStart(xml_file, debug=False, script="init"):
     #Final cleanup
     logging.info("INITIALIZING {}".format(field.name))
 
-    if field.revert:
-        field.state.append(copy.deepcopy(field))
-
     if field.seed:
         field.rand.seed(field.seed)
 
     if script and script in field:
         field.controlInit(script)
+
+    if field.revert:
+        field.state.append(copy.deepcopy(field))
 
     return field
