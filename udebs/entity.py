@@ -87,8 +87,8 @@ class Entity(collections.MutableMapping):
         if target:
             env = self.getEnv(env, target)
 
-        for i in self.field.getStat(self, 'effect'):
-            i.call(env)
+        for effect in self.field.getStat(self, 'effect'):
+            effect(env)
 
         return True
 
@@ -96,13 +96,13 @@ class Entity(collections.MutableMapping):
         if target:
             env = self.getEnv(env, target)
 
-        for i in self.field.getStat(self, 'require'):
-            if not i.call(env):
-                return i
+        for require in self.field.getStat(self, 'require'):
+            if not require(env):
+                return require
 
         return True
 
-    def call(self, env, target=False):
+    def __call__(self, env, target=False):
         if target:
             env = self.getEnv(env, target)
 

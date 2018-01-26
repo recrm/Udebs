@@ -291,7 +291,7 @@ class Instance(collections.MutableMapping):
                 for delay in self.delay[:]:
                     if delay['ticks'] <= 0:
                         self.delay.remove(delay)
-                        delay['script'].call(delay['env'])
+                        delay['script'](delay['env'])
                         again = True
 
         if time == 0:
@@ -549,7 +549,7 @@ class Instance(collections.MutableMapping):
 
                         logging.info("{} uses {} on {}".format(caster, move, tname))
 
-                    test = move.call(caster, target)
+                    test = move(caster, target)
                     if test != True:
                         logging.info("failed because {}".format(test))
                     else:
@@ -712,7 +712,7 @@ class Instance(collections.MutableMapping):
         """Call a function directly from a user inputed Udebs String."""
         code = interpret.Script(string, version=self.version)
         env = interpret._getEnv({}, {"self": self})
-        return code.call(env)
+        return code(env)
 
 #---------------------------------------------------
 #                     Errors                       -

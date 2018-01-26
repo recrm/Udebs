@@ -377,7 +377,7 @@ class Script:
     def __repr__(self):
         return self.raw
 
-    def call(self, env):
+    def __call__(self, env):
         try:
             return eval(self.code, env)
         except Exception:
