@@ -21,7 +21,7 @@ class hexagon:
         self.square = pygame.Rect(0, 0, ts*1.5, ts*1.5)
         self.square.center = self.center
 
-def drawSurface():
+def drawSurface(field):
     #redraw the board
     mainSurface.fill(BLACK)
     for y in range(field.getMap().y):
@@ -44,16 +44,13 @@ def drawSurface():
     pygame.display.update()
 
 if __name__ == "__main__":
-    #initialize pygame and udebs
+    #initialize pygame
     ts = 15
     pygame.init()
     pygame.display.set_caption('A simple river simulation')
     mainClock = pygame.time.Clock()
     mainSurface = pygame.display.set_mode((850, 520), 0, 32)
     basicFont = pygame.font.SysFont(None, 20)
-
-    #Initialize Udebs
-    field = udebs.battleStart("xml/river.xml")
 
     BLACK = (0,0,0)
     WHITE = (255,255,255)
@@ -69,12 +66,9 @@ if __name__ == "__main__":
 
     #globals
     loc = (0,0,'map')
-    pause = False
-
 
     #game loop
-    drawSurface()
-    while True:
+    for field in udebs.battleStart("xml/river.xml").gameLoop(50):
         for event in pygame.event.get():
             if event.type == QUIT:
                 pygame.quit()
@@ -89,12 +83,9 @@ if __name__ == "__main__":
 
             elif event.type == KEYDOWN:
                 if event.key == K_SPACE:
-                    pause = not pause
+                    field.increment = 0 if field.increment == 50 else 50
 
-        drawSurface()
-
-        if not pause and field.time < 1000000:
-            field.controlTime(50)
+        drawSurface(field)
         mainClock.tick(60)
         if field.time >= 1000:
-            sys.exit()
+            break

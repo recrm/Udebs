@@ -26,9 +26,12 @@ def lookup(name, table):
     """Function for adding a basic lookup function to the interpreter."""
     def wrapper(*args):
         value = table
-        for i in args:
+        for arg in args:
+            if isinstance(arg, entity.Entity):
+                arg = arg.name
+
             try:
-                value = value[i]
+                value = value[arg]
             except KeyError:
                 return 0
 
@@ -83,22 +86,29 @@ class Instance(collections.MutableMapping):
         self.rlist = {'group'}
         self.rmap = set()
 
-        #var
+        #random
+        self.rand = random.Random()
+
+        #time
         self.time = 0
+        self.increment = 1
+        self.cont = True
+        self.next = None
+
+        #var
         self.movestore = {}
         self.movestage = {}
-        self.cont = True
         self.delay = []
         self.map = {}
 
-        #Other
-        self.rand = random.Random()
+        #Object storage.
+        self._data = {}
+
+        #Do not copy
         self.state = []
 
-        #internal use only.
-        self._data = {}
-        self.nameless = {}
-
+        #List of attributes that can be shared across copied instances.
+        self.share = {"name", "logging", "revert", "version", "seed", "lists", "stats", "strings", "rlist", "rmap", "rand", "share"}
 
     def __eq__(self, other):
         if not isinstance(other, Instance):
@@ -115,14 +125,14 @@ class Instance(collections.MutableMapping):
 
         #Prevent state from being copied.
         for k, v in self.__dict__.items():
-            if k != "state":
+            if k in self.share:
+                setattr(new, k, v)
+
+            elif k != "state":
                 setattr(new, k, copy.deepcopy(v, memo))
 
         #Set all saved Entities to this field.
         for e in new.values():
-            e.field = new
-
-        for e in new.nameless.values():
             e.field = new
 
         return new
@@ -190,8 +200,8 @@ class Instance(collections.MutableMapping):
     def _(self, target, multi=False):
         #Interpretted callback
         # Nameless has already been processed.
-        if target in self.nameless:
-            return self.nameless[target]
+        if target in self:
+            return self[target]
 
         #Process new nameless.
         scripts = []
@@ -219,8 +229,8 @@ class Instance(collections.MutableMapping):
         else:
             scripts.append(interpret.Script(target, self.version))
 
-        self.nameless[target] = entity.Entity(self, {"require": scripts})
-        return self.nameless[target]
+        self[target] = entity.Entity(self, {"require": scripts})
+        return self[target]
 
     @getEntity.register(tuple)
     def _(self, target, multi=False):
@@ -320,9 +330,23 @@ class Instance(collections.MutableMapping):
             self.movestore[key].extend(value)
             value.clear()
 
-#        logging.info("")
-        self.state = self.state[-self.revert:]
+        if self.revert:
+            self.state = self.state[-self.revert:]
         return self.cont
+
+    def gameLoop(self, time=1, script="tick"):
+        self.increment = time
+        while True:
+            yield self
+
+            if self.next is not None:
+                yield self.next
+                self = self.next
+
+            if not self.cont:
+                return
+
+            self.controlTime(self.increment, script=script)
 
     def resetState(self):
         self.state.clear()

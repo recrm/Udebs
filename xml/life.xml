@@ -5,6 +5,7 @@
     <version>2</version>
     <logging>False</logging>
     <seed>4643</seed>
+    <revert>5</revert>
 </config>
 
 <definitions>
@@ -12,11 +13,11 @@
         <NBR />
         <LIFE />
     </stats>
-    
+
     <lists>
         <save />
     </lists>
-    
+
 </definitions>
 
 <maps>
@@ -37,19 +38,19 @@
     <neighbors>
         <require>DISTANCE.pinf == 1</require>
     </neighbors>
-    
-    
+
+
     <!-- Count neighbors -->
     <increment>
         <require>$target != $caster</require>
         <effect>DELAY `(tick save GETS $target) 0</effect>
     </increment>
-    
+
     <increment_neighbor>
         <group>increment</group>
         <effect>DELAY `($target NBR += 1) 0</effect>
     </increment_neighbor>
-    
+
     <decrement_neighbor>
         <group>increment</group>
         <effect>DELAY `($target NBR -= 1) 0</effect>
@@ -65,12 +66,12 @@
             <i>$target CAST FILL.$target.neighbors increment_neighbor</i>
         </effect>
     </life>
-    
+
     <autolife>
         <group>life</group>
         <require>$target.STAT.NBR == 3</require>
     </autolife>
-    
+
     <randomlife>
         <group>life</group>
         <require>DICE.4 == 0</require>
@@ -99,7 +100,7 @@
             <i>CAST $all randomlife</i>
         </effect>
     </init>
-    
+
     <tick>
         <effect>
             <i>all = (dedup $move.STAT.save)</i>

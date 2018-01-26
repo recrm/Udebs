@@ -77,7 +77,6 @@ if __name__ == "__main__":
     }}
     udebs.importModule(module, {"check": check})
     main_map = udebs.battleStart("xml/chess.xml")
-    main_map.resetState()
 
     #globals
     BLACK = (0,0,0)

@@ -9,6 +9,7 @@ import os
 #---------------------------------------------------
 #            Imports and Variables                 -
 #---------------------------------------------------
+
 class standard:
     """
     Basic functionality built into the Udebs scripting language.
@@ -22,11 +23,17 @@ class standard:
         return value if cond else other
 
     def inside(before, after, amount=1):
+        if isinstance(after, str):
+            return before in after
+
+        if amount == 0:
+            return True
+
         count = 0
         for item in after:
             if item == before:
                 count +=1
-                if count == amount:
+                if count >= amount:
                     return True
 
         return False

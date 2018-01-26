@@ -3,18 +3,13 @@ import pygame
 import udebs
 from pygame.locals import *
 
-def createMap():
-    main_map = udebs.battleStart("xml/life.xml")
-    main_map.resetState()
-    return main_map
-
-def redrawBoard(surface):
+def redrawBoard(surface, ts):
     surface.fill((0,0,0))
     for target in main_map.mapIter():
         if main_map.getStat(target, "LIFE"):
             rect = pygame.Rect(target.loc[0]*(ts), target.loc[1]*(ts), ts, ts)
             pygame.draw.rect(surface, (100,200,100, 127), rect)
-            
+
     pygame.display.update()
 
 def dedup(lst):
@@ -29,52 +24,48 @@ if __name__ == "__main__":
     udebs.importModule(module, {"dedup": dedup})
 
      # State variables
-    run = True
-    main_map = createMap()
     ts = 10
-    
+    field = udebs.battleStart("xml/life.xml")
+
     #Setup pygame
     pygame.init()
     pygame.display.set_caption("Conway's game of life.")
-    surface = pygame.display.set_mode((ts*main_map.getMap().x, ts*main_map.getMap().y), 0, 32)
+    surface = pygame.display.set_mode((ts*field.getMap().x, ts*field.getMap().y), 0, 32)
     mainClock = pygame.time.Clock()
 
-    #game loop
-    for i in range(50):
-#    while True:
-        redrawBoard(surface)    
-        
+#    #game loop
+    for main_map in field.gameLoop(1):
+        redrawBoard(surface, ts)
+        mainClock.tick(60)
+
         for event in pygame.event.get():
             if event.type == QUIT:
                 pygame.quit()
-                exit()
-                
+                main_map.exit()
+
             elif event.type == MOUSEBUTTONDOWN:
                 mouse = pygame.mouse.get_pos()
                 for target in main_map.mapIter():
-                    rect = pygame.Rect(target.loc[0]*ts, target.loc[1]*ts, ts, ts) 
+                    rect = pygame.Rect(target.loc[0]*ts, target.loc[1]*ts, ts, ts)
                     if rect.collidepoint(mouse):
                         print(target.loc, main_map.getStat(target, "LIFE"), main_map.getStat(target, "NBR"))
-                        
+
             elif event.type == KEYDOWN:
                 if event.key == K_SPACE:
-                    run = not run
-                    
+                    main_map.increment = 0 if main_map.increment == 1 else 1
+
                 if event.key == K_DELETE:
-                    main_map = createMap()
-                    
-                elif not run:
+                    main_map.next = udebs.battleStart("xml/life.xml")
+                    main_map.next.increment = main_map.increment
+
+                elif main_map.increment == 0:
                     # Step back one step
                     if event.key == K_LEFT:
                         test = main_map.getRevert(1)
                         if test:
-                            main_map = test
-                    
+                            main_map.next = test
+                            main_map.next.increment = 0
+
                     # Step forward one step
-                    elif event.key == K_RIGHT:
+                    if event.key == K_RIGHT:
                         main_map.controlTime(1)
-                        
-        if run:
-            main_map.controlTime(1)
-        
-        mainClock.tick(60)
