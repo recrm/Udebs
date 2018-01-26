@@ -120,7 +120,7 @@ class Instance(collections.MutableMapping):
 
         #Prevent state from being copied.
         for k, v in self.__dict__.items():
-            if k in {"delay", "map", "data"}:
+            if k in {"delay", "map", "_data"}:
                 setattr(new, k, copy.deepcopy(v, memo))
             elif k != "state":
                 setattr(new, k, v)
