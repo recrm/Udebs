@@ -3,6 +3,7 @@
 <config>
     <revert>100</revert>
     <logging>False</logging>
+    <name>chess</name>
 </config>
 
 <definitions>

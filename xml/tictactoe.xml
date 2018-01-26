@@ -3,6 +3,7 @@
 <config>
     <version>2</version>
     <logging>False</logging>
+    <name>tictactoe</name>
 </config>
 
 <map>

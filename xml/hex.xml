@@ -2,6 +2,7 @@
 
 <config>
     <hex>True</hex>
+    <name>hex</name>
 </config>
 
 <definitions>
@@ -34,7 +35,7 @@
     </init>
 
 <!--    Metrics-->
-    
+
 
     <suptravel>
         <require>

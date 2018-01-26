@@ -1,11 +1,11 @@
 <udebs>
 
 <config>
-<!--    <revert>20</revert>-->
+    <revert>5</revert>
     <version>2</version>
     <logging>False</logging>
     <seed>4643</seed>
-    <revert>5</revert>
+    <name>life</name>
 </config>
 
 <definitions>
