@@ -120,7 +120,7 @@ class Board(collections.MutableMapping):
         else:
             raise UndefinedMetricError(method)
 
-    def getAdjacent(self, center, callback=False, pointer=None):
+    def getAdjacent(self, center, callback=False, pointer=None, include_center=True):
         """
         Iterates over concentric circles of adjacent tiles.
 
@@ -133,7 +133,12 @@ class Board(collections.MutableMapping):
             yield []
             return
 
-        new = {center}
+        new = set()
+        if include_center:
+            new.add(center)
+        else:
+            new.add(False)
+
         searched = {center}
         next = self.adjacent(center, pointer)
 
@@ -141,6 +146,9 @@ class Board(collections.MutableMapping):
 
         while len(new) > 0:
             #Sorted is needed to force program to be deterministic.
+            if False in new:
+                new.remove(False)
+
             yield sorted(list(new))
             new = set()
             for node in next:
@@ -181,8 +189,8 @@ class Board(collections.MutableMapping):
             if new == start:
                 found.reverse()
                 return found
-                
-    def getFill(self, center, callback=False, distance=float("inf"), rand=None):
+
+    def getFill(self, center, callback=False, distance=float("inf"), rand=None, include_center=True):
         """
         Returns a list of map spaces that center fills into.
 
@@ -195,7 +203,7 @@ class Board(collections.MutableMapping):
         found = []
         count = 0
         #first iteration is always the center itself.
-        for i in self.getAdjacent(center, callback):
+        for i in self.getAdjacent(center, callback, include_center=include_center):
             found.extend(i)
             if count >= distance:
                 break
@@ -224,7 +232,7 @@ class Board(collections.MutableMapping):
                 if 0 <= x < self.x:
                     if 0 <= y < self.y:
                         return True
-                        
+
         return False
 
     def testBlock(self, start, finish, callback):
