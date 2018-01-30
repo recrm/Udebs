@@ -257,20 +257,20 @@ class Instance(collections.MutableMapping):
         if not target:
             return False
 
-        if target.__class__ is str:
+        if isinstance(target, str):
             try:
                 return self.map[target]
             except KeyError:
                 raise UndefinedSelectorError(target, "map")
 
-        elif target.__class__ is entity.Entity:
-            return self.getMap(target.loc)
-
-        elif target.__class__ is board.Board:
+        elif isinstance(target, board.Board):
             return target
 
-        elif target.__class__ is tuple:
-            return self.getMap("map" if len(target) < 3 else target[2])
+        elif isinstance(target, entity.Entity):
+            return self.map[target.loc[2] if len(target.loc) == 3 else "map"]
+
+        elif isinstance(target, tuple):
+            return self.map[target[2] if len(target) == 3 else "map"]
 
         else:
             raise UndefinedSelectorError(target, "map")
@@ -318,6 +318,7 @@ class Instance(collections.MutableMapping):
 
         if self.revert:
             self.state = self.state[-self.revert:]
+
         return self.cont
 
     def gameLoop(self, time=1, script="tick"):
@@ -351,20 +352,12 @@ class Instance(collections.MutableMapping):
         new.state = self.state
         return new
 
-    def controlDelay(self, caster, target, move, callback, delay):
+    def controlDelay(self, callback, delay, storage):
         """
         Creates a new delay object.
 
         """
-        var_local = {
-            "caster": caster,
-            "target": target,
-            "move": move,
-            "C": caster,
-            "T": target,
-            "M": move,
-        }
-        env = interpret._getEnv(var_local, {"self": self})
+        env = interpret._getEnv(storage, {"self": self})
 
         new_delay = {
             "env": env,
@@ -674,13 +667,13 @@ class Instance(collections.MutableMapping):
         callback = self.getEntity(callback)
         return self.getMap(caster).testBlock(caster, target, callback)
 
-    def getFill(self, center, callback=False, distance=float("inf")):
+    def getFill(self, center, callback=False, include_center=True, distance=float("inf")):
         center = self.getEntity(center).loc
         if center == False:
             return []
 
         callback = self.getEntity(callback)
-        return self.getMap(center).getFill(center, callback, distance, self.rand)
+        return self.getMap(center).getFill(center, callback, distance, self.rand, include_center=include_center)
 
     #---------------------------------------------------
     #              Board control wrappers              -
@@ -693,12 +686,13 @@ class Instance(collections.MutableMapping):
             if not caster.immutable and caster.loc:
                 self.getMap(caster.loc).controlBump(caster.loc)
 
-            if target.loc:
-                self.getMap(target).controlMove(caster.name, target.loc)
-                logging.info("{} has moved to {}".format(caster, target.loc))
-                target.controlLoc()
+            loc = target.loc
+            if loc:
+                self.getMap(target).controlMove(caster.name, loc)
+                logging.info("{} has moved to {}".format(caster, loc))
+                target.controlLoc(False)
 
-            caster.controlLoc()
+            caster.controlLoc(loc)
 
     #---------------------------------------------------
     #                 Misc functions                   -
