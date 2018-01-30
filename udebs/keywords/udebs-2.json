@@ -62,7 +62,7 @@
     },
     "DELAY": {
         "f": "self.controlDelay",
-        "args": ["$caster", "$target", "$move", "$1", "$2"]
+        "args": ["$1", "$2", "storage"]
     },
     "TIME": {
         "f": "self.controlTime",
@@ -132,7 +132,8 @@
     },
     "FILL": {
         "f": "self.getFill",
-        "args": ["$1", "$2"]
+        "args": ["$1", "$2", "$3"],
+        "default": {"$3": true}
     },
     "PATH": {
         "f": "self.getPath",
