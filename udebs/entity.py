@@ -140,16 +140,25 @@ class Entity(collections.MutableMapping):
     #---------------------------------------------------
     #               Update Functions                   -
     #---------------------------------------------------
-    def controlLoc(self):
+    def controlLoc(self, loc=None):
         """Updates stored location with system location."""
         if not self.immutable:
-            for map_ in self.field.map.values():
-                test = map_.getLoc(self.name)
-                if test:
-                    self.loc = test
-                    break
+            if loc is None:
+                for map_ in self.field.map.values():
+                    test = map_.getLoc(self.name)
+                    if test:
+                        self.loc = test
+                        break
+                else:
+                    self.loc = False
+
             else:
-                self.loc = False
+
+                if loc:
+                    name = self.field.getMap(loc[2])[loc]
+                    assert name == self.name
+
+                self.loc = loc
 
         return self.loc
 
