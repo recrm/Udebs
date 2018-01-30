@@ -176,7 +176,11 @@ def formatS(string, version):
     string = str(string)
     if string == "self":
         return string
-    if string.isdigit():
+    elif string == "false":
+        return "False"
+    elif string == "true":
+        return "True"
+    elif string.isdigit():
         return string
     #String quoted by user.
     elif string[0] == string[-1] and string[0] in {"'", '"'}:
