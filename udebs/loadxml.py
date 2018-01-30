@@ -137,7 +137,7 @@ def battleWrite(env, location, pretty=False):
     return True
 
 #Creates and instance object from xml file.
-def battleStart(xml_file, debug=False, script="init"):
+def battleStart(xml_file, debug=False, script="init", name=None, revert=None, log=None, version=None, seed=None):
     """
     Creates an instanance object from given xml file.
 
@@ -157,25 +157,40 @@ def battleStart(xml_file, debug=False, script="init"):
     config = root.find("config")
     if config is not None:
 
-        name = config.findtext("name")
-        if name is not None:
+        if name is None:
+            name = config.findtext("name")
+            if name is not None:
+                field.name = name
+        else:
             field.name = name
 
-        revert = config.findtext("revert")
-        if revert is not None:
-            field.revert = int(revert)
+        if revert is None:
+            revert = config.findtext("revert")
+            if revert is not None:
+                field.revert = int(revert)
+        else:
+            field.revert = revert
 
-        log = config.findtext('logging')
-        if log is not None:
-            field.logging = eval(log)
+        if log is None:
+            log = config.findtext('logging')
+            if log is not None:
+                field.logging = eval(log)
+        else:
+            field.logging = logging
 
-        version = config.findtext('version')
-        if version is not None:
-            field.version = int(version)
+        if version is None:
+            version = config.findtext('version')
+            if version is not None:
+                field.version = int(version)
+        else:
+            field.version = version
 
-        seed = config.findtext('seed')
-        if seed is not None:
-            field.seed = int(seed)
+        if seed is None:
+            seed = config.findtext('seed')
+            if seed is not None:
+                field.seed = int(seed)
+        else:
+            field.seed = seed
 
     if field.logging:
         logging.basicConfig(stream=sys.stdout, level=logging.INFO, format="%(message)s")
