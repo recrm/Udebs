@@ -102,6 +102,9 @@ class Instance(collections.MutableMapping):
         #Object storage.
         self._data = {}
 
+        #Used by players
+        self.movestore = {}
+
         #Do not copy
         self.state = []
 
@@ -182,13 +185,13 @@ class Instance(collections.MutableMapping):
     @getEntity.register(str)
     def _(self, target, multi=False):
         #If string, return associated entity.
-        if target in self:
-            return self[target]
-
-        elif target == "bump":
+        if target == "bump":
             return self["empty"]
 
-        raise UndefinedSelectorError(target, "entity")
+        try:
+            return self[target]
+        except KeyError:
+            raise UndefinedSelectorError(target, "entity")
 
     @getEntity.register(interpret.UdebsStr)
     def _(self, target, multi=False):
@@ -294,11 +297,10 @@ class Instance(collections.MutableMapping):
                         delay['script'](delay['env'])
                         again = True
 
-        if time == 0:
-            logging.info("")
-
         checkdelay()
         for i in range(time):
+            logging.info("")
+
             self.time +=1
 
             logging.info('Env time is now {}'.format(self.time))
@@ -313,8 +315,6 @@ class Instance(collections.MutableMapping):
             #Append new version to state.
             if self.revert:
                 self.state.append(copy.deepcopy(self))
-
-            logging.info("")
 
         if self.revert:
             self.state = self.state[-self.revert:]
@@ -423,7 +423,12 @@ class Instance(collections.MutableMapping):
             #class and rlist
             for lst in self.rlist:
                 for unit in target[lst]:
-                    value = self.getStat(self[unit], stat)
+                    try:
+                        group = self[unit]
+                    except KeyError:
+                        raise UndefinedSelectorError(unit, "group")
+
+                    value = self.getStat(group, stat)
                     if value:
                         yield value
 
@@ -456,7 +461,7 @@ class Instance(collections.MutableMapping):
         elif stat == "envtime":
             return self.time
         else:
-            raise UndefinedStatError(stat)
+            raise UndefinedSelectorError(stat, "stat")
 
     def getGroup(self, group):
         """Return all objects belonging to group."""
@@ -480,7 +485,7 @@ class Instance(collections.MutableMapping):
         elif stat in self.strings:
             return next(found)
         else:
-            raise UndefinedStatError(stat)
+            raise UndefinedSelectorError(stat, "stat")
 
     def getListGroup(self, target, lst, group):
         """Returns first element in list that is a member of group.
@@ -553,6 +558,10 @@ class Instance(collections.MutableMapping):
     def controlInit(self, moves, time=0):
         """Wrapper of controlMove where caster and target are unimportant."""
         return self.castMove(self["empty"], self["empty"], moves, time)
+
+    def controlAction(self, caster, move, time=0):
+        """Wrapper of controlMove where target is unimportant."""
+        return self.castMove(caster, self["empty"], move, time)
 
     def castMove(self, caster, target , move, time=0):
         """Wrapper of controlMove that appends a tick."""
@@ -711,13 +720,6 @@ class Instance(collections.MutableMapping):
 #---------------------------------------------------
 #                     Errors                       -
 #---------------------------------------------------
-
-class UndefinedStatError(Exception):
-    def __init__(self, stat):
-        self.stat = stat
-    def __str__(self):
-        return repr(self.stat)+" is not a defined stat."
-
 class UndefinedSelectorError(Exception):
     def __init__(self, target, _type):
         self.selector = target
