@@ -402,7 +402,7 @@ class UdebsExecutionError(Exception):
     def __init__(self, script):
         self.script = script
     def __str__(self):
-        return "invalid '{}' \ninterpreted as '{}'".format(self.script.raw, self.script.interpret)
+        return "invalid '{}'".format(self.script.raw)
 
 class UdebsParserError(Exception):
     def __init__(self, string):
