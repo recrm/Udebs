@@ -48,7 +48,7 @@ if __name__ == "__main__":
                 for target in main_map.mapIter():
                     rect = pygame.Rect(target.loc[0]*ts, target.loc[1]*ts, ts, ts)
                     if rect.collidepoint(mouse):
-                        print(target.loc, main_map.getStat(target, "LIFE"), main_map.getStat(target, "NBR"))
+                        print(target.loc, main_map.getStat(target, "LIFE"), main_map.getStat(target, "NBR"), target.name)
 
             elif event.type == KEYDOWN:
                 if event.key == K_SPACE:

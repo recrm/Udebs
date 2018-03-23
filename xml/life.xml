@@ -23,8 +23,8 @@
 <maps>
     <map type="diag">
         <dim>
-            <x>25</x>
-            <y>25</y>
+            <x>100</x>
+            <y>100</y>
         </dim>
     </map>
 </maps>
@@ -39,29 +39,16 @@
         <require>DISTANCE.pinf == 1</require>
     </neighbors>
 
-    <!-- Count neighbors -->
-    <increment>
-        <effect>DELAY `(tick save GETS $target) 0</effect>
-    </increment>
-
-    <increment_neighbor>
-        <group>increment</group>
-        <effect>DELAY `($target NBR += 1) 0</effect>
-    </increment_neighbor>
-
-    <decrement_neighbor>
-        <group>increment</group>
-        <effect>DELAY `($target NBR -= 1) 0</effect>
-    </decrement_neighbor>
-
     <!-- Life -->
     <life>
         <require>
             <i>$target.STAT.LIFE == 0</i>
         </require>
         <effect>
-            <i>$target LIFE REPLACE 1</i>
-            <i>$target CAST FILL.$target.neighbors.false increment_neighbor</i>
+            <i>DELAY `($target LIFE REPLACE 1) 0</i>
+            <i>all = FILL.$target.neighbors.false</i>
+            <i>DELAY `(tick save GETS $all) 0</i>
+            <i>DELAY `($all NBR += 1) 0</i>
         </effect>
     </life>
 
@@ -73,15 +60,17 @@
     <randomlife>
         <group>life</group>
         <require>DICE.4 == 0</require>
-        <effect>tick save GETS $target</effect>
+        <effect>tick save GETS $target.LOC</effect>
     </randomlife>
 
     <!-- Death -->
     <death>
         <require>$target.STAT.LIFE == 1</require>
         <effect>
-            <i>$target LIFE REPLACE 0</i>
-            <i>$target CAST FILL.$target.neighbors.false decrement_neighbor</i>
+            <i>DELAY `($target LIFE REPLACE 0) 0</i>
+            <i>all = FILL.$target.neighbors.false</i>
+            <i>DELAY `(tick save GETS $all) 0</i>
+            <i>DELAY `($all NBR -= 1) 0</i>
         </effect>
     </death>
 
