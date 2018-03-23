@@ -7,20 +7,13 @@ def createPlayer(function, name, entity, stat=None):
             choices = instance.getStat(entity, stat)
         else:
             choices = entity
-         
-        value = function(choices, instance.movestore)
-        
-        if name not in instance.movestore:
-            instance.movestage[name] = [] 
-            
-        instance.movestage[name].append(value)
-        return value
+
+        return function(choices, instance.movestore)
 
     importModule({name: {
         "f": "f_" + name,
         "args": ["self"],
     }}, {"f_" + name: wrapper})
-    
     
 def distributionPlayer(name, population, weights, seed=None):
     rand = random.Random(seed)
