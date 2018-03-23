@@ -1,6 +1,3 @@
-#!/usr/bin/env python3
-
-import sys
 import copy
 import json
 import itertools
@@ -415,5 +412,3 @@ class UdebsParserError(Exception):
 #---------------------------------------------------
 importSystemModule("base")
 importSystemModule("udebs")
-if __name__ == "__main__":
-    print("final:", interpret(sys.argv[1], 2, debug=True))

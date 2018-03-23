@@ -5,7 +5,6 @@ import itertools
 import collections
 import logging
 import traceback
-import functools
 
 #---------------------------------------------------
 #                  Utilities                       -

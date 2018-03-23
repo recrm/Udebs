@@ -1,6 +1,5 @@
 import copy
 import functools
-import random
 
 @functools.total_ordering
 class Result:
