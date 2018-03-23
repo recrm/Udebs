@@ -16,7 +16,7 @@
     },
     "DELAY": {
         "f": "self.controlDelay",
-        "args": ["$caster", "$target", "$move", "$1", "$2"]
+        "args": ["$1", "$2", "storage"]
     },
     "GETS": {
         "f": "self.controlList",
