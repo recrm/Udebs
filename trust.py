@@ -4,7 +4,6 @@ import random
 import sys
 import itertools
 
-
 if __name__ == "__main__":
 
     options = ["cheat", "cooperate"]
@@ -52,16 +51,11 @@ if __name__ == "__main__":
         y["f"]("CHOICE_H", options, **y["kwargs"])
 
         game = udebs.battleStart("xml/trust.xml")
-        while game.controlTime():
+        for i in game.gameLoop():
             pass
 
         x["score"] += game.getStat("computer", "score")
         y["score"] += game.getStat("human", "score")
-
-        if x["name"] == "random" or y["name"] == "random":
-            print(x["name"], game.getStat("computer", "score"))
-            print(y["name"], game.getStat("human", "score"))
-            print()
 
     for i in players:
         print(i["name"], i["score"])
