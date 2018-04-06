@@ -1,16 +1,20 @@
 <udebs>
 
 <config>
-    <revert>2</revert>
+    <revert>0</revert>
     <version>2</version>
+    <logging>False</logging>
 <!--    <seed>4643</seed>-->
 </config>
 
 <definitions>
     <stats>
-        <points />
+        <amount />
+
+        <chests />
         <keys />
-        <death />
+        <skulls />
+        <lives />
     </stats>
 
     <lists>
@@ -21,105 +25,131 @@
 
 <entities>
     <!-- Cards -->
+    <cards />
+
     <boat>
+        <amount>9</amount>
         <group>cards</group>
     </boat>
 
-    <map>
+    <dmap>
+        <amount>9</amount>
         <group>cards</group>
         <effect>
             <i>$caster CAST $target draw</i>
             <i>$caster CAST $target draw</i>
         </effect>
+    </dmap>
+
+    <map>
+        <amount>9</amount>
+        <group>cards</group>
+        <effect>$caster CAST $target draw</effect>
     </map>
 
     <skull>
+        <amount>9</amount>
         <group>cards</group>
-        <death>1</death>
+        <effect>$caster skulls += 1</effect>
     </skull>
 
     <chest>
+        <amount>9</amount>
         <group>cards</group>
-        <points>1</points>
+        <effect>$caster chests += 1</effect>
     </chest>
 
     <key>
+        <amount>9</amount>
         <group>cards</group>
-        <keys>1</keys>
+        <effect>$caster keys += 1</effect>
     </key>
 
     <!-- system -->
-    <hand />
+    <hands />
+
+    <hand>
+        <group>hands</group>
+        <lives>3</lives>
+    </hand>
+
     <deck />
-    <cards />
 
     <!-- Deck Actions -->
-    <fill>
-        <require>$caster not-in $target.STAT.cards LOOKUP.$caster</require>
-        <effect>
-            <i>$target cards GETS $caster</i>
-            <i>$caster CAST $target fill</i>
-        </effect>
-    </fill>
-
     <shuffle>
         <effect>
-            <i>$caster CLEAR cards</i>
-            <i>$target CLEAR cards</i>
-            <i>ALL.cards CAST $target fill</i>
-            <i>$target cards SHUFFLE</i>
+            <i>ALL.hands ACTION dumphand</i>
+            <i>ALL.cards CAST $caster insert</i>
+            <i>$caster cards SHUFFLE</i>
         </effect>
     </shuffle>
 
+    <!-- Hand / deck interactions -->
     <draw>
+        <require>
+            <i>drawn = ($target.STAT.cards elem 0)</i>
+            <i>$drawn != empty</i>
+        </require>
         <effect>
-            <i>drawn = (deck.STAT.cards elem 0)</i>
             <i>$target cards LOSES $drawn</i>
             <i>$caster cards GETS $drawn</i>
             <i>$caster CAST $target $drawn</i>
         </effect>
     </draw>
 
-    <!-- Scoring Actions -->
-    <death>
-        <require>
-            <i>amount = (LOOKUP.skull - 6)</i>
-            <i>($target.STAT.cards LISTSTAT death) &gt;= $amount</i>
-        </require>
+    <insert>
+        <require>$caster not-in $target.STAT.cards $caster.STAT.amount</require>
         <effect>
-<!--            <i>print $target has died</i>-->
+            <i>$target cards GETS $caster</i>
+            <i>$caster CAST $target insert</i>
+        </effect>
+    </insert>
+
+    <!-- Hand Actions -->
+    <dumphand>
+        <effect>
+            <i>$caster CLEAR cards</i>
+            <i>$caster chests REPLACE 0</i>
+            <i>$caster keys REPLACE 0</i>
+            <i>$caster skulls REPLACE 0</i>
+        </effect>
+    </dumphand>
+
+    <checkdeath>
+        <require>$caster.STAT.skulls &gt;= $caster.STAT.lives</require>
+        <effect>
+            <i>print $caster has died</i>
             <i>EXIT</i>
         </effect>
-    </death>
+    </checkdeath>
 
     <tally>
         <effect>
-            <i>chests = ($target.STAT.cards LISTSTAT points)</i>
-            <i>keys = ($target.STAT.cards LISTSTAT keys)</i>
+            <i>chests = $caster.STAT.chests</i>
+            <i>keys = $caster.STAT.keys</i>
             <i>score = (($chests * 2) + (min $chests $keys))</i>
-<!--            <i>print $target has $score points</i>-->
-            <i>$target points REPLACE $score</i>
+            <i>print $caster has $score points</i>
+            <i>print $caster has $caster.STAT.skulls skulls</i>
         </effect>
     </tally>
 
     <!-- System Actions -->
     <init>
         <effect>
-            <i>hand CAST deck shuffle</i>
-<!--            <i>(TIME)</i>-->
+            <i>deck ACTION shuffle</i>
             <i>hand CAST deck draw</i>
-<!--            <i>hand CAST deck draw</i>-->
-<!--            <i>hand CAST deck draw</i>-->
-<!--            <i>CAST hand tally</i>-->
-            <i>CAST hand death</i>
+            <i>hand CAST deck draw</i>
+            <i>hand CAST deck draw</i>
+            <i>hand ACTION tally</i>
+            <i>hand ACTION checkdeath</i>
         </effect>
     </init>
 
     <tick>
         <effect>
             <i>hand CAST deck draw</i>
-<!--            <i>CAST hand tally</i>-->
-            <i>CAST hand death</i>
+            <i>hand ACTION tally</i>
+            <i>hand ACTION checkdeath</i>
         </effect>
     </tick>
 
