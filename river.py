@@ -87,5 +87,5 @@ if __name__ == "__main__":
 
         drawSurface(field)
         mainClock.tick(60)
-        if field.time >= 1000:
+        if field.time >= 1000000:
             break
