@@ -16,31 +16,28 @@
 <entities>
 
     <!--Default-->
-    <unit-move>
-        <require>
-            <i>$caster.STAT.FIN &gt; 0</i>
-            <i>$caster.STAT.ACT &gt;= 2</i>
-        </require>
+    <init>
         <effect>
-            <i>$caster.CLASS.player ACT CHANGE -($caster.STAT.ACT)</i>
-            <i>ALL.player ACT += 1</i>
+            <i>one ACT REPLACE 2</i>
+            <i>two ACT REPLACE 1</i>
+<!--             <i>INIT printmap</i> -->
         </effect>
-    </unit-move>
+    </init>
 
-    <!--Unit Groups-->
+    <printmap>
+        <effect>
+            <i>print one-left.STAT.FIN one-right.STAT.FIN</i>
+            <i>print two-left.STAT.FIN two-right.STAT.FIN</i>
+        </effect>
+    </printmap>
+
+    <player />
+
+    <!-- Player one -->
     <one>
-        <ACT>2</ACT>
         <group>player</group>
     </one>
 
-    <two>
-        <ACT>1</ACT>
-        <group>player</group>
-    </two>
-
-    <player/>
-
-    <!--Units-->
     <one-left>
         <group>one</group>
         <FIN>1</FIN>
@@ -48,8 +45,13 @@
 
     <one-right>
         <group>one</group>
-        <FIN>3</FIN>
+        <FIN>1</FIN>
     </one-right>
+
+    <!-- Player two -->
+    <two>
+        <group>player</group>
+    </two>
 
     <two-left>
         <group>two</group>
@@ -58,10 +60,22 @@
 
     <two-right>
         <group>two</group>
-        <FIN>2</FIN>
+        <FIN>1</FIN>
     </two-right>
 
     <!--Moves-->
+    <unit-move>
+        <require>
+            <i>$caster.STAT.FIN &gt; 0</i>
+            <i>$caster.STAT.ACT &gt;= 2</i>
+        </require>
+        <effect>
+            <i>$caster.CLASS.player ACT CHANGE -($caster.STAT.ACT)</i>
+            <i>ALL.player ACT += 1</i>
+<!--             <i>INIT printmap</i> -->
+        </effect>
+    </unit-move>
+
     <attack>
         <group>unit-move</group>
         <require>
@@ -70,7 +84,7 @@
         </require>
         <effect>
             <i>$target FIN += $caster.STAT.FIN</i>
-            <i>CAST $target close</i>
+            <i>$target ACTION close</i>
         </effect>
     </attack>
 
@@ -90,10 +104,9 @@
 
     <!--Chaincasts    -->
     <close>
-        <require>$target.STAT.FIN >= 5</require>
-        <effect>$target FIN CHANGE -($target.STAT.FIN)</effect>
+        <require>$caster.STAT.FIN &gt;= 5</require>
+        <effect>$caster FIN CHANGE -($caster.STAT.FIN)</effect>
     </close>
-
 </entities>
 
 </udebs>

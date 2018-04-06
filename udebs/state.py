@@ -6,12 +6,12 @@ class Result:
     def __init__(self, name, value=None):
         self.name = name
         self.value = value
-        
+
     def __eq__(self, other):
         if isinstance(other, Result):
             return self.value == other.value
         return self.value == other
-        
+
     def __lt__(self, other):
         check = self.value
         if self.value == None:
@@ -21,30 +21,31 @@ class Result:
             checko = other.value
             if other.value == None:
                 checko = 0
-        
+
             return check < checko
-        
+
         return check < other
-        
+
     def __repr__(self):
         return "{}:{}".format(self.name, self.value)
 
 class State:
     """A State space calculator designed for TicTacToe."""
-    def __init__(self, state, algorithm="bruteForce", storage=None):
+    def __init__(self, state, algorithm="bruteForce", storage=None, entry=None):
         # Instantiating class
         self.state = state
         self.algorithm = algorithm
         self.storage = {} if storage is None else storage
         self.pState = self.pState(state)
-        
+        self.entry = entry
+
     def substates(self):
         """Iterate over substates to a state."""
         stateNew = copy.deepcopy(self.state)
 
         for move in self.legalMoves(self.state):
             if stateNew.controlMove(*move):
-                yield self.__class__(stateNew, self.algorithm, self.storage)
+                yield self.__class__(stateNew, self.algorithm, self.storage, move)
                 stateNew = copy.deepcopy(self.state)
 
     def result(self, minimizer=False, *args, **kwargs):
@@ -63,6 +64,29 @@ class State:
 
         return best
 
+    def tree(self):
+        if self.algorithm != "bruteForce":
+            raise Exception("Generating tree requires bruteForce algorithm.")
+
+        result = self.result().value
+        if result != 0:
+            return result
+
+        moves = {}
+        completed = set()
+        for substate in self.substates():
+            if substate.pState in completed:
+                continue
+
+            completed.add(substate.pState)
+
+            moves[substate.name] = substate.tree()
+
+        if len(completed) == 0:
+            return result
+
+        return moves
+
     #---------------------------------------------------
     #                    Solvers                       -
     #---------------------------------------------------
@@ -73,69 +97,69 @@ class State:
         if alpha is None:
             alpha = -float("inf")
             beta = float("inf")
-        
+
         value = -float("inf")
         if minimizer:
             value *= -1
-        
+
         for state in self.substates():
             result = state.result(not minimizer, alpha, beta)
-            
+
             if minimizer:
                 if result < value:
                     value = result
-                    
+
                 if result < beta:
                     beta = result
             else:
                 if result > value:
                     value = result
-            
+
                 if result > alpha:
                     alpha = result
-                    
+
             if alpha >= beta:
                 break
         else:
             self.storage[self.pState] = value
-        
+
         return value
-    
+
     def bruteForce(self, minimizer):
         """Brute force method for solving a game tree.
         Opens every node in the tree.
         """
         results = [i.result(not minimizer) for i in self.substates()]
-        
+
         if minimizer:
             best = min(results)
         else:
             best = max(results)
-            
-        self.storage[self.pState] = best                
+
+        self.storage[self.pState] = best
         return best
-        
+
     def bruteForceLoop(self, minimizer):
         """Modified brute force solution for a situation where a game can loop in on itself.
         example - chopsticks.
-        
-        Note - This method is not guerenteed to work. 
+
+        Note - This method is not guerenteed to work.
         """
         self.storage[self.pState] = Result(self.pState)
-        
+
         results = [i.result(not minimizer) for i in self.substates()]
-        
+
         if minimizer:
             best = min(results)
         else:
             best = max(results)
-            
+
         for key, value in self.storage.items():
             if value.name == self.pState:
                 self.storage[key] = best
-                
+
         return self.storage[self.pState]
-                
+
     #---------------------------------------------------
     #                    Game Defined functions        -
     #---------------------------------------------------
@@ -162,3 +186,7 @@ class State:
 
     def endState(self, state):
         raise NotImplementedError
+
+    @property
+    def name(self):
+        return str(self.entry)
