@@ -1,13 +1,13 @@
 {
     "#": "Entity actions.",
     "GETS": {
-        "f": "self.controlList",
-        "args": ["-$2", "-$1", "$1", "add"],
+        "f": "self.controlListAdd",
+        "args": ["-$2", "-$1", "$1"],
         "default": {"-$2": "$caster"}
     },
     "LOSES": {
-        "f": "self.controlList",
-        "args": ["-$2", "-$1", "$1", "remove"],
+        "f": "self.controlListRemove",
+        "args": ["-$2", "-$1", "$1"],
         "default": {"-$2": "$caster"}
     },
     "CLEAR": {
@@ -57,8 +57,12 @@
         "default": {"-$1": "$caster"}
     },
     "INIT": {
-        "f": "self.controlInit",
+        "f": "self.castInit",
         "args": ["$1"]
+    },
+    "ACTION": {
+        "f": "self.castAction",
+        "args": ["-$1", "$1"]
     },
     "DELAY": {
         "f": "self.controlDelay",

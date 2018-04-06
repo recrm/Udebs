@@ -6,7 +6,7 @@
         "args": ["$1"]
     },
     "INIT": {
-        "f": "self.controlInit",
+        "f": "self.castInit",
         "args": ["$1"]
     },
     "CAST": {
@@ -19,12 +19,12 @@
         "args": ["$1", "$2", "storage"]
     },
     "GETS": {
-        "f": "self.controlList",
-        "args": ["$1", "$2", "$3", "add"]
+        "f": "self.controlListAdd",
+        "args": ["$1", "$2", "$3"]
     },
     "LOSES": {
-        "f": "self.controlList",
-        "args": ["$1", "$2", "$3", "remove"]
+        "f": "self.controlListRemove",
+        "args": ["$1", "$2", "$3"]
     },
     "CLEAR": {
         "f": "self.controlClear",

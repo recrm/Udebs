@@ -153,9 +153,6 @@ class Instance(collections.MutableMapping):
     def __contains__(self, item):
         return item in self._data
 
-    def exit(self):
-        self.cont = False
-
     #---------------------------------------------------
     #               Selector Function                  -
     #---------------------------------------------------
@@ -231,7 +228,11 @@ class Instance(collections.MutableMapping):
     @getEntity.register(tuple)
     def _(self, target, multi=False):
         #If tuple, this is a location.
-        map_ = self.getMap(target)
+        try:
+            map_ = self.getMap(target)
+        except KeyError:
+            raise UndefinedSelectorError(target, "entity")
+
         try:
             unit = self[map_[target]]
         except IndexError:
@@ -259,7 +260,7 @@ class Instance(collections.MutableMapping):
         if not target:
             return False
 
-        if isinstance(target, str):
+        elif isinstance(target, str):
             try:
                 return self.map[target]
             except KeyError:
@@ -333,6 +334,9 @@ class Instance(collections.MutableMapping):
                 return
 
             self.controlTime(self.increment, script=script)
+
+    def exit(self):
+        self.cont = False
 
     def resetState(self):
         self.state.clear()
@@ -533,32 +537,42 @@ class Instance(collections.MutableMapping):
 
         value = False
 
-        for caster in casters:
-            for target in targets:
-                for move in moves:
-                    # Logging
-                    if target.name == caster.name == "empty":
-                        logging.info("init {}".format(move))
-                    else:
-                        tname = target
-                        if target.immutable and target.loc:
-                            tname = target.loc
+        for caster, target, move in itertools.product(casters, targets, moves):
+            # Logging
+            cname = caster
+            if caster.immutable and caster.loc:
+                cname = caster.loc
 
-                        logging.info("{} uses {} on {}".format(caster, move, tname))
+            tname = target
+            if target.immutable and target.loc:
+                tname = target.loc
 
-                    test = move(caster, target)
-                    if test != True:
-                        logging.info("failed because {}".format(test))
-                    else:
-                        value = True
+            if target.name == caster.name == "empty":
+                logging.info("init {}".format(move))
+            elif target.name == "empty":
+                logging.info("{} uses {}".format(cname, move))
+            else:
+                logging.info("{} uses {} on {}".format(cname, move, tname))
+
+            # Cast the move
+            test = move(caster, target)
+            if test != True:
+                logging.info("failed because {}".format(test))
+            else:
+                value = True
 
         return value
 
-    def controlInit(self, moves, time=0):
+    def testMove(self, caster, target, move):
+        """Gutted controlMove, returns if event would have activated."""
+        move = self.getEntity(move)
+        return move.testRequire(caster, target) == True
+
+    def castInit(self, moves, time=0):
         """Wrapper of controlMove where caster and target are unimportant."""
         return self.castMove(self["empty"], self["empty"], moves, time)
 
-    def controlAction(self, caster, move, time=0):
+    def castAction(self, caster, move, time=0):
         """Wrapper of controlMove where target is unimportant."""
         return self.castMove(caster, self["empty"], move, time)
 
@@ -569,27 +583,26 @@ class Instance(collections.MutableMapping):
             self.controlTime(time)
         return value
 
-    def testMove(self, caster, target, move):
-        """Gutted controlMove, returns if event would have activated."""
-        move = self.getEntity(move)
-        return move.testRequire(caster, target) == True
-
     #---------------------------------------------------
     #               Entity control wrappers            -
     #---------------------------------------------------
-    def controlList(self, targets, lst, entries, command):
+    def controlListAdd(self, targets, lst, entries):
         targets = self.getEntity(targets, multi=True)
         if not isinstance(entries, list):
             entries = [entries]
 
-        for target in targets:
-            for entry in entries:
-                if command == "add":
-                    self.getEntity(target).controlListAdd(lst, entry)
-                    logging.info("{} added to {} {}".format(entry, target, lst))
-                elif command == "remove":
-                    self.getEntity(target).controlListRemove(lst, entry)
-                    logging.info("{} removed from {} {}".format(entry, target, lst))
+        for target, entry in itertools.product(targets, entries):
+            target.controlListAdd(lst, entry)
+            logging.info("{} added to {} {}".format(entry, target, lst))
+
+    def controlListRemove(self, targets, lst, entries):
+        targets = self.getEntity(targets, multi=True)
+        if not isinstance(entries, list):
+            entries = [entries]
+
+        for target, entry in itertools.product(targets, entries):
+            target.controlListRemove(lst, entry)
+            logging.info("{} removed from {} {}".format(entry, target, lst))
 
     def controlClear(self, targets, lst):
         targets = self.getEntity(targets, multi=True)
