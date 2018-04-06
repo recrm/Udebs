@@ -45,9 +45,6 @@ class Entity(collections.MutableMapping):
     def __delitem__(self, key):
         return
 
-    def __iter__(self):
-        return iter(self.data)
-
     def __len__(self):
         return len(self.data)
 
