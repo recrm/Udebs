@@ -325,7 +325,10 @@ def battleStart(xml_file, debug=False, script="init", name=None, revert=None, lo
         field.rand.seed(field.seed)
 
     if script and script in field:
-        field.controlInit(script)
+        field.castInit(script)
+
+    logging.info('')
+    logging.info('Env time is now {}'.format(field.time))
 
     if field.revert:
         field.state.append(copy.deepcopy(field))
