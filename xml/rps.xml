@@ -17,6 +17,7 @@
 <config>
     <version>2</version>
     <name>RPS</name>
+    <logging>False</logging>
 </config>
 
 <entities>
@@ -38,6 +39,8 @@
             <i>user choice REPLACE ''</i>
             <i>computer choice REPLACE ''</i>
             <i>checkresults CLEAR registered</i>
+            <i>print user has user.STAT.lives lives</i>
+            <i>print computer has computer.STAT.lives lives</i>
             <i>INIT gameover</i>
         </effect>
     </checkresults>
@@ -60,7 +63,9 @@
         <effect>
             <i>$caster choice REPLACE $move.NAME</i>
             <i>checkresults registered GETS $caster.NAME</i>
-            <i>DELAY `(CAST $target $move.STAT.choice) 1</i>
+            <i>DELAY `(print $caster uses $move on $target) 1</i>
+            <i>DELAY `($caster CAST $target $move.STAT.choice) 1</i>
+            <i>print $caster move registered</i>
             <i>INIT checkresults</i>
         </effect>
     </throw>
@@ -83,7 +88,10 @@
     <!-- collisions -->
     <collision>
         <require>$move.STAT.beats == $target.STAT.choice</require>
-        <effect>$target lives -= 1</effect>
+        <effect>
+            <i>$target lives -= 1</i>
+            <i>print $target lost a life</i>
+        </effect>
     </collision>
     
     <colliderock>

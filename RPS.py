@@ -77,5 +77,5 @@ if __name__ == "__main__":
     })
 
     game = udebs.battleStart(xml)
-    while game.controlTime():
+    for i in game.gameLoop():
         pass
