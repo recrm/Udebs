@@ -102,7 +102,7 @@ class Instance(collections.MutableMapping):
             return False
 
         for k,v in self.__dict__.items():
-            if k != "state" and v != getattr(other, k):
+            if k not in ("state", "rand") and v != getattr(other, k):
                 return False
 
         return True
@@ -212,7 +212,7 @@ class Instance(collections.MutableMapping):
         else:
             scripts.append(interpret.Script(target, self.version))
 
-        self[target] = entity.Entity(self, {"require": scripts})
+        self[target] = entity.Entity(self, {"require": scripts, "name": target})
         return self[target]
 
     @getEntity.register(tuple)

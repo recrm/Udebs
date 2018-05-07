@@ -5,6 +5,22 @@ import logging
 from udebs import board, entity, instance, interpret
 from xml.etree import ElementTree
 
+#This is a pretty printing algorithm I stole from the internet.
+def indent(elem, level=0):
+    i = "\n" + level*"  "
+    if len(elem):
+        if not elem.text or not elem.text.strip():
+            elem.text = i + "  "
+        if not elem.tail or not elem.tail.strip():
+            elem.tail = i
+        for elem in elem:
+            indent(elem, level+1)
+        if not elem.tail or not elem.tail.strip():
+            elem.tail = i
+    else:
+        if level and (not elem.tail or not elem.tail.strip()):
+            elem.tail = i
+
 #creates an xml file from instance object.
 def battleWrite(env, location, pretty=False):
     """
@@ -16,6 +32,7 @@ def battleWrite(env, location, pretty=False):
     e = ElementTree
     root = e.Element('udebs')
 
+    # Definitions
     definitions = e.SubElement(root, 'definitions')
     for dtype in ['stats', 'lists', 'strings']:
         middle = e.SubElement(definitions, dtype)
@@ -44,6 +61,21 @@ def battleWrite(env, location, pretty=False):
         seed = e.SubElement(config, 'seed')
         seed.text = str(env.seed)
 
+    # Time variables
+    var = e.SubElement(root, 'time')
+    if env.time != 0:
+        time = e.SubElement(var, 'time')
+        time.text = str(env.time)
+    if env.increment != 1:
+        time = e.SubElement(var, 'increment')
+        time.text = str(env.increment)
+    if env.cont != True:
+        time = e.SubElement(var, 'cont')
+        time.text = str(env.cont)
+    if env.next != None:
+        time = e.SubElement(var, 'next')
+        time.text = str(env.next)
+
     #map
     maps = e.SubElement(root, 'maps')
     for map_ in env.map.values():
@@ -63,41 +95,13 @@ def battleWrite(env, location, pretty=False):
                 text = text + ', ' + item
             middle.text = text[2:]
 
-    # Time variables
-    var = e.SubElement(root, 'time')
-    if env.time != 0:
-        time = e.SubElement(var, 'time')
-        time.text = str(env.time)
-    if env.increment != 1:
-        time = e.SubElement(var, 'increment')
-        time.text = str(env.increment)
-    if env.cont != True:
-        time = e.SubElement(var, 'cont')
-        time.text = str(env.cont)
-    if env.next != None:
-        time = e.SubElement(var, 'next')
-        time.text = str(env.next)
-
-    #Delay has changed, this is probobly broken.
-    if env.delay != []:
-        delay = e.SubElement(var, 'delay')
-        for item in env.delay:
-            node = e.SubElement(delay, 'i')
-            node.attrib.update(item)
-            for key, value in node.attrib.items():
-                if isinstance(value, entity):
-                    if not value.immutable:
-                        node.attrib[key] = str(value.name)
-                    else:
-                        node.attrib[key] = str(value.loc)
-                else:
-                    node.attrib[key] = str(value)
-
     #entities
     stats = env.stats.union(env.strings, env.lists)
     entities = e.SubElement(root, 'entities')
     for entity in env.values():
         if entity.name == 'empty':
+            continue
+        elif isinstance(entity.name, interpret.UdebsStr):
             continue
 
         entity_node = e.SubElement(entities, entity.name)
@@ -110,7 +114,7 @@ def battleWrite(env, location, pretty=False):
 
             if stat == 'group':
                 value = [i for i in value if i != entity.name]
-            if value in [0, '', list()]:
+            if value in [0, '', []]:
                 continue
 
             stat_node = e.SubElement(entity_node, stat)
@@ -123,24 +127,36 @@ def battleWrite(env, location, pretty=False):
                     entry_node = e.SubElement(stat_node, 'i')
                     entry_node.text = str(item)
 
-    #This is a pretty printing algorithm I stole from the internet.
-    def indent(elem, level=0):
-        i = "\n" + level*"  "
-        if len(elem):
-            if not elem.text or not elem.text.strip():
-                elem.text = i + "  "
-            if not elem.tail or not elem.tail.strip():
-                elem.tail = i
-            for elem in elem:
-                indent(elem, level+1)
-            if not elem.tail or not elem.tail.strip():
-                elem.tail = i
-        else:
-            if level and (not elem.tail or not elem.tail.strip()):
-                elem.tail = i
+    # Special
+    special = e.SubElement(root, 'special')
+    for entity in env.values():
+        if not isinstance(entity.name, interpret.UdebsStr):
+            continue
 
+        entry_node = e.SubElement(special, 'i')
+        entry_node.text = str(entity.name)
+
+    # Delay
+    delay = e.SubElement(root, "delays")
+    if delay is not None:
+        for ent in env.delay:
+            d = e.SubElement(delay, "delay")
+            for i in ("ticks", "script"):
+                tmp = e.SubElement(d, i)
+                tmp.text = str(ent[i])
+
+            storage = e.SubElement(d, "storage")
+            for key, value in ent["env"]["storage"].items():
+                tmp = e.SubElement(storage, key)
+                tmp.text = str(value)
+
+    # Final Cleanup
     if pretty:
         indent(root)
+
+    for node in root[:]:
+        if node.text is None:
+            root.remove(node)
 
     e.ElementTree(root).write(location)
     return True
@@ -162,55 +178,25 @@ def battleStart(xml_file, debug=False, script="init", name=None, revert=None, lo
     #ENV
     field = instance.Instance()
 
-    #Config
-    config = root.find("config")
-    if config is not None:
-
-        if name is None:
-            name = config.findtext("name")
-            if name is not None:
-                field.name = name
+    def fillsimple(root, stat, f, overwrite=None):
+        if overwrite is not None:
+            setattr(field, stat, f(overwrite))
         else:
-            field.name = name
+            tmp = root.findtext(stat)
+            if tmp is not None:
+                if f is not None:
+                    tmp = f(tmp)
 
-        if revert is None:
-            revert = config.findtext("revert")
-            if revert is not None:
-                field.revert = int(revert)
-        else:
-            field.revert = revert
-
-        if log is None:
-            log = config.findtext('logging')
-            if log is not None:
-                field.logging = eval(log)
-        else:
-            field.logging = logging
-
-        if version is None:
-            version = config.findtext('version')
-            if version is not None:
-                field.version = int(version)
-        else:
-            field.version = version
-
-        if seed is None:
-            seed = config.findtext('seed')
-            if seed is not None:
-                field.seed = int(seed)
-        else:
-            field.seed = seed
-
-    if field.logging:
-        logging.basicConfig(stream=sys.stdout, level=logging.INFO, format="%(message)s")
+                setattr(field, stat, tmp)
 
     #Definition
     defs = root.find("definitions")
     if defs is not None:
-        def_stats = defs.find("stats")
-        if def_stats is not None:
-            for stat in def_stats:
-                field.stats.add(stat.tag)
+        for i in ("stats", "strings"):
+            def_stats = defs.find(i)
+            if def_stats is not None:
+                for stat in def_stats:
+                    getattr(field, i).add(stat.tag)
 
         def_lists = defs.find("lists")
         if def_lists is not None:
@@ -219,24 +205,31 @@ def battleStart(xml_file, debug=False, script="init", name=None, revert=None, lo
                 if stat.get('rlist') is not None:
                     field.rlist.add(stat.tag)
 
-        def_strings = defs.find("strings")
-        if def_strings is not None:
-            for stat in def_strings:
-                field.strings.add(stat.tag)
+    #Config
+    config = root.find("config")
+    if config is not None:
+        fillsimple(config, "name", None, name)
+        fillsimple(config, "revert", int, revert)
+        fillsimple(config, "logging", eval, log)
+        fillsimple(config, "version", int, version)
+        fillsimple(config, "seed", int, seed)
+
+    # Time variables
+    time = root.find("time")
+    if time is not None:
+        fillsimple(time, "time", int)
+        fillsimple(time, "increment", int)
+        fillsimple(time, "cont", eval)
+        fillsimple(time, "next", eval)
 
     #Maps
     def addMap(field_map):
         options = {"name": field_map.tag}
 
         #Attributes
-        if field_map.get('empty') is not None:
-            options["empty"] = field_map.get('empty')
-
-        if field_map.get('rmap') is not None:
-            options["rmap"] = field_map.get('rmap')
-
-        if field_map.get('type') is not None:
-            options["type"] = field_map.get('type')
+        for att in ("empty", "rmap", "type"):
+            if field_map.get(att) is not None:
+                options[att] = field_map.get(att)
 
         #dimensions.
         dim_map = field_map.find("dim")
@@ -253,41 +246,15 @@ def battleStart(xml_file, debug=False, script="init", name=None, revert=None, lo
             options['dim'] = [list(i) for i in zip(*dim)]
 
         #Add to field
-        new_map = board.Board(options)
-        field.map[new_map.name] = new_map
+        field.map[new_map.name] = board.Board(options)
 
     field_maps = root.find("maps")
     if field_maps is not None:
-        for map_ in field_maps:
-            addMap(map_)
+        [addMap(i) for i in field_maps]
 
     field_map = root.find("map")
     if field_map is not None:
         addMap(field_map)
-
-    #Var (Rarely used).
-    var = root.find('var')
-    if var is not None:
-        time = var.find('time')
-        if time is not None:
-            field.time = int(time.text)
-
-        #Delay has changed, this is probobly broken.
-        delay = var.find('delay')
-        if delay is not None:
-            for item in delay:
-                for key in item.attrib:
-                    if key == 'DELAY':
-                        item.attrib[key] = int(item.attrib[key])
-                    if key in {'CASTER', 'TARGET', 'MOVE'}:
-                        try:
-                            index = item.attrib[key].index(',')
-                            x = int(item.attrib[key][1:index])
-                            y = int(item.attrib[key][index+2:-1])
-                            item.attrib[key] = (x,y)
-                        except ValueError:
-                            pass
-                field.delay.append(item.attrib)
 
     #Entities
     entity.Entity(field, {"name": "empty", "immutable": True})
@@ -327,7 +294,19 @@ def battleStart(xml_file, debug=False, script="init", name=None, revert=None, lo
         for item in entities:
             addObject(item)
 
+    #Special
+    special = root.find("special")
+    if special is not None:
+        for i in special:
+            tmp = interpret.UdebsStr(i.text)
+            field.getEntity(tmp)
+
+    # Delay TODO
+
     #Final cleanup
+    if field.logging:
+        logging.basicConfig(stream=sys.stdout, level=logging.INFO, format="%(message)s")
+
     logging.info("INITIALIZING {}".format(field.name))
 
     if field.seed:

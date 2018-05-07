@@ -386,6 +386,12 @@ class Script:
 
         return True
 
+    def __eq__(self, other):
+        if not isinstance(other, Script):
+            return False
+
+        return self.raw == other.raw
+
 #---------------------------------------------------
 #                     Errors                       -
 #---------------------------------------------------
