@@ -2,7 +2,7 @@
 import udebs
 import json
 
-class TicTacToe(udebs.state.State):
+class TicTacToe(udebs.State):
     endgames = {"o": -1, "t": 0, "x": 1, "": None}
     
     def legalMoves(self, state):
@@ -16,7 +16,6 @@ class TicTacToe(udebs.state.State):
     def endState(self, state):
         return self.endgames[state.getStat("player", "leaf")]
     
-    @property
     def name(self):
         player, (x, y, _), _ = self.entry
         return player[0] + "_" + str(x) + "_" + str(y)

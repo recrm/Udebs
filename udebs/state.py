@@ -39,6 +39,9 @@ class State:
         self.pState = self.pState(state)
         self.entry = entry
 
+    def __repr__(self):
+        return "<{} State>".format(self.name())
+
     def substates(self):
         """Iterate over substates to a state."""
         stateNew = copy.deepcopy(self.state)
@@ -80,7 +83,7 @@ class State:
 
             completed.add(substate.pState)
 
-            moves[substate.name] = substate.tree()
+            moves[substate.name()] = substate.tree()
 
         if len(completed) == 0:
             return result
@@ -187,6 +190,5 @@ class State:
     def endState(self, state):
         raise NotImplementedError
 
-    @property
     def name(self):
-        return str(self.entry)
+        return str(self.pState)

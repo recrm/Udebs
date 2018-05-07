@@ -1,25 +1,21 @@
 #!/usr/bin/env python3
-import sys
-import csv
 import itertools
-import copy
 import udebs
-from udebs import state
 
-class Chopsticks(state.State):
+class Chopsticks(udebs.State):
     def pState(self, state):
         """Gets current state of game."""
-        player = 1 if state.getStat("one", "ACT") == 2 else 2
-    
-        value = [
+        one = frozenset([
             state.getStat("one-left", "FIN"),
             state.getStat("one-right", "FIN"),
+        ])
+
+        two = frozenset([
             state.getStat("two-left", "FIN"),
             state.getStat("two-right", "FIN"),
-            player,
-        ]
-        
-        return "".join(str(i) for i in value)
+        ])
+
+        return (one, two, state.getStat("one", "ACT"))
 
     def legalMoves(self, state):
         def t(player, hand):
@@ -49,8 +45,13 @@ class Chopsticks(state.State):
 
         return None
 
+    def name(self):
+        one = "".join(str(i) for i in self.pState[0])
+        two = "".join(str(i) for i in self.pState[1])
+        player = 1 if self.pState[2] == 2 else 2
+        return "{}-{}-{}".format(one, two, player)
+
 if __name__ == "__main__":
-    sys.setrecursionlimit(10000)
     field = udebs.battleStart("xml/chopsticks.xml")
     env = Chopsticks(field, "bruteForceLoop")
     value = env.result()
