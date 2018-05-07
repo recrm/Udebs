@@ -119,7 +119,7 @@
     "#": "Get from environment.",
 
     "SHUFFLE": {
-        "f": "self.shuffle",
+        "f": "self.controlShuffle",
         "args": ["-$2", "-$1"]
     },
     "DICE": {

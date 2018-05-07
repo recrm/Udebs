@@ -57,17 +57,7 @@ class Instance(collections.MutableMapping):
     All methods beggining with 'control' manage some aspect of the state space
     and return true if changes were (probobaly) made and false otherwise.
 
-    Functions marked below as public are simply function recomended for use by
-    users. All other functions are fair game, but their usage is either tailored
-    to the Udebs scripting language or likely to change in the future.
-
-    Public Functions.
-
-    getStat( target, string ) Gets the associated stat from target.
-    getDistance( target, target, string ) Gets distance between two targets.
-    getLog() Gets all currently saved log entries.
-    getRevert( int ) Gets previous recorded game states.
-
+    Other functions are convinience wrappers for public use.
     """
     def __init__(self):
         #config
@@ -281,6 +271,7 @@ class Instance(collections.MutableMapping):
     #---------------------------------------------------
     #                 Time Management                  -
     #---------------------------------------------------
+
     def controlTime(self, time=1, script="tick"):
         """Changes internal time, runs tick script, and updates any delayed effects.
 
@@ -320,29 +311,6 @@ class Instance(collections.MutableMapping):
             self.state = self.state[-self.revert:]
 
         return self.cont
-
-    def gameLoop(self, time=1, script="tick"):
-        self.increment = time
-        while True:
-            yield self
-
-            if self.next is not None:
-                yield self.next
-                self = self.next
-
-            if not self.cont:
-                return
-
-            self.controlTime(self.increment, script=script)
-
-    def exit(self):
-        self.cont = False
-
-    def resetState(self):
-        self.state.clear()
-        self.state.append(copy.deepcopy(self))
-        self.cont = True
-        self.time = 0
 
     def getRevert(self, value=0):
         index = -(value +1)
@@ -410,6 +378,7 @@ class Instance(collections.MutableMapping):
     #---------------------------------------------------
     #           Coorporate get functions               -
     #---------------------------------------------------
+
     def getStat(self, target, stat, maps=True):
         """General getter for all attributes.
 
@@ -521,14 +490,10 @@ class Instance(collections.MutableMapping):
             found = found.intersection(self.getGroup(arg))
         return sorted(list(found))
 
-    def mapIter(self, mapname="map"):
-        map_ = self.getMap(mapname)
-        for loc in map_:
-            yield self[map_[loc]]
-
     #---------------------------------------------------
     #                 Call wrappers                    -
     #---------------------------------------------------
+
     def controlMove(self, casters, targets, moves):
         """Main function to trigger an event."""
         casters = self.getEntity(casters, multi=True)
@@ -583,9 +548,16 @@ class Instance(collections.MutableMapping):
             self.controlTime(time)
         return value
 
+    def castSingle(self, string):
+        """Call a function directly from a user inputed Udebs String."""
+        code = interpret.Script(string, version=self.version)
+        env = interpret._getEnv({}, {"self": self})
+        return code(env)
+
     #---------------------------------------------------
     #               Entity control wrappers            -
     #---------------------------------------------------
+
     def controlListAdd(self, targets, lst, entries):
         targets = self.getEntity(targets, multi=True)
         if not isinstance(entries, list):
@@ -609,6 +581,11 @@ class Instance(collections.MutableMapping):
         for target in targets:
             target.controlListClear(lst)
             logging.info("{} {} has been cleared.".format(target, lst))
+
+    def controlShuffle(self, target, stat):
+        target = self.getEntity(target)
+        self.rand.shuffle(target[stat])
+        logging.info("{} {} has been shuffled".format(target, stat))
 
     def controlIncrement(self, targets, stat, increment, multi=1):
         if increment == 0:
@@ -641,6 +618,7 @@ class Instance(collections.MutableMapping):
     #---------------------------------------------------
     #                 Entity get wrappers              -
     #---------------------------------------------------
+
     def getX(self, target, value=0):
         unit = self.getEntity(target)
         if unit.loc:
@@ -659,6 +637,7 @@ class Instance(collections.MutableMapping):
     #---------------------------------------------------
     #                 Board get wrappers               -
     #---------------------------------------------------
+
     def getPath(self, caster, target, callback):
         caster = self.getEntity(caster).loc
         target = self.getEntity(target).loc
@@ -716,18 +695,39 @@ class Instance(collections.MutableMapping):
             caster.controlLoc(loc)
 
     #---------------------------------------------------
-    #                 Misc functions                   -
+    #                 Game Loop Helpers                -
     #---------------------------------------------------
-    def shuffle(self, target, stat):
-        target = self.getEntity(target)
-        self.rand.shuffle(target[stat])
-        logging.info("{} {} has been shuffled".format(target, stat))
 
-    def callSingle(self, string):
-        """Call a function directly from a user inputed Udebs String."""
-        code = interpret.Script(string, version=self.version)
-        env = interpret._getEnv({}, {"self": self})
-        return code(env)
+    def gameLoop(self, time=1, script="tick"):
+        """Automatically increments in game timer over every iteration."""
+        self.increment = time
+        while True:
+            yield self
+
+            if self.next is not None:
+                yield self.next
+                self = self.next
+
+            if not self.cont:
+                return
+
+            self.controlTime(self.increment, script=script)
+
+    def exit(self):
+        """Ends game if gameLoop is in use."""
+        self.cont = False
+
+    def resetState(self):
+        """Resets game metadata to default."""
+        self.state.clear()
+        self.state.append(copy.deepcopy(self))
+        self.cont = True
+        self.time = 0
+
+    def mapIter(self, mapname="map"):
+        map_ = self.getMap(mapname)
+        for loc in map_:
+            yield self[map_[loc]]
 
 #---------------------------------------------------
 #                     Errors                       -

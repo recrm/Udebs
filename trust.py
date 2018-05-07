@@ -1,7 +1,5 @@
 #!/usr/bin/env python3
 import udebs
-import random
-import sys
 import itertools
 
 if __name__ == "__main__":

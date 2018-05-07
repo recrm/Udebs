@@ -63,11 +63,20 @@ def battleWrite(env, location, pretty=False):
                 text = text + ', ' + item
             middle.text = text[2:]
 
-    #Variables
-    var = e.SubElement(root, 'var')
+    # Time variables
+    var = e.SubElement(root, 'time')
     if env.time != 0:
         time = e.SubElement(var, 'time')
         time.text = str(env.time)
+    if env.increment != 1:
+        time = e.SubElement(var, 'increment')
+        time.text = str(env.increment)
+    if env.cont != True:
+        time = e.SubElement(var, 'cont')
+        time.text = str(env.cont)
+    if env.next != None:
+        time = e.SubElement(var, 'next')
+        time.text = str(env.next)
 
     #Delay has changed, this is probobly broken.
     if env.delay != []:
