@@ -60,13 +60,6 @@ class Instance(collections.MutableMapping):
     Other functions are convinience wrappers for public use.
     """
     def __init__(self):
-        #config
-        self.name = 'Unknown'
-        self.logging = True
-        self.revert = 0
-        self.version = 1
-        self.seed = None
-
         #definitions
         self.lists = {'group', 'effect', 'require'}
         self.stats = {'increment'}
@@ -75,8 +68,12 @@ class Instance(collections.MutableMapping):
         self.rlist = {'group'}
         self.rmap = set()
 
-        #internal
-        self.rand = random.Random()
+        #config
+        self.name = 'Unknown'
+        self.logging = True
+        self.revert = 0
+        self.version = 1
+        self.seed = None
 
         #time
         self.time = 0
@@ -84,19 +81,19 @@ class Instance(collections.MutableMapping):
         self.cont = True
         self.next = None
 
-        #var
-        self.delay = []
+        #internal
         self.map = {}
-
-        #Object storage.
         self._data = {}
+        self.delay = []
+        self.rand = random.Random()
 
-        #Used by players
+        #Used by players #not implemented in save.
         self.movestore = {}
 
         #Do not copy
         self.state = []
 
+    @norecurse
     def __eq__(self, other):
         if not isinstance(other, Instance):
             return False

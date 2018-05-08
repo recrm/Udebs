@@ -150,6 +150,10 @@ def battleWrite(env, location, pretty=False):
                 tmp = e.SubElement(storage, key)
                 tmp.text = str(value)
 
+    #rand
+    rand = e.SubElement(root, "random")
+    rand.text = str(env.rand.getstate())
+
     # Final Cleanup
     if pretty:
         indent(root)
@@ -301,7 +305,22 @@ def battleStart(xml_file, debug=False, script="init", name=None, revert=None, lo
             tmp = interpret.UdebsStr(i.text)
             field.getEntity(tmp)
 
-    # Delay TODO
+    # Delay
+    delays = root.find("delays")
+    if delays is not None:
+        for delay in delays:
+            callback = delay.findtext("script")
+            time = int(delay.findtext("ticks"))
+            storage = {node.tag: node.text for node in delay.find("storage")}
+
+            field.controlDelay(callback, time, storage)
+
+    # Random
+    rand = root.find("random")
+    if rand is not None:
+        field.rand.setstate(eval(rand.text))
+    elif field.seed:
+        field.rand.seed(field.seed)
 
     #Final cleanup
     if field.logging:
