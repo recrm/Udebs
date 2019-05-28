@@ -5,18 +5,21 @@ import udebs
 class Chopsticks(udebs.State):
     def pState(self, state):
         """Gets current state of game."""
-        one = frozenset([
+        one = "".join(str(i) for i in sorted([
             state.getStat("one-left", "FIN"),
             state.getStat("one-right", "FIN"),
-        ])
+        ]))
 
-        two = frozenset([
+        two = "".join(str(i) for i in sorted([
             state.getStat("two-left", "FIN"),
             state.getStat("two-right", "FIN"),
-        ])
+        ]))
 
-        return (one, two, state.getStat("one", "ACT"))
+        turn = state.getStat("one", "ACT")
 
+        player = 1 if turn == 2 else 2
+        return "{}-{}-{}".format(one, two, player)
+        
     def legalMoves(self, state):
         def t(player, hand):
             return "{}-{}".format(player, hand)
@@ -31,29 +34,25 @@ class Chopsticks(udebs.State):
         yield (t(player, "right"), t(player, "left"), "split")
 
     def endState(self, state):
-        one = (state.getStat("one-left", "FIN") +
-            state.getStat("one-right", "FIN"))
-
-        if one == 0:
+        # test for one win
+        one_l = state.getStat("one-left", "FIN")
+        one_r = state.getStat("one-right", "FIN")
+        
+        if one_l + one_r == 0:
             return -1
 
-        two = (state.getStat("two-left", "FIN") +
-            state.getStat("two-right", "FIN"))
+        # test for two win
+        two_l = state.getStat("two-left", "FIN")
+        two_r = state.getStat("two-right", "FIN")
 
-        if two == 0:
+        if two_l + two_r == 0:
             return 1
-
+        
         return None
-
-    def name(self):
-        one = "".join(str(i) for i in self.pState[0])
-        two = "".join(str(i) for i in self.pState[1])
-        player = 1 if self.pState[2] == 2 else 2
-        return "{}-{}-{}".format(one, two, player)
 
 if __name__ == "__main__":
     field = udebs.battleStart("xml/chopsticks.xml")
-    env = Chopsticks(field, "bruteForceLoop")
+    env = Chopsticks(field, algorithm="bruteForceLoop")
     value = env.result()
     print("final", value.value)
     print("states checked", len(env.storage))
