@@ -19,7 +19,6 @@
     </stats>
     <strings>
         <token />
-        <leaf />
     </strings>
 </definitions>
 
@@ -50,7 +49,6 @@
             <i>$caster.STAT.token RECRUIT $target</i>
             <i>$caster ACT -= 2</i>
             <i>ALL.player ACT += 1</i>
-            <i>player leaf REPLACE (ENDGAME)</i>
         </effect>
     </placement>
 
