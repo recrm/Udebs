@@ -4,21 +4,21 @@
     <revert>0</revert>
     <version>2</version>
     <logging>False</logging>
-<!--    <seed>4643</seed>-->
 </config>
 
 <definitions>
     <stats>
         <amount />
-
         <chests />
         <keys />
         <skulls />
+        <draws />
         <lives />
+        <score />
     </stats>
 
     <lists>
-        <cards />
+        <cards rlist="True" />
     </lists>
 
 </definitions>
@@ -35,34 +35,31 @@
     <dmap>
         <amount>9</amount>
         <group>cards</group>
-        <effect>
-            <i>$caster CAST $target draw</i>
-            <i>$caster CAST $target draw</i>
-        </effect>
+        <draws>2</draws>
     </dmap>
 
     <map>
         <amount>9</amount>
         <group>cards</group>
-        <effect>$caster CAST $target draw</effect>
+        <draws>1</draws>
     </map>
 
     <skull>
         <amount>9</amount>
         <group>cards</group>
-        <effect>$caster skulls += 1</effect>
+        <skulls>1</skulls>
     </skull>
 
     <chest>
         <amount>9</amount>
         <group>cards</group>
-        <effect>$caster chests += 1</effect>
+        <chests>1</chests>
     </chest>
 
     <key>
         <amount>9</amount>
         <group>cards</group>
-        <effect>$caster keys += 1</effect>
+        <keys>1</keys>
     </key>
 
     <!-- system -->
@@ -78,7 +75,7 @@
     <!-- Deck Actions -->
     <shuffle>
         <effect>
-            <i>ALL.hands ACTION dumphand</i>
+            <i>ALL.hands CLEAR cards</i>
             <i>ALL.cards CAST $caster insert</i>
             <i>$caster cards SHUFFLE</i>
         </effect>
@@ -87,15 +84,26 @@
     <!-- Hand / deck interactions -->
     <draw>
         <require>
+            <i>(length $caster.STAT.cards) &lt; $caster.STAT.draws</i>
             <i>drawn = ($target.STAT.cards elem 0)</i>
             <i>$drawn != empty</i>
         </require>
         <effect>
             <i>$target cards LOSES $drawn</i>
             <i>$caster cards GETS $drawn</i>
-            <i>$caster CAST $target $drawn</i>
+            <i>print $caster has drawn $drawn</i>
+            <i>$caster CAST $target draw</i>
         </effect>
     </draw>
+
+    <drawsingle>
+        <require>$target in deck.STAT.cards</require>
+        <effect>
+            <i>deck cards LOSES $target</i>
+            <i>$caster cards GETS $target</i>
+            <i>hand ACTION tally</i>
+        </effect>
+    </drawsingle>
 
     <insert>
         <require>$caster not-in $target.STAT.cards $caster.STAT.amount</require>
@@ -106,15 +114,6 @@
     </insert>
 
     <!-- Hand Actions -->
-    <dumphand>
-        <effect>
-            <i>$caster CLEAR cards</i>
-            <i>$caster chests REPLACE 0</i>
-            <i>$caster keys REPLACE 0</i>
-            <i>$caster skulls REPLACE 0</i>
-        </effect>
-    </dumphand>
-
     <checkdeath>
         <require>$caster.STAT.skulls &gt;= $caster.STAT.lives</require>
         <effect>
@@ -128,30 +127,37 @@
             <i>chests = $caster.STAT.chests</i>
             <i>keys = $caster.STAT.keys</i>
             <i>score = (($chests * 2) + (min $chests $keys))</i>
-            <i>print $caster has $score points</i>
-            <i>print $caster has $caster.STAT.skulls skulls</i>
+            <i>hand score REPLACE $score</i>
         </effect>
     </tally>
 
     <!-- System Actions -->
-    <init>
-        <effect>
-            <i>deck ACTION shuffle</i>
-            <i>hand CAST deck draw</i>
-            <i>hand CAST deck draw</i>
+    <resolve>
+         <effect>
             <i>hand CAST deck draw</i>
             <i>hand ACTION tally</i>
+            <i>print hand has hand.STAT.score points</i>
+            <i>print hand has hand.STAT.skulls skulls</i>
             <i>hand ACTION checkdeath</i>
+        </effect>
+    </resolve>
+    
+    <init>
+        <group>resolve</group>
+        <effect>
+            <i>deck ACTION shuffle</i>
+            <i>hand draws REPLACE 3</i>
         </effect>
     </init>
 
     <tick>
-        <effect>
-            <i>hand CAST deck draw</i>
-            <i>hand ACTION tally</i>
-            <i>hand ACTION checkdeath</i>
-        </effect>
+        <group>resolve</group>
+        <effect>hand draws += 1</effect>
     </tick>
-
+    
+    <fakeresolve>
+        <effect>hand draws += 1</effect>
+    </fakeresolve>
+    
 </entities>
 </udebs>

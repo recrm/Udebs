@@ -1,45 +1,11 @@
-from udebs import interpret, board, entity, dispatchmethod
 import random
 import copy
 import itertools
 import collections
 import logging
-import traceback
 
-#---------------------------------------------------
-#                  Utilities                       -
-#---------------------------------------------------
-
-def norecurse(f):
-    """Wrapper function that forces a function to return True if it recurses."""
-    def func(*args, **kwargs):
-        for i in traceback.extract_stack():
-            if i[2] == f.__name__:
-                return True
-
-        return f(*args, **kwargs)
-
-    return func
-
-def lookup(name, table):
-    """Function for adding a basic lookup function to the interpreter."""
-    def wrapper(*args):
-        value = table
-        for arg in args:
-            if isinstance(arg, entity.Entity):
-                arg = arg.name
-
-            try:
-                value = value[arg]
-            except KeyError:
-                return 0
-
-        return value
-
-    interpret.importModule({name: {
-        "f": "f_" + name,
-        "all": True,
-    }}, {"f_" + name: wrapper})
+from udebs import interpret, board, entity
+from  udebs.utilities import dispatchmethod, norecurse, lookup
 
 #---------------------------------------------------
 #                 Main Class                       -
@@ -144,7 +110,7 @@ class Instance(collections.MutableMapping):
     #               Selector Function                  -
     #---------------------------------------------------
 
-    @dispatchmethod.dispatchmethod
+    @dispatchmethod
     def getEntity(self, target, multi=False):
         """Returns entity object based on given selector.
 
@@ -664,6 +630,11 @@ class Instance(collections.MutableMapping):
         callback = self.getEntity(callback)
         return self.getMap(caster).testBlock(caster, target, callback)
 
+    def testValid(self, caster):
+        caster = self.getEntity(caster).loc
+        map_ = self.getMap(loc[2])
+        return map_.testLoc(caster)
+    
     def getFill(self, center, callback=False, include_center=True, distance=float("inf")):
         center = self.getEntity(center).loc
         if center == False:
@@ -685,10 +656,12 @@ class Instance(collections.MutableMapping):
 
             loc = target.loc
             if loc:
-                self.getMap(target).controlMove(caster.name, loc)
-                logging.info("{} has moved to {}".format(caster, loc))
-                target.controlLoc(False)
-
+                if self.getMap(target).controlMove(caster.name, loc):
+                    logging.info("{} has moved to {}".format(caster, loc))
+                    target.controlLoc(False)
+                else:
+                    logging.info("{} is an invalid location. {} spawned off the board".format(loc, caster))
+                    
             caster.controlLoc(loc)
 
     #---------------------------------------------------

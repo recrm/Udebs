@@ -149,6 +149,10 @@
         "args": ["$2", "$3", "$1"],
         "default": {"$2": "$caster", "$3": "$target"}
     },
+    "LOCVALID": {
+        "f": "self.testLoc",
+        "args": ["$1"]
+    },
     "BLOCK": {
         "f": "self.testBlock",
         "args": ["$2", "$3", "$1"],

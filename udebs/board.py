@@ -73,6 +73,17 @@ class Board(collections.MutableMapping):
     #---------------------------------------------------
     #                    Methods                       -
     #---------------------------------------------------
+    def show(self):
+        for x in range(self.y):
+            for y in range(self.x):
+                value = self[y,x]
+                if value == "empty":
+                    value = "_"
+
+                print(value, end=" ")
+
+            print()
+
     def getLoc(self, string):
         """Return loc of first instance of string in map.
 
