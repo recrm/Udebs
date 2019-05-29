@@ -25,7 +25,7 @@ def eventUpdate():
     #redraw the board
     mainSurface.fill(BLACK)
     ACT = main_map.getStat('token', 'ACT')
-    highlight = main_map.getFill('token', 'suptravel', ACT)
+    highlight = main_map.getFill('token', 'suptravel', distance=ACT)
     direction = main_map.getStat("token", "direction")
     for y in range(8):
         for x in range(8):

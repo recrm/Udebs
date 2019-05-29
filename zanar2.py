@@ -158,7 +158,7 @@ def message(*args, font=basicFont, color=BLACK):
             break
 
 def battleFinish():
-    battle.controlInit("finish")
+    battle.castInit("finish")
 
 def playSound(sound, times):
     sound_fx[sound].play(times)
@@ -176,10 +176,10 @@ def subBattle(monster="monster"):
     sound_overworld.fadeout(1000)
     if monster == "boss":
         fight_music = sound_boss
-        battle.controlInit("recruitBoss")
+        battle.castInit("recruitBoss")
     else:
         fight_music = sound_fight
-        battle.controlInit("init")
+        battle.castInit("init")
     updateRPG()
     message("Battle Start")
     fight_music.play(-1)
@@ -278,7 +278,7 @@ udebs.importModule(local, glob)
 main_map = udebs.battleStart("xml/zanar2.xml", script=False)
 battle = udebs.battleStart("xml/rpg.xml", script=False)
 
-main_map.controlInit("init")
+main_map.castInit("init")
 def main():
     #game loop
     while True:

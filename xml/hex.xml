@@ -40,7 +40,6 @@
     <suptravel>
         <require>
             <i>NAME.$T == empty</i>
-            <i>(DISTANCE hex) &lt;= (STAT $caster ACT)</i>
         </require>
     </suptravel>
 
@@ -77,7 +76,6 @@
     </earth>
 
     <token>
-        <ID>token</ID>
         <sprite>K</sprite>
         <ACT>2</ACT>
     </token>
