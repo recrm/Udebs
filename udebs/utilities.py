@@ -1,6 +1,6 @@
 import traceback
 import itertools
-from udebs import interpret
+from udebs import interpret, entity
 from functools import singledispatch, update_wrapper
 
 def dispatchmethod(func):
@@ -130,3 +130,15 @@ def alternate(*args):
     maximum = max(len(i) for i in processed)
     gen = (itertools.islice(itertools.cycle(i), maximum) for i in processed)
     yield from zip(*gen)
+
+def wrapproperty(f):
+    """Allows a method to memoize itself."""
+    def wrapper(obj, *args, **kwargs):
+
+        name = "_" + f.__name__
+        if not hasattr(obj, name) or getattr(obj, name) is None:
+            setattr(obj, name, f(obj, *args, **kwargs))
+
+        return getattr(obj, name)
+
+    return wrapper

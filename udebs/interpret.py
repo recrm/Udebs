@@ -177,6 +177,8 @@ def formatS(string, version):
         return "False"
     elif string == "true":
         return "True"
+    elif string == "None":
+        return string
     elif string.isdigit():
         return string
     #String quoted by user.

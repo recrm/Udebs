@@ -136,8 +136,8 @@
     },
     "FILL": {
         "f": "self.getFill",
-        "args": ["$1", "$2", "$3"],
-        "default": {"$3": true}
+        "args": ["$1", "$2", "$3", "$4"],
+        "default": {"$3": true, "$4": null}
     },
     "PATH": {
         "f": "self.getPath",

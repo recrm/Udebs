@@ -40,10 +40,11 @@ class Result:
     def __repr__(self):
         return "{}:{}:{}".format(self.name, self.value, self.turns)
 
+    def __int__(self):
+        return self.cvalue
+
 class State:
     """A State space calculator designed for TicTacToe."""
-    algorithm="BruteForce"
-
     def __init__(self, state, algorithm="bruteForce", storage=None, entry=None, probability=1, debug=False):
         # Instantiating class
         self.state = state
@@ -62,18 +63,19 @@ class State:
     def __repr__(self):
         return "<{} State>".format(self.pStatew)
 
-    def substates(self):
+    def substates(self, time=1):
         """Iterate over substates to a state."""
         stateNew = copy.deepcopy(self.state)
         for move in self.legalMoves(self.state):
-            if stateNew.castMove(*move[:3], time=1):
-                newState = self.__class__(stateNew, storage=self.storage, entry=move, algorithm=self.algorithm)
+            if stateNew.castMove(*move[:3], time=time):
+                prob = 1
+                if len(move) > 3:
+                    prob = move[3]
+
+                newState = self.__class__(stateNew, storage=self.storage, entry=move, algorithm=self.algorithm, probability=prob)
 
                 if self.debug:
                     print(newState.pStatew, newState.result())
-
-                if len(move) > 3:
-                    newState.probability = move[3]
 
                 yield newState
                 stateNew = copy.deepcopy(self.state)
@@ -104,66 +106,16 @@ class State:
         """Create a result object based on self."""
         return Result(name=self.pStatew, value=value, probability=self.probability, **kwargs)
 
-    def tree(self):
-        """Generates a state tree."""
-        if self.algorithm != "bruteForce":
-            raise Exception("Generating tree requires bruteForce algorithm.")
-
-        result = self.result()
-        if result != 0:
-            return result
-
-        moves = {}
-        completed = set()
-        subtree = False
-        for substate in self.substates():
-            if substate.pStatew in completed:
-                continue
-
-            completed.add(substate.pStatew)
-
-            subresult = substate.tree()
-            if isinstance(subresult, Result):
-                if subresult.turns == 1:
-                    continue
-            
-            moves[substate.pStatew] = subresult
-            if isinstance(subresult, dict):
-                subtree = True
-            
-        if len(moves) == 0:
-            return result
-        
-        if not subtree:
-            test = self.checkEqual(moves.values())
-            if test is not None:
-                return result
-        
-        return moves
-
-    def checkEqual(self, iterator):
-        iterator = iter(iterator)
-        try:
-            first = next(iterator)
-        except StopIteration:
-            return None
-        
-        if all(first == rest for rest in iterator):
-            return first
-    
-    def parApply(self, par, *args):
+    def parApply(self, par, *args, **kwargs):
         """Open child nodes in parallel"""
         with Pool(processes=par) as pool:
-            gen = ((i, *args) for i in self.substates())
+            gen = ((i, *args) for i in self.substates(**kwargs))
             results = pool.starmap(resolve, gen)
 
         scores = []
         for result, storage in results:
-            print(len(storage))
             self.storage.update(storage)
             scores.append(result)
-
-        print(len(self.storage))
 
         return scores
 
@@ -220,7 +172,7 @@ class State:
             best = max(results)
 
         final = self.createResult(best.value, turns=best.turns + 1)
-        
+
         self.storage[self.pStatew] = final
         return final
 
@@ -233,12 +185,12 @@ class State:
         """
         if deps is None:
             deps = {}
-        
+
         if states is None:
             states = {}
-        
+
         self.storage[self.pStatew] = self.createResult(None)
-    
+
         substates = list(self.substates())
         results = [i.result(deps=deps, states=states) for i in substates]
 
@@ -246,37 +198,38 @@ class State:
             best = min(results)
         else:
             best = max(results)
-            
+
         if best == None:
             states[self.pStatew] = self
             for s, r in zip(substates, results):
                 if r == None:
                     if s.pStatew not in deps:
                         deps[s.pStatew] = []
-                        
+
                     deps[s.pStatew].append(self.pStatew)
 
         else:
             self.storage[self.pStatew] = best
-            
+
             for i in deps.get(self.pStatew, []):
                 states[i].result(deps=deps, states=states, force=True)
 
             deps.pop(self.pStatew, None)
 #             states.pop(self.pStatew, None)
-        
+
         return self.storage[self.pStatew]
 
-    def expectationValue(self, par=False):
+    def expectationValue(self, par=False, **kwargs):
         if par:
-            results = self.parApply(par)
+            results = self.parApply(par, time=0)
         else:
-            results = [i.result() for i in self.substates()]
-        
+            results = [i.result() for i in self.substates(time=0)]
+
         total = sum(i.value * i.probability for i in results)
+
         self.storage[self.pStatew] = self.createResult(total)
         return self.storage[self.pStatew]
-    
+
     #---------------------------------------------------
     #                    Game Defined functions        -
     #---------------------------------------------------

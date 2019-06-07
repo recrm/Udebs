@@ -3,6 +3,7 @@
 <config>
     <hex>True</hex>
     <name>hex</name>
+    <version>2</version>
 </config>
 
 <definitions>
@@ -30,17 +31,13 @@
     <init>
         <effect>
             <i>CAST (DICE.7 DICE.7) earthquake</i>
-            <i>token TRAVEL (0 0)</i>
+            <i>token MOVE (0 0)</i>
         </effect>
     </init>
 
 <!--    Metrics-->
-
-
     <suptravel>
-        <require>
-            <i>NAME.$T == empty</i>
-        </require>
+        <require>$T.NAME == empty</require>
     </suptravel>
 
 <!--    Events-->
@@ -53,21 +50,18 @@
 
     <query>
         <effect>
-            <i>CLEAR token direction</i>
-            <i>GETS token direction (PATH token $target `(NAME.$T == empty))</i>
+            <i>token CLEAR direction</i>
+            <i>token direction GETS (PATH token $target suptravel)</i>
         </effect>
     </query>
 
     <travel>
-        <require>(DISTANCE suptravel) &lt;= (STAT $caster ACT)</require>
-        <effect>MOVE $caster $target</effect>
+        <require>(DISTANCE suptravel) &lt;= ($caster STAT ACT)</require>
+        <effect>$caster MOVE $target</effect>
     </travel>
 
     <earthquake>
-        <effect>RECRUIT earth (FILL $target `(
-            ((DISTANCE x) &lt;= 2)
-            ((DISTANCE y) == 0)
-        ))</effect>
+        <effect>earth RECRUIT (FILL $target `(DISTANCE.y == 0) true 2)</effect>
     </earthquake>
 
 <!--Units-->

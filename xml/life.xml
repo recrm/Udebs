@@ -17,14 +17,13 @@
     <lists>
         <save />
     </lists>
-
 </definitions>
 
 <maps>
     <map type="diag">
         <dim>
-            <x>100</x>
-            <y>100</y>
+            <x>50</x>
+            <y>50</y>
         </dim>
     </map>
 </maps>
@@ -34,21 +33,20 @@
     <!-- Objects -->
     <cell />
 
-    <!-- Metrics -->
-    <neighbors>
-        <require>DISTANCE.pinf == 1</require>
-    </neighbors>
+    <change>
+        <effect>
+            <i>neighbors = FILL.$target.empty.false.1</i>
+            <i>DELAY `(tick save GETS $neighbors) 0</i>
+        </effect>
+    </change>
 
     <!-- Life -->
     <life>
-        <require>
-            <i>$target.STAT.LIFE == 0</i>
-        </require>
+        <group>change</group>
+        <require>$target.STAT.LIFE == 0</require>
         <effect>
-            <i>DELAY `($target LIFE REPLACE 1) 0</i>
-            <i>all = FILL.$target.neighbors.false</i>
-            <i>DELAY `(tick save GETS $all) 0</i>
-            <i>DELAY `($all NBR += 1) 0</i>
+            <i>$target LIFE REPLACE 1</i>
+            <i>DELAY `($neighbors NBR += 1) 0</i>
         </effect>
     </life>
 
@@ -65,19 +63,16 @@
 
     <!-- Death -->
     <death>
-        <require>$target.STAT.LIFE == 1</require>
+        <group>change</group>
+        <require>
+            <i>$target.STAT.LIFE == 1</i>
+            <i>($target.STAT.NBR &lt; 2) or ($target.STAT.NBR &gt; 3)</i>
+        </require>
         <effect>
-            <i>DELAY `($target LIFE REPLACE 0) 0</i>
-            <i>all = FILL.$target.neighbors.false</i>
-            <i>DELAY `(tick save GETS $all) 0</i>
-            <i>DELAY `($all NBR -= 1) 0</i>
+            <i>$target LIFE REPLACE 0</i>
+            <i>DELAY `($neighbors NBR -= 1) 0</i>
         </effect>
     </death>
-
-    <autodeath>
-        <group>death</group>
-        <require>($target.STAT.NBR &lt; 2) or ($target.STAT.NBR &gt; 3)</require>
-    </autodeath>
 
     <!-- Scripts -->
     <init>
@@ -91,7 +86,7 @@
     <tick>
         <effect>
             <i>all = (dedup $move.STAT.save)</i>
-            <i>CAST $all autodeath</i>
+            <i>CAST $all death</i>
             <i>CAST $all autolife</i>
             <i>tick CLEAR save</i>
         </effect>

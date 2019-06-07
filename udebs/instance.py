@@ -634,8 +634,11 @@ class Instance(collections.MutableMapping):
         caster = self.getEntity(caster).loc
         map_ = self.getMap(loc[2])
         return map_.testLoc(caster)
-    
+
     def getFill(self, center, callback=False, include_center=True, distance=float("inf")):
+        if distance is None:
+            distance = float("inf")
+
         center = self.getEntity(center).loc
         if center == False:
             return []
@@ -661,7 +664,7 @@ class Instance(collections.MutableMapping):
                     target.controlLoc(False)
                 else:
                     logging.info("{} is an invalid location. {} spawned off the board".format(loc, caster))
-                    
+
             caster.controlLoc(loc)
 
     #---------------------------------------------------

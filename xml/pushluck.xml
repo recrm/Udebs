@@ -72,7 +72,7 @@
 
     <deck />
 
-    <!-- Deck Actions -->
+    <!-- Shuffle deck -->
     <shuffle>
         <effect>
             <i>ALL.hands CLEAR cards</i>
@@ -81,7 +81,15 @@
         </effect>
     </shuffle>
 
-    <!-- Hand / deck interactions -->
+    <insert>
+        <require>$caster not-in $target.STAT.cards $caster.STAT.amount</require>
+        <effect>
+            <i>$target cards GETS $caster</i>
+            <i>$caster CAST $target insert</i>
+        </effect>
+    </insert>
+
+    <!-- Draw a random card from the deck -->
     <draw>
         <require>
             <i>(length $caster.STAT.cards) &lt; $caster.STAT.draws</i>
@@ -95,24 +103,7 @@
             <i>$caster CAST $target draw</i>
         </effect>
     </draw>
-
-    <drawsingle>
-        <require>$target in deck.STAT.cards</require>
-        <effect>
-            <i>deck cards LOSES $target</i>
-            <i>$caster cards GETS $target</i>
-            <i>hand ACTION tally</i>
-        </effect>
-    </drawsingle>
-
-    <insert>
-        <require>$caster not-in $target.STAT.cards $caster.STAT.amount</require>
-        <effect>
-            <i>$target cards GETS $caster</i>
-            <i>$caster CAST $target insert</i>
-        </effect>
-    </insert>
-
+    
     <!-- Hand Actions -->
     <checkdeath>
         <require>$caster.STAT.skulls &gt;= $caster.STAT.lives</require>
@@ -155,9 +146,15 @@
         <effect>hand draws += 1</effect>
     </tick>
     
-    <fakeresolve>
-        <effect>hand draws += 1</effect>
-    </fakeresolve>
+    <!-- Draw a specific card from the deck -->
+    <drawsingle>
+        <require>$target in deck.STAT.cards</require>
+        <effect>
+            <i>deck cards LOSES $target</i>
+            <i>$caster cards GETS $target</i>
+            <i>hand ACTION tally</i>
+        </effect>
+    </drawsingle>
     
 </entities>
 </udebs>
