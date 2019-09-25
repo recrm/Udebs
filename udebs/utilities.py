@@ -1,7 +1,15 @@
 import traceback
 import itertools
+import time
 from udebs import interpret, entity
 from functools import singledispatch, update_wrapper
+
+class Timer:
+    def __enter__(self):
+        self.time = time.time()
+
+    def __exit__(self, *args, **kwargs):
+        print(time.time() - self.time)
 
 def dispatchmethod(func):
     """
@@ -142,3 +150,13 @@ def wrapproperty(f):
         return getattr(obj, name)
 
     return wrapper
+
+class Player:
+    def __init__(self, name):
+        interpret.importModule({name: {
+            "f": "f_" + name,
+            "args": ["self"],
+        }}, {"f_" + name: self})
+
+    def __call__(self, state):
+        raise NotImplementedError("Player subclasses should implement a __call__ method.")

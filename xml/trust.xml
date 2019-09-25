@@ -10,6 +10,9 @@
     <stats>
         <score />
     </stats>
+    <lists>
+        <options />
+    </lists>
 </definitions>
 
 <config>
@@ -22,12 +25,16 @@
             <i>INIT play</i>
             <i>INIT end</i>
         </effect>
+        <options>
+            <i>cheat</i>
+            <i>cooperate</i>
+        </options>
     </tick>
 
     <play>
         <effect>
-            <i>a = (CHOICE_H)</i>
-            <i>b = (CHOICE_C)</i>
+            <i>a = (HUMAN)</i>
+            <i>b = (COMPUTER)</i>
             <i>human score += LOOKUP.$a.$b</i>
             <i>computer score += LOOKUP.$b.$a</i>
         </effect>
