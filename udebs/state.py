@@ -45,10 +45,10 @@ class Result:
 
 class State:
     """A State space calculator designed for TicTacToe."""
-    def __init__(self, state, algorithm="bruteForce", storage=None, entry=None, probability=1, debug=False):
+    def __init__(self, state, algorithm="bruteForce", storage={}, entry=None, probability=1, debug=False):
         # Instantiating class
         self.state = state
-        self.storage = {} if storage is None else storage
+        self.storage = storage
         self.entry = entry
         self.probability = probability
         self.algorithm = algorithm
@@ -75,32 +75,31 @@ class State:
                 newState = self.__class__(stateNew, storage=self.storage, entry=move, algorithm=self.algorithm, probability=prob)
 
                 if self.debug:
-                    print(newState.pStatew, newState.result())
+                    print(newState.pStatew, end=" ")
+                    print(newState.result().value)
 
                 yield newState
                 stateNew = copy.deepcopy(self.state)
 
     def result(self, *args, force=False, **kwargs):
         """Calculate the best solution to a substate."""
-        try:
-            # If already solved return solution.
-            if not force:
+        # If already solved return solution.
+        if not force:
+            if not self.debug:
                 if self.pStatew in self.storage:
                     return self.storage[self.pStatew]
 
-            # Check if we are in a leaf.
-            endState = self.endState(self.state)
-            if endState is not None:
-                best = self.storage[self.pStatew] = self.createResult(endState)
-            else:
-                best = getattr(self, self.algorithm)(*args, force=force, **kwargs)
+        # Check if we are in a leaf.
+        endState = self.endState(self.state)
+        if endState is not None:
+            best = self.storage[self.pStatew] = self.createResult(endState)
+        else:
+            best = getattr(self, self.algorithm)(*args, force=force, **kwargs)
 
-            if self.debug:
-                print("final", self.pStatew, best)
+        if self.debug:
+            print("final", best)
 
-            return best
-        except KeyboardInterrupt:
-            raise ResultException(self.state.getMap())
+        return best
 
     def createResult(self, value, **kwargs):
         """Create a result object based on self."""
@@ -179,7 +178,6 @@ class State:
     def bruteForceLoop(self, force=False, deps=None, states=None, **kwargs):
         """Modified brute force solution for a situation where a game can loop in on itself.
         example - chopsticks.
-
         Note - This method is not guerenteed to work.
         Also - This method cannot count turns to victory.
         """
