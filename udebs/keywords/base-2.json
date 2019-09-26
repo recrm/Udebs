@@ -59,7 +59,8 @@
     },
     "or": {
         "f": "standard.logicor",
-        "all": true
+        "all": true,
+        "kwargs": {"storage": "storage", "field": "self"}
     },
     "if": {
         "f": "standard.logicif",

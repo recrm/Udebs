@@ -69,8 +69,14 @@ class standard:
             i *= number
         return i
 
-    def logicor(*args):
-        return any(args)
+    def logicor(*args, storage=None, field=None):
+        env = _getEnv(storage, {"self": field})
+        for i in args:
+            if isinstance(i, UdebsStr):
+                i = eval(i, env)
+            if i:
+                return True
+        return False
 
     def logicif(cond, value, other):
         return value if cond else other
@@ -245,7 +251,7 @@ def call(args, version):
 
     #Insert ... arguments.
     if data["all"]:
-        for key in sorted(list(nodes.keys())):
+        for key in sorted(nodes.keys(), key=lambda x: int(x.replace("$", ""))):
             arguments.append(formatS(nodes[key], version))
             del nodes[key]
 

@@ -200,7 +200,7 @@ class Instance(collections.MutableMapping):
         try:
             name = map_[target]
         except IndexError:
-            name = map_.empty
+            raise UndefinedSelectorError(target, "entity")
 
         unit = self[name]
 
