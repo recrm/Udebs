@@ -41,9 +41,6 @@ class Entity(collections.MutableMapping):
     def __len__(self):
         return 1
 
-    def __str__(self):
-        return self.name
-
     def __repr__(self):
         return "<entity: "+self.name+">"
 
@@ -97,52 +94,3 @@ class Entity(collections.MutableMapping):
 
         #Create new
         return self.copy(instance, name=name, increment=0)
-
-    #---------------------------------------------------
-    #               Update Functions                   -
-    #---------------------------------------------------
-    def controlLoc(self, loc):
-        """Changes stored loc of entity."""
-        if self.immutable:
-            return False
-        self.loc = loc
-        return loc
-
-    def controlIncrement(self, stat, increment, multiplyer=1):
-        """Changes stored stat of target by increment."""
-        if self.immutable:
-            return False
-
-        increment = int(increment * multiplyer)
-        self[stat] += increment
-        return increment
-
-    def controlListClear(self, lst):
-        """Clear all items from Entity list."""
-        if self.immutable:
-            return False
-
-        self[lst].clear()
-        return True
-
-    def controlListAdd(self, lst, entry):
-        """Adds items in Entity list."""
-        if self.immutable:
-            return False
-
-        if isinstance(entry, Entity):
-            if entry.immutable:
-                return False
-            entry = entry.name
-        self[lst].append(entry)
-        return True
-
-    def controlListRemove(self, lst, entry):
-        """Removes items in Entity list."""
-        if self.immutable:
-            return False
-
-        if entry in self[lst]:
-            self[lst].remove(entry)
-
-        return True

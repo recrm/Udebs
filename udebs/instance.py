@@ -548,16 +548,20 @@ class Instance(collections.MutableMapping):
         return code(env)
 
     #---------------------------------------------------
-    #               Entity control wrappers            -
+    #               Entity control                     -
     #---------------------------------------------------
-
     def controlListAdd(self, targets, lst, entries):
         targets = self.getEntity(targets, multi=True)
         if not isinstance(entries, list):
             entries = [entries]
 
         for target, entry in itertools.product(targets, entries):
-            target.controlListAdd(lst, entry)
+            if isinstance(entry, entity.Entity):
+                if entry.immutable:
+                    continue
+                entry = entry.name
+
+            target[lst].append(entry)
             logging.info("{} added to {} {}".format(entry, target, lst))
 
     def controlListRemove(self, targets, lst, entries):
@@ -566,19 +570,23 @@ class Instance(collections.MutableMapping):
             entries = [entries]
 
         for target, entry in itertools.product(targets, entries):
-            target.controlListRemove(lst, entry)
-            logging.info("{} removed from {} {}".format(entry, target, lst))
+            if not target.immutable:
+                if entry in target[lst]:
+                    target[lst].remove(entry)
+                    logging.info("{} removed from {} {}".format(entry, target, lst))
 
     def controlClear(self, targets, lst):
         targets = self.getEntity(targets, multi=True)
         for target in targets:
-            target.controlListClear(lst)
-            logging.info("{} {} has been cleared.".format(target, lst))
+            if not target.immutable:
+                target[lst].clear()
+                logging.info("{} {} has been cleared.".format(target, lst))
 
     def controlShuffle(self, target, stat):
         target = self.getEntity(target)
-        self.rand.shuffle(target[stat])
-        logging.info("{} {} has been shuffled".format(target, stat))
+        if not target.immutable:
+            self.rand.shuffle(target[stat])
+            logging.info("{} {} has been shuffled".format(target, stat))
 
     def controlIncrement(self, targets, stat, increment, multi=1):
         if increment == 0:
@@ -586,14 +594,17 @@ class Instance(collections.MutableMapping):
 
         targets = self.getEntity(targets, multi=True)
         for target in targets:
-            target.controlIncrement(stat, increment, multi)
-            logging.info("{} {} changed by {} is now {}".format(target, stat, increment*multi, self.getStat(target, stat)))
+            if not target.immutable:
+                value = int(increment * multi)
+                target[stat] += value
+                logging.info("{} {} changed by {} is now {}".format(target, stat, increment*multi, self.getStat(target, stat)))
 
     def controlString(self, targets, stat, value):
         targets = self.getEntity(targets, multi=True)
         for target in targets:
-            target[stat] = value
-            logging.info("{} {} changed to {}".format(target, stat, value))
+            if not target.immutable:
+                target[stat] = value
+                logging.info("{} {} changed to {}".format(target, stat, value))
 
     def controlRecruit(self, target, positions):
         target = self.getEntity(target)
@@ -636,18 +647,12 @@ class Instance(collections.MutableMapping):
     def getPath(self, caster, target, callback):
         caster = self.getEntity(caster).loc
         target = self.getEntity(target).loc
-        if caster == False or target == False:
-            return []
-
         callback = self.getEntity(callback)
         return self.getMap(caster).getPath(caster, target, callback)
 
     def getDistance(self, caster, target, method):
         caster = self.getEntity(caster).loc
         target = self.getEntity(target).loc
-        if caster == False or target == False:
-            return float("inf")
-
         if method in self:
             method = self.getEntity(method)
 
@@ -656,9 +661,6 @@ class Instance(collections.MutableMapping):
     def testBlock(self, caster, target, callback):
         caster = self.getEntity(caster).loc
         target = self.getEntity(target).loc
-        if caster == False or target == False:
-            return False
-
         callback = self.getEntity(callback)
         return self.getMap(caster).testBlock(caster, target, callback)
 
@@ -672,9 +674,6 @@ class Instance(collections.MutableMapping):
             distance = float("inf")
 
         center = self.getEntity(center).loc
-        if center == False:
-            return []
-
         callback = self.getEntity(callback)
         return self.getMap(center).getFill(center, callback, distance, self.rand, include_center=include_center)
 
@@ -704,7 +703,8 @@ class Instance(collections.MutableMapping):
                     loc = None
 
             # Update the entity itself.
-            caster.controlLoc(loc)
+            if not caster.immutable:
+                caster.loc = loc
 
     #---------------------------------------------------
     #                 Game Loop Helpers                -

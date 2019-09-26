@@ -10,19 +10,19 @@ class Board(collections.MutableMapping):
         #Set up maps.
         dim = options.get("dim", (1,1))
         if isinstance(dim, tuple):
-            self._map = []
+            self.map = []
             for e in range(dim[0]):
-                self._map.append([self.empty for i in range(dim[1])])
+                self.map.append([self.empty for i in range(dim[1])])
 
         elif isinstance(dim, list):
-            self._map = dim
+            self.map = dim
 
     def __eq__(self, other):
         if not isinstance(other, Board):
             return False
 
         values = [
-            self._map == other._map,
+            self.map == other.map,
             self.name == other.name,
             self.empty == other.empty,
         ]
@@ -31,20 +31,20 @@ class Board(collections.MutableMapping):
     def __getitem__(self, key):
         if key[0] >= 0:
             if key[1] >= 0:
-                 return self._map[key[0]][key[1]]
+                 return self.map[key[0]][key[1]]
         raise IndexError
 
     def __setitem__(self, key, value):
         if key[0] >= 0:
             if key[1] >= 0:
-                self._map[key[0]][key[1]] = value
+                self.map[key[0]][key[1]] = value
                 return
         raise IndexError
 
     def __delitem__(self, key):
         if key[0] >= 0:
             if key[1] >= 0:
-                self._map[key[0]][key[1]] = self.empty
+                self.map[key[0]][key[1]] = self.empty
                 return
         raise IndexError
 
@@ -64,27 +64,23 @@ class Board(collections.MutableMapping):
             "name": self.name,
             "empty": self.empty,
             "type": self.type,
-            "dim": [i[:] for i in self._map]
+            "dim": [i[:] for i in self.map]
         }
 
         return Board(field, **options)
 
     @property
     def x(self):
-        return len(self._map)
+        return len(self.map)
 
     @property
     def y(self):
         if not hasattr(self, "_y"):
             try:
-                self._y = max([len(x) for x in self._map])
+                self._y = max([len(x) for x in self.map])
             except ValueError:
                 self._y = 0
         return self._y
-
-    @property
-    def map(self):
-        return self._map
 
     #---------------------------------------------------
     #                    Methods                       -
@@ -99,17 +95,6 @@ class Board(collections.MutableMapping):
                 print(value, end=" ")
 
             print()
-
-    def getLoc(self, string):
-        """Return loc of first instance of string in map.
-
-        string - Name to search force
-
-        """
-        for loc in self:
-            if self[loc] == string:
-                return (loc[0], loc[1], self.name)
-        return False
 
     def getDistance(self, one, two, method):
         """Returns distance between two locations.
@@ -147,7 +132,7 @@ class Board(collections.MutableMapping):
         else:
             raise UndefinedMetricError(method)
 
-    def getAdjacent(self, center, callback=False, pointer=None, include_center=True):
+    def getAdjacent(self, center, callback, pointer=None, include_center=True):
         """
         Iterates over concentric circles of adjacent tiles.
 
@@ -160,34 +145,32 @@ class Board(collections.MutableMapping):
             yield []
             return
 
-        new = set()
         if include_center:
-            new.add(center)
+            yield [center]
         else:
-            new.add(False)
+            yield []
 
         searched = {center}
-        next = self.adjacent(center, pointer)
+        next_search = self.adjacent(center, pointer)
+        next_search.difference_update(searched)
 
-        next.difference_update(searched)
-
-        while len(new) > 0:
+        while True:
             #Sorted is needed to force program to be deterministic.
-            if False in new:
-                new.remove(False)
-
-            yield sorted(list(new))
             new = set()
-            for node in next:
-                if self.testLoc(node):
-                    if callback:
-                        env = self.field.getEnv(center, node, callback)
-                        if callback.testRequire(env) == True:
-                            new.add(node)
+            for node in next_search:
+                if callback and self.testLoc(node):
+                    env = self.field.getEnv(center, node, callback)
+                    if callback.testRequire(env) == True:
+                        new.add(node)
 
-            searched.update(next)
-            next = set().union(*[self.adjacent(node, pointer) for node in new])
-            next.difference_update(searched)
+            searched.update(next_search)
+            next_search = set().union(*[self.adjacent(node, pointer) for node in new])
+            next_search.difference_update(searched)
+
+            if len(new) > 0:
+                yield sorted(list(new))
+            else:
+                break
 
     def getPath(self, start, finish, callback=False):
         """
@@ -199,6 +182,9 @@ class Board(collections.MutableMapping):
         Returns empty list if there is no path.
 
         """
+        if not self.testLoc(start) or not self.testLoc(finish):
+            return []
+
         pointer = {}
 
         if start == finish:
@@ -229,6 +215,9 @@ class Board(collections.MutableMapping):
         rand - Instance of random.Random() to use for data shuffle.
 
         """
+        if not self.testLoc(center):
+            return []
+
         found = []
         count = 0
         #first iteration is always the center itself.
@@ -270,10 +259,11 @@ class Board(collections.MutableMapping):
         callback - Callback used to determine what is a valid tile.
 
         """
-        for i in self.getAdjacent(start, callback):
-            for q in i:
-                if finish in self.adjacent(q):
-                    return True
+        if self.testLoc(start) and self.testLoc(finish):
+            for i in self.getAdjacent(start, callback):
+                for q in i:
+                    if finish in self.adjacent(q):
+                        return True
         return False
 
     def adjacent(self, location, pointer=None):
