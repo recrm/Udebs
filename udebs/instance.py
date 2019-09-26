@@ -52,6 +52,7 @@ class Instance(collections.MutableMapping):
         self._data = {}
         self.delay = []
         self.rand = random.Random()
+        self.previous = None
 
         #Used by players #not implemented in save.
         self.movestore = {}
@@ -70,19 +71,28 @@ class Instance(collections.MutableMapping):
 
         return True
 
-    def __deepcopy__(self, memo):
+    def __copy__(self):
         new = Instance()
 
-        #Prevent state from being copied.
         for k, v in self.__dict__.items():
-            if k in {"delay", "map", "_data"}:
-                setattr(new, k, copy.deepcopy(v, memo))
-            elif k != "state":
+            if k not in {"delay", "map", "_data", "state"}:
                 setattr(new, k, v)
 
-        #Set all saved Entities to this field.
-        for e in new.values():
-            e.field = new
+        for name, entity in self._data.items():
+            if entity.immutable:
+                new[name] = entity
+            else:
+                new[name] = entity.copy(new)
+
+        for name, map_ in self.map.items():
+            new.map[name] = map_.copy(new)
+
+        for delay in self.delay:
+            new.delay.append({
+                "env": delay["env"], # This is likely broken. Environment must be updated.
+                "ticks": delay["ticks"],
+                "script": delay["script"],
+            })
 
         return new
 
@@ -175,7 +185,7 @@ class Instance(collections.MutableMapping):
         else:
             scripts.append(interpret.Script(target, self.version))
 
-        self[target] = entity.Entity(self, {"require": scripts, "name": target})
+        self[target] = entity.Entity(self, require=scripts, name=target, immutable=True)
         return self[target]
 
     @getEntity.register(tuple)
@@ -186,23 +196,25 @@ class Instance(collections.MutableMapping):
         except KeyError:
             raise UndefinedSelectorError(target, "entity")
 
+        # entity stored in the map
         try:
-            unit = self[map_[target]]
+            name = map_[target]
         except IndexError:
-            unit = self[map_.empty]
+            name = map_.empty
 
-        if unit.immutable:
-            if len(target) < 3:
-                target = (target[0], target[1], "map")
+        unit = self[name]
 
-            unit = copy.deepcopy(unit)
-            unit.loc = target
+        if not unit.loc:
+            unit = unit.copy(self, loc=(target[0], target[1], map_.name))
 
         return unit
 
     @getEntity.register(list)
     def _(self, target, multi=False):
         #If type is a list individually check each element.
+        if len(target) == 0:
+            raise UndefinedSelectorError(target, "entity")
+
         value = map(self.getEntity, target)
         if multi:
             return list(value)
@@ -268,7 +280,7 @@ class Instance(collections.MutableMapping):
 
             #Append new version to state.
             if self.revert:
-                self.state.append(copy.deepcopy(self))
+                self.state.append(copy.copy(self))
 
         if self.revert:
             self.state = self.state[-self.revert:]
@@ -278,7 +290,7 @@ class Instance(collections.MutableMapping):
     def getRevert(self, value=0):
         index = -(value +1)
         try:
-            new = copy.deepcopy(self.state[index])
+            new = copy.copy(self.state[index])
         except IndexError:
             return False
 
@@ -320,7 +332,8 @@ class Instance(collections.MutableMapping):
         move = self.getEntity(move)
 
         #create test instance
-        clone = copy.deepcopy(self)
+        clone = copy.copy(self)
+        clone.revert = 0
 
         #convert instance targets into clone targets.
         caster = clone.getEntity(caster.loc)
@@ -328,7 +341,8 @@ class Instance(collections.MutableMapping):
         move = clone.getEntity(move.name)
 
         #Send clone into the future.
-        move.controlEffect(caster, target)
+        env = clone.getEnv(caster, target, move)
+        move.controlEffect(env)
         clone.controlTime(time)
 
         effects = clone.getEntity(string)
@@ -400,8 +414,8 @@ class Instance(collections.MutableMapping):
 
     def getGroup(self, group):
         """Return all objects belonging to group."""
-        group = self.getEntity(group)
-        values = [unit for unit in self if group.name in self.getStat(unit, "group")]
+        groupname = self.getEntity(group).name
+        values = [unit for unit in self if groupname in self.getStat(unit, "group")]
         return sorted(values)
 
     def getListStat(self, lst, stat):
@@ -457,6 +471,17 @@ class Instance(collections.MutableMapping):
     #                 Call wrappers                    -
     #---------------------------------------------------
 
+    def getEnv(self, caster, target, move):
+        var_local = {
+            "caster": caster,
+            "target": target,
+            "move": move,
+            "C": caster,
+            "T": target,
+            "M": move,
+        }
+        return interpret._getEnv(var_local, {"self": self})
+
     def controlMove(self, casters, targets, moves):
         """Main function to trigger an event."""
         casters = self.getEntity(casters, multi=True)
@@ -483,18 +508,23 @@ class Instance(collections.MutableMapping):
                 logging.info("{} uses {} on {}".format(cname, move, tname))
 
             # Cast the move
-            test = move(caster, target)
+            env = self.getEnv(caster, target, move)
+            test = move(env)
             if test != True:
                 logging.info("failed because {}".format(test))
             else:
                 value = True
+
+        if value:
+            self.previous = (casters, targets, moves)
 
         return value
 
     def testMove(self, caster, target, move):
         """Gutted controlMove, returns if event would have activated."""
         move = self.getEntity(move)
-        return move.testRequire(caster, target) == True
+        env = self.getEnv(caster, target, move)
+        return move.testRequire(env) == True
 
     def castInit(self, moves, time=0):
         """Wrapper of controlMove where caster and target are unimportant."""
@@ -570,10 +600,12 @@ class Instance(collections.MutableMapping):
         if not isinstance(positions, list):
             positions = [positions]
 
-        new = "empty"
+        new = target
         for position in positions:
-            new = target.controlClone()
-            logging.info("{} has been recruited".format(new))
+            if not target.immutable:
+                new = target.controlClone(self)
+                self[new.name] = new
+                logging.info("{} has been recruited".format(new))
             self.controlTravel(new, position)
 
         return new
@@ -653,18 +685,25 @@ class Instance(collections.MutableMapping):
         caster = self.getEntity(caster)
         targets = self.getEntity(targets, multi=True)
 
+        if len(targets) > 1 and not caster.immutable:
+            raise Exception("Non immutable entities cannot be moved to multiple locations.")
+
         for target in targets:
+            # First remove caster from it's current location
             if not caster.immutable and caster.loc:
-                self.getMap(caster.loc).controlBump(caster.loc)
+                del self.getMap(caster.loc)[caster.loc]
 
+            # Then move caster to target location.
             loc = target.loc
-            if loc:
-                if self.getMap(target).controlMove(caster.name, loc):
-                    logging.info("{} has moved to {}".format(caster, loc))
-                    target.controlLoc(False)
-                else:
+            if target.loc:
+                try:
+                    self.getMap(target.loc)[target.loc] = caster.name
+                    logging.info("{} has moved to {}".format(caster.name, target.loc))
+                except IndexError:
                     logging.info("{} is an invalid location. {} spawned off the board".format(loc, caster))
+                    loc = None
 
+            # Update the entity itself.
             caster.controlLoc(loc)
 
     #---------------------------------------------------
@@ -693,7 +732,7 @@ class Instance(collections.MutableMapping):
     def resetState(self):
         """Resets game metadata to default."""
         self.state.clear()
-        self.state.append(copy.deepcopy(self))
+        self.state.append(copy.copy(self))
         self.cont = True
         self.time = 0
 

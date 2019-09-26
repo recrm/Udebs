@@ -230,7 +230,7 @@ def battleStart(xml_file, debug=False, script="init", name=None, revert=None, lo
             options['dim'] = [list(i) for i in zip(*dim)]
 
         #Add to field
-        field.map[options["name"]] = board.Board(options)
+        field.map[options["name"]] = board.Board(field, **options)
 
     field_maps = root.find("maps")
     if field_maps is not None:
@@ -241,7 +241,7 @@ def battleStart(xml_file, debug=False, script="init", name=None, revert=None, lo
         addMap(field_map)
 
     #Entities
-    entity.Entity(field, {"name": "empty", "immutable": True})
+    field["empty"] = entity.Entity(field, name="empty", immutable=True)
 
     #Create all entity type objects.
     entities = root.find("entities")
@@ -273,7 +273,7 @@ def battleStart(xml_file, debug=False, script="init", name=None, revert=None, lo
                         new_list.append(value.text)
                 options[lst] = new_list
 
-            entity.Entity(field, options)
+            field[options["name"]] = entity.Entity(field, **options)
 
     #Special
     special = root.find("special")
@@ -310,6 +310,6 @@ def battleStart(xml_file, debug=False, script="init", name=None, revert=None, lo
     logging.info('Env time is now {}'.format(field.time))
 
     if field.revert:
-        field.state.append(copy.deepcopy(field))
+        field.state.append(copy.copy(field))
 
     return field

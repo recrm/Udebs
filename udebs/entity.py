@@ -1,10 +1,9 @@
 from udebs import interpret
-import copy
 import collections
+import copy
 
 class Entity(collections.MutableMapping):
-    def __init__(self, field, options={}):
-        self.field = field
+    def __init__(self, field, **options):
         self.name = options.get("name", "")
         self.loc = options.get("loc", False)
         self.immutable = False
@@ -19,18 +18,12 @@ class Entity(collections.MutableMapping):
 
         self.immutable = options.get("immutable", False)
 
-        if self.name:
-            self.field[self.name] = self
-            self.update()
-
     def __eq__(self, other):
-        try:
-            other = self.field.getEntity(other)
-        except Exception:
+        if not isinstance(other, Entity):
             return False
 
         for k, v in self.__dict__.items():
-            if k != "field" and v != getattr(other, k):
+            if v != getattr(other, k):
                 return False
 
         return True
@@ -46,7 +39,7 @@ class Entity(collections.MutableMapping):
         return
 
     def __len__(self):
-        return len(self.data)
+        return 1
 
     def __str__(self):
         return self.name
@@ -57,52 +50,23 @@ class Entity(collections.MutableMapping):
     def __iter__(self):
         yield self
 
-    def __deepcopy__(self, memo):
-        "Prevents field attribute from being copied."
-        new = Entity(self.field)
-        for k, v in self.__dict__.items():
-            if k != "field":
-                setattr(new, k, copy.deepcopy(v, memo))
-
-        return new
-
     #---------------------------------------------------
     #                 Call Functions                   -
     #---------------------------------------------------
-    def getEnv(self, caster, target):
-        var_local = {
-            "caster": caster,
-            "target": target,
-            "move": self,
-            "C": caster,
-            "T": target,
-            "M": self,
-        }
-        return interpret._getEnv(var_local, {"self": self.field})
-
-    def controlEffect(self, env, target=False):
-        if target:
-            env = self.getEnv(env, target)
-
-        for effect in self.field.getStat(self, 'effect'):
+    def controlEffect(self, env):
+        for effect in env["self"].getStat(self, 'effect'):
             effect(env)
 
         return True
 
-    def testRequire(self, env, target=False):
-        if target:
-            env = self.getEnv(env, target)
-
-        for require in self.field.getStat(self, 'require'):
+    def testRequire(self, env):
+        for require in env["self"].getStat(self, 'require'):
             if not require(env):
                 return require
 
         return True
 
-    def __call__(self, env, target=False):
-        if target:
-            env = self.getEnv(env, target)
-
+    def __call__(self, env):
         value = self.testRequire(env)
         if value == True:
             return self.controlEffect(env)
@@ -111,56 +75,44 @@ class Entity(collections.MutableMapping):
     #---------------------------------------------------
     #                Clone Functions                   -
     #---------------------------------------------------
-    def controlClone(self):
+    def copy(self, field, **kwargs):
+        """The dependency on field prevents me from doing this as __copy__"""
+
+        options = {}
+        options.update(self.__dict__["data"])
+        options.update(self.__dict__)
+        options.update(kwargs)
+
+        for k, v in options.items():
+            if isinstance(v, list):
+                options[k] = v[:]
+
+        return Entity(field, **options)
+
+    def controlClone(self, instance):
         """Returns a clone of self."""
-        #immutable entities cannot be reproduced.
-        if self.immutable:
-            return self
-
-        #Create new
-        new = copy.deepcopy(self)
-
         #Set name of new
         self['increment'] +=1
         name = self.name + str(self['increment'])
-        new.name = name
 
-        #Setup new group and inc
-        new['increment'] = 0
-
-        #Add new to field
-        new.field[name] = new
-        new.update()
-
-        return new
+        #Create new
+        return self.copy(instance, name=name, increment=0)
 
     #---------------------------------------------------
     #               Update Functions                   -
     #---------------------------------------------------
-    def controlLoc(self, loc=None):
-        """Updates stored location with system location."""
-        if not self.immutable:
-            if loc is None:
-                for map_ in self.field.map.values():
-                    test = map_.getLoc(self.name)
-                    if test:
-                        self.loc = test
-                        break
-                else:
-                    self.loc = False
-
-            else:
-
-                if loc:
-                    name = self.field.getMap(loc[2])[loc]
-                    assert name == self.name
-
-                self.loc = loc
-
-        return self.loc
+    def controlLoc(self, loc):
+        """Changes stored loc of entity."""
+        if self.immutable:
+            return False
+        self.loc = loc
+        return loc
 
     def controlIncrement(self, stat, increment, multiplyer=1):
         """Changes stored stat of target by increment."""
+        if self.immutable:
+            return False
+
         increment = int(increment * multiplyer)
         self[stat] += increment
         return increment

@@ -106,9 +106,9 @@ class standard:
 
 class variables:
     modules = {
-        1: [],
-        2: [],
-        "other": [],
+        1: {},
+        2: {},
+        "other": {},
     }
     env = {
         "__builtins__": {"abs": abs, "min": min, "max": max},
@@ -125,14 +125,7 @@ class variables:
     }
 
     def keywords(version=1):
-        found = {}
-        for module in variables.modules[version]:
-            found.update(module)
-
-        for module in variables.modules["other"]:
-            found.update(module)
-
-        return found
+        return dict(variables.modules[version], **variables.modules["other"])
 
 def importModule(dicts={}, globs={}, version="other"):
     """
@@ -145,7 +138,7 @@ def importModule(dicts={}, globs={}, version="other"):
     elif not isinstance(globs, dict):
         globs = {globs.__name__: globs}
 
-    variables.modules[version].append(dicts)
+    variables.modules[version].update(dicts)
     variables.env.update(globs)
 
 def importSystemModule(name, globs={}):
@@ -378,7 +371,7 @@ class Script:
             raise
 
     def __repr__(self):
-        return self.raw
+        return "<Script " + self.raw + ">"
 
     def __call__(self, env):
         try:

@@ -1,7 +1,8 @@
 import collections
 
 class Board(collections.MutableMapping):
-    def __init__(self, options={}):
+    def __init__(self, field, **options):
+        self.field = field
         self.name = options.get("name", "map")
         self.empty = options.get("empty", "empty")
         self.type = options.get("type", False)
@@ -28,19 +29,24 @@ class Board(collections.MutableMapping):
         return all(values)
 
     def __getitem__(self, key):
-        if not self.testLoc(key):
-            raise IndexError
-        return self._map[key[0]][key[1]]
+        if key[0] >= 0:
+            if key[1] >= 0:
+                 return self._map[key[0]][key[1]]
+        raise IndexError
 
     def __setitem__(self, key, value):
-        if not self.testLoc(key):
-            raise IndexError
-        self._map[key[0]][key[1]] = value
+        if key[0] >= 0:
+            if key[1] >= 0:
+                self._map[key[0]][key[1]] = value
+                return
+        raise IndexError
 
     def __delitem__(self, key):
-        if not self.testLoc(key):
-            raise IndexError
-        self._map[key[0]][key[1]] = self.empty
+        if key[0] >= 0:
+            if key[1] >= 0:
+                self._map[key[0]][key[1]] = self.empty
+                return
+        raise IndexError
 
     def __len__(self):
         return self.x * self.y
@@ -52,6 +58,16 @@ class Board(collections.MutableMapping):
 
     def __repr__(self):
         return "<board: "+self.name+">"
+
+    def copy(self, field):
+        options = {
+            "name": self.name,
+            "empty": self.empty,
+            "type": self.type,
+            "dim": [i[:] for i in self._map]
+        }
+
+        return Board(field, **options)
 
     @property
     def x(self):
@@ -112,7 +128,7 @@ class Board(collections.MutableMapping):
             return float("inf")
 
         #Note: Dictonary switch method doubles this functions run time.
-        if not self.testLoc(one) or not self.testLoc(two):
+        elif not self.testLoc(one) or not self.testLoc(two):
             return float("inf")
         elif method == 'y':
             return int( abs( one[1] - two[1] ) )
@@ -164,8 +180,10 @@ class Board(collections.MutableMapping):
             new = set()
             for node in next:
                 if self.testLoc(node):
-                    if callback and callback.testRequire(center, node) == True:
-                        new.add(node)
+                    if callback:
+                        env = self.field.getEnv(center, node, callback)
+                        if callback.testRequire(env) == True:
+                            new.add(node)
 
             searched.update(next)
             next = set().union(*[self.adjacent(node, pointer) for node in new])
@@ -232,16 +250,14 @@ class Board(collections.MutableMapping):
 
         """
         if loc:
-            x = loc[0]
-            y = loc[1]
             try:
                 map_ = loc[2]
             except IndexError:
                 map_ = "map"
 
             if self.name == map_:
-                if 0 <= x < self.x:
-                    if 0 <= y < self.y:
+                if 0 <= loc[0] < self.x:
+                    if 0 <= loc[1] < self.y:
                         return True
 
         return False
@@ -293,18 +309,6 @@ class Board(collections.MutableMapping):
                     pointer[item] = location
 
         return found
-
-    def controlMove(self, name, loc):
-        if not self.testLoc(loc):
-            return False
-        self[loc] = name
-        return True
-
-    def controlBump(self, loc):
-        if not self.testLoc(loc):
-            return False
-        del self[loc]
-        return True
 
 class UndefinedMetricError(Exception):
     def __init__(self, metric):
