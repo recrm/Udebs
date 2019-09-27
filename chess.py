@@ -90,9 +90,12 @@ if __name__ == "__main__":
         surface.fill(BLACK)
         for x in range(10):
             for y in range(10):
-
                 target = (x-1, y-1)
-                unit = main_map.getName(target)
+                if -1 in target or 8 in target:
+                    unit = "empty"
+                else:
+                    unit = main_map.getName(target)
+
                 tile = main_map.getStat((x, y, "board"), "sprite")
 
                 #background
