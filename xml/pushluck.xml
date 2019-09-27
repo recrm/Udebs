@@ -82,7 +82,7 @@
     </shuffle>
 
     <insert>
-        <require>$caster not-in $target.STAT.cards $caster.STAT.amount</require>
+        <require>$caster.NAME not-in $target.STAT.cards $caster.STAT.amount</require>
         <effect>
             <i>$target cards GETS $caster</i>
             <i>$caster CAST $target insert</i>
@@ -148,7 +148,7 @@
     
     <!-- Draw a specific card from the deck -->
     <drawsingle>
-        <require>$target in deck.STAT.cards</require>
+        <require>$target.NAME in deck.STAT.cards</require>
         <effect>
             <i>deck cards LOSES $target</i>
             <i>$caster cards GETS $target</i>
