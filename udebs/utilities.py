@@ -80,17 +80,17 @@ def dispatchmethod(func):
     def dispatch(type):
         return dispatcher.dispatch(type)
 
-    def wrapper(inst, dispatch_data, *args, **kwargs):
+    def dispatch_wrapper(inst, dispatch_data, *args, **kwargs):
         cls = type(dispatch_data)
         impl = dispatch(cls)
         return impl(inst, dispatch_data, *args, **kwargs)
 
-    wrapper.register = register
-    wrapper.dispatch = dispatch
-    wrapper.registry = dispatcher.registry
-    wrapper._clear_cache = dispatcher._clear_cache
-    update_wrapper(wrapper, func)
-    return wrapper
+    dispatch_wrapper.register = register
+    dispatch_wrapper.dispatch = dispatch
+    dispatch_wrapper.registry = dispatcher.registry
+    dispatch_wrapper._clear_cache = dispatcher._clear_cache
+    update_wrapper(dispatch_wrapper, func)
+    return dispatch_wrapper
 
 #---------------------------------------------------
 #                  Utilities                       -

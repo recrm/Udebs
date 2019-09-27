@@ -1,7 +1,7 @@
 import random
 import copy
 import itertools
-import collections
+from collections.abc import MutableMapping
 import logging
 
 from udebs import interpret, board, entity
@@ -11,7 +11,7 @@ from  udebs.utilities import dispatchmethod, norecurse, lookup
 #                 Main Class                       -
 #---------------------------------------------------
 
-class Instance(collections.MutableMapping):
+class Instance(MutableMapping):
     """
     Main instance class that represents the state space of the entire game.
 
@@ -131,29 +131,26 @@ class Instance(collections.MutableMapping):
         raise UndefinedSelectorError(target, "entity")
 
     @getEntity.register(entity.Entity)
-    def _(self, target, multi=False):
+    def getEntityEntity(self, target, multi=False):
         return target
 
     @getEntity.register(bool)
-    def _(self, target, multi=False):
+    def getEntityBool(self, target, multi=False):
         # False is an allowable selector for empty.
         if target is False:
             return self['empty']
         raise UndefinedSelectorError(target, "entity")
 
     @getEntity.register(str)
-    def _(self, target, multi=False):
+    def getEntityStr(self, target, multi=False):
         #If string, return associated entity.
-        if target == "bump":
-            return self["empty"]
-
         try:
             return self[target]
         except KeyError:
             raise UndefinedSelectorError(target, "entity")
 
     @getEntity.register(interpret.UdebsStr)
-    def _(self, target, multi=False):
+    def getEntityUdebsStr(self, target, multi=False):
         #Interpretted callback
         # Nameless has already been processed.
         if target in self:
@@ -189,7 +186,7 @@ class Instance(collections.MutableMapping):
         return self[target]
 
     @getEntity.register(tuple)
-    def _(self, target, multi=False):
+    def getEntityTuple(self, target, multi=False):
         #If tuple, this is a location.
         try:
             map_ = self.getMap(target)
@@ -210,7 +207,7 @@ class Instance(collections.MutableMapping):
         return unit
 
     @getEntity.register(list)
-    def _(self, target, multi=False):
+    def getEntityList(self, target, multi=False):
         #If type is a list individually check each element.
         if len(target) == 0:
             raise UndefinedSelectorError(target, "entity")
@@ -555,10 +552,8 @@ class Instance(collections.MutableMapping):
         if not isinstance(entries, list):
             entries = [entries]
 
-        for target, entry in itertools.product(targets, entries):
+        for target, entry in itertools.product(targets, entries):/
             if isinstance(entry, entity.Entity):
-                if entry.immutable:
-                    continue
                 entry = entry.name
 
             target[lst].append(entry)
@@ -571,6 +566,9 @@ class Instance(collections.MutableMapping):
 
         for target, entry in itertools.product(targets, entries):
             if not target.immutable:
+                if isinstance(entry, entity.Entity):
+                    entry = entry.name
+
                 if entry in target[lst]:
                     target[lst].remove(entry)
                     logging.info("{} removed from {} {}".format(entry, target, lst))
@@ -594,17 +592,15 @@ class Instance(collections.MutableMapping):
 
         targets = self.getEntity(targets, multi=True)
         for target in targets:
-            if not target.immutable:
-                value = int(increment * multi)
-                target[stat] += value
-                logging.info("{} {} changed by {} is now {}".format(target, stat, increment*multi, self.getStat(target, stat)))
+            value = int(increment * multi)
+            target[stat] += value
+            logging.info("{} {} changed by {} is now {}".format(target, stat, increment*multi, self.getStat(target, stat)))
 
     def controlString(self, targets, stat, value):
         targets = self.getEntity(targets, multi=True)
         for target in targets:
-            if not target.immutable:
-                target[stat] = value
-                logging.info("{} {} changed to {}".format(target, stat, value))
+            target[stat] = value
+            logging.info("{} {} changed to {}".format(target, stat, value))
 
     def controlRecruit(self, target, positions):
         target = self.getEntity(target)
@@ -697,7 +693,7 @@ class Instance(collections.MutableMapping):
             if target.loc:
                 try:
                     self.getMap(target.loc)[target.loc] = caster.name
-                    logging.info("{} has moved to {}".format(caster.name, target.loc))
+                    logging.info("{} has moved to {}".format(caster, target.loc))
                 except IndexError:
                     logging.info("{} is an invalid location. {} spawned off the board".format(loc, caster))
                     loc = None

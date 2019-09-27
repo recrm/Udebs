@@ -65,21 +65,22 @@ class State:
 
     def substates(self, time=1):
         """Iterate over substates to a state."""
-        stateNew = copy.deepcopy(self.state)
+        stateNew = copy.copy(self.state)
         for move in self.legalMoves(self.state):
             if stateNew.castMove(*move[:3], time=time):
                 prob = 1
                 if len(move) > 3:
                     prob = move[3]
 
-                newState = self.__class__(stateNew, storage=self.storage, entry=move, algorithm=self.algorithm, probability=prob)
+                newState = self.__class__(stateNew, storage=self.storage, entry=move,
+                                          algorithm=self.algorithm, probability=prob)
 
                 if self.debug:
                     print(newState.pStatew, end=" ")
                     print(newState.result().value)
 
                 yield newState
-                stateNew = copy.deepcopy(self.state)
+                stateNew = copy.copy(self.state)
 
     def result(self, *args, force=False, **kwargs):
         """Calculate the best solution to a substate."""

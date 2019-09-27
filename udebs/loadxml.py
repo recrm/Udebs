@@ -242,6 +242,7 @@ def battleStart(xml_file, debug=False, script="init", name=None, revert=None, lo
 
     #Entities
     field["empty"] = entity.Entity(field, name="empty", immutable=True)
+    field["bump"] = field["empty"]
 
     #Create all entity type objects.
     entities = root.find("entities")

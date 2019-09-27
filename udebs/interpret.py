@@ -73,7 +73,7 @@ class standard:
         env = _getEnv(storage, {"self": field})
         for i in args:
             if isinstance(i, UdebsStr):
-                i = eval(i, env)
+                i = field.getEntity(i).testRequire(env)
             if i:
                 return True
         return False

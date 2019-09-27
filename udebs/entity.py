@@ -1,8 +1,8 @@
 from udebs import interpret
-import collections
+from collections.abc import MutableMapping
 import copy
 
-class Entity(collections.MutableMapping):
+class Entity(MutableMapping):
     def __init__(self, field, **options):
         self.name = options.get("name", "")
         self.loc = options.get("loc", False)
@@ -42,10 +42,13 @@ class Entity(collections.MutableMapping):
         return 1
 
     def __repr__(self):
-        return "<entity: "+self.name+">"
+        return "<entity: {}{}>".format(self.name, "!" if self.immutable else "")
 
     def __iter__(self):
         yield self
+
+    def __str__(self):
+        return self.name
 
     #---------------------------------------------------
     #                 Call Functions                   -
