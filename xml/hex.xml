@@ -51,7 +51,7 @@
     <query>
         <effect>
             <i>token CLEAR direction</i>
-            <i>token direction GETS (PATH token $target suptravel)</i>
+            <i>token direction GETS (PATH suptravel token $target)</i>
         </effect>
     </query>
 
