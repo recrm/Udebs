@@ -552,7 +552,7 @@ class Instance(MutableMapping):
         if not isinstance(entries, list):
             entries = [entries]
 
-        for target, entry in itertools.product(targets, entries):/
+        for target, entry in itertools.product(targets, entries):
             if isinstance(entry, entity.Entity):
                 entry = entry.name
 
