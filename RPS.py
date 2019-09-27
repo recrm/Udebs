@@ -67,9 +67,21 @@ xml = """
 </udebs>
 """
 
+class Random(udebs.Player):
+    def __call__(self, state):
+        return random.choice(["rock", "paper", "scissors", "cooperate"])
+
+class Human(udebs.Player):
+    def __call__(self, state):
+        x = input("what do you play? ")
+        while x not in ["rock", "paper", "scissors", "cooperate"]:
+            x = input("try again")
+
+        return x
+
 if __name__ == "__main__":
-    udebs.randomPlayer("CHOICE_C", "tick", "options")
-    udebs.humanPlayer("CHOICE_H", "tick", "options")
+    Random("CHOICE_C")
+    Human("CHOICE_H")
     udebs.lookup("LOOKUP", {
         "rock": {"paper": -1},
         "paper": {"scissors": -1},
