@@ -1,0 +1,62 @@
+<udebs>
+
+<config>
+    <version>2</version>
+    <logging>False</logging>
+    <name>connectfour</name>
+</config>
+
+<map>
+    <dim>
+        <x>5</x>
+        <y>4</y>
+    </dim>
+</map>
+
+<definitions>
+    <stats>
+        <ACT />
+    </stats>
+    <strings>
+        <token />
+    </strings>
+</definitions>
+
+<entities>
+    <player immutable="" />
+
+    <xPlayer>
+        <group>player</group>
+        <ACT>2</ACT>
+        <token>x</token>
+    </xPlayer>
+
+    <oPlayer>
+        <group>player</group>
+        <ACT>1</ACT>
+        <token>o</token>
+    </oPlayer>
+
+    <x immutable="" />
+    <o immutable="" />
+
+    <turn immutable="" >
+        <require>$caster.STAT.ACT &gt;= 2</require>
+        <effect>
+            <i>$caster ACT -= 2</i>
+            <i>ALL.player ACT += 1</i>
+        </effect>
+    </turn>
+
+    <placement immutable="" >
+        <group>turn</group>
+        <require>
+            <i>$target.NAME == empty</i>
+            <i>($target.YLOC == (BOARDY)) or 
+               `((($target.XLOC ($target.YLOC + 1)) NAME) != empty)</i>
+        </require>
+        <effect>$caster.STAT.token RECRUIT $target</effect>
+    </placement>
+
+</entities>
+</udebs>
