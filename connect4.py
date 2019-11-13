@@ -7,9 +7,9 @@ import udebs
 
 def legalMoves(state):
     """Create a list of legal moves in current state space."""
-    player = "xPlayer" if state.getStat("xPlayer", "ACT") == 2 else "oPlayer"
+    player = "xPlayer" if state.time % 2 == 0 else "oPlayer"
     opp = "o" if player[0] == "x" else "x"
-    
+
     map_ = state.map["map"]
 
     # Get initialized list
@@ -19,7 +19,7 @@ def legalMoves(state):
     for i in range(1, half + 1):
         init.append(half + i)
         init.append(half - i)
-    
+
     locs = []
     for x in init:
         for y in range(map_.y - 1, -1, -1):
@@ -27,12 +27,12 @@ def legalMoves(state):
             if map_[loc] == "empty":
                 # We will use this later
                 winp = win(state, loc, player[0])
-                
+
                 # if value is a winning or blocking move force.
                 if winp >= 4 or win(state, loc, opp) >= 4:
                     yield player, loc, "placement"
                     return
-                
+
                 locs.append((loc, winp))
                 break
 
@@ -50,14 +50,14 @@ def legalMoves(state):
             high.append(loc)
         else:
             mid.append(loc)
-    
+
     for loc in itertools.chain(high, mid, low):
         yield player, loc, "placement"
 
 def win(state, loc, value):
     map_ = state.getMap()
     maxim = 0
-    
+
     for direc in ((1,0), (0,1), (1,1)):
         count = -1
         for i in (1, -1):
@@ -70,36 +70,38 @@ def win(state, loc, value):
                     new = map_[centre]
                 except IndexError:
                     break
-        
+
         if count > maxim:
             maxim = count
 
     return maxim
-                
+
 def endState(state):
-    if state.previous is None:
+    name = state.getStat("result", "previousaction")
+    if name == "":
         return None
-    
-    name = state.previous[0].name[0]
-    loc = state.previous[1].loc
+
+    name = name[0]
+    loc = state.getStat("result", "previousloc")
+
     if win(state, loc, name) >= 4:
         if name == "x":
             return 1
         elif name == "o":
             return -1
-        
+
     map_ = state.getMap()
     for square in map_.values():
         if square == "empty":
             return None
-        
+
     return 0
-    
+
 def pState(state):
     map_ = state.getMap()
     one = []
     two = []
-    
+
     for y in range(map_.y):
         buf = ''
         for x in range(map_.x):
@@ -111,10 +113,10 @@ def pState(state):
             buf += entry
         one.append(buf)
         two.append(buf[::-1])
-    
+
     one, two = "|".join(one), "|".join(two)
     return one if one < two else two
-    
+
 class Node:
     def __init__(self, current, maximizer=True, alpha=-float("inf"), beta=float("inf")):
         self.value = endState(current)
@@ -139,7 +141,7 @@ def substates(state, legalMoves, time=1):
     for move in legalMoves(state):
         if stateNew is None:
             stateNew = copy.copy(state)
-            
+
         if stateNew.castMove(*move[:3], time=time):
             yield stateNew
             stateNew = None
@@ -177,7 +179,7 @@ def alphaBetaTree(current, storage = None):
             storage[current.pState] = result
         else:
             result = storage[current.pState]
-        
+
         if len(stack) == 0:
             return result
 
@@ -209,7 +211,7 @@ if __name__ == "__main__":
             break
 
     main_map.getMap().show()
-    
+
     storage = {}
     with Timer():
         analysis = alphaBetaTree(Node(main_map, True, alpha=-1, beta=1), storage=storage)

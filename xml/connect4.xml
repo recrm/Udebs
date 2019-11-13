@@ -4,12 +4,13 @@
     <version>2</version>
     <logging>False</logging>
     <name>connectfour</name>
+    <immutable>True</immutable>
 </config>
 
 <map>
     <dim>
         <x>5</x>
-        <y>4</y>
+        <y>5</y>
     </dim>
 </map>
 
@@ -19,28 +20,31 @@
     </stats>
     <strings>
         <token />
+        <previousaction />
+        <previousloc />
     </strings>
 </definitions>
 
 <entities>
-    <player immutable="" />
+    <result immutable="False" />
+    <player />
 
-    <xPlayer>
+    <xPlayer immutable="False">
         <group>player</group>
         <ACT>2</ACT>
         <token>x</token>
     </xPlayer>
 
-    <oPlayer>
+    <oPlayer immutable="False">
         <group>player</group>
         <ACT>1</ACT>
         <token>o</token>
     </oPlayer>
 
-    <x immutable="" />
-    <o immutable="" />
+    <x />
+    <o />
 
-    <turn immutable="" >
+    <turn>
         <require>$caster.STAT.ACT &gt;= 2</require>
         <effect>
             <i>$caster ACT -= 2</i>
@@ -48,14 +52,19 @@
         </effect>
     </turn>
 
-    <placement immutable="" >
-        <group>turn</group>
+    <placement>
+        <!-- <group>turn</group> -->
         <require>
             <i>$target.NAME == empty</i>
-            <i>($target.YLOC == (BOARDY)) or 
+            <i>($target.YLOC == (BOARDY)) or
                `((($target.XLOC ($target.YLOC + 1)) NAME) != empty)</i>
         </require>
-        <effect>$caster.STAT.token RECRUIT $target</effect>
+        <effect>
+            <i>result previousaction REPLACE $caster.NAME</i>
+            <i>result previousloc REPLACE $target.LOC</i>
+            <i>$caster.STAT.token RECRUIT $target</i>
+
+        </effect>
     </placement>
 
 </entities>
