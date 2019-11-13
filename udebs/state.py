@@ -45,12 +45,17 @@ class Result:
 
 class State:
     """A State space calculator designed for TicTacToe."""
-    def __init__(self, state, algorithm="bruteForce", storage={}, entry=None, probability=1, debug=False):
+    def __init__(self, state, algorithm="bruteForce", storage=None, entry=None, probability=1, debug=False):
+
+        if storage is None:
+            storage = {}
+
         # Instantiating class
         self.state = state
         self.storage = storage
         self.entry = entry
         self.probability = probability
+        self.algorithmf = getattr(self, algorithm)
         self.algorithm = algorithm
         self.debug = debug
 
@@ -95,7 +100,7 @@ class State:
         if endState is not None:
             best = self.storage[self.pStatew] = self.createResult(endState)
         else:
-            best = getattr(self, self.algorithm)(*args, force=force, **kwargs)
+            best = self.algorithmf(*args, force=force, **kwargs)
 
         if self.debug:
             print("final", best)
@@ -214,15 +219,14 @@ class State:
                 states[i].result(deps=deps, states=states, force=True)
 
             deps.pop(self.pStatew, None)
-#             states.pop(self.pStatew, None)
 
         return self.storage[self.pStatew]
 
-    def expectationValue(self, par=False, **kwargs):
+    def expectationValue(self, par=False, time=0, **kwargs):
         if par:
-            results = self.parApply(par, time=0)
+            results = self.parApply(par, time=time)
         else:
-            results = [i.result() for i in self.substates(time=0)]
+            results = [i.result(time=time) for i in self.substates(time=time)]
 
         total = sum(i.value * i.probability for i in results)
 

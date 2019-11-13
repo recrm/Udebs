@@ -116,9 +116,9 @@ class Board(collections.MutableMapping):
         elif not self.testLoc(one) or not self.testLoc(two):
             return float("inf")
         elif method == 'y':
-            return int( abs( one[1] - two[1] ) )
+            return int(abs(one[1] - two[1]))
         elif method == 'x':
-            return int( abs( one[0] - two[0] ) )
+            return int(abs(one[0] - two[0]))
         elif method == 'z':
             return abs(two[0] + two[1]) - (one[0] + one[1])
         elif method == 'hex':

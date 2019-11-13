@@ -57,12 +57,12 @@
         "default": {"-$1": "$caster"}
     },
     "INIT": {
-        "f": "self.castInit",
-        "args": ["$1"]
+        "f": "self.controlMove",
+        "args": ["empty", "empty", "$1"]
     },
     "ACTION": {
-        "f": "self.castAction",
-        "args": ["-$1", "$1"]
+        "f": "self.controlMove",
+        "args": ["-$1", "empty", "$1"]
     },
     "DELAY": {
         "f": "self.controlDelay",

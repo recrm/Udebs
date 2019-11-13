@@ -1,48 +1,32 @@
-from udebs import interpret
-from collections.abc import MutableMapping
-import copy
-
-class Entity(MutableMapping):
+class Entity():
     def __init__(self, field, **options):
+        if "_data" in options:
+            # second path for copy operation only
+            self.__dict__ = options["_data"]
+            return
+
         self.name = options.get("name", "")
         self.loc = options.get("loc", False)
-        self.immutable = False
-
-        self.data = {}
-        for stat in field.stats:
-            self[stat] = options.get(stat, 0)
-        for lists in field.lists:
-            self[lists] = options.get(lists, [])
-        for string in field.strings:
-            self[string] = options.get(string, '')
-
         self.immutable = options.get("immutable", False)
+
+        for stat in field.stats:
+            self.__dict__[stat] = options.get(stat, 0)
+        for lists in field.lists:
+            self.__dict__[lists] = options.get(lists, [])
+        for string in field.strings:
+            self.__dict__[string] = options.get(string, '')
 
     def __eq__(self, other):
         if not isinstance(other, Entity):
             return False
 
-        for k, v in self.__dict__.items():
-            if v != getattr(other, k):
-                return False
-
-        return True
-
-    def __getitem__(self, key):
-        return self.data[key]
-
-    def __setitem__(self, key, value):
-        if not self.immutable:
-            self.data[key] = value
-
-    def __delitem__(self, key):
-        return
+        return self.__dict__ == other.__dict__
 
     def __len__(self):
         return 1
 
     def __repr__(self):
-        return "<entity: {}{}>".format(self.name, "!" if self.immutable else "")
+        return f"<entity: {self.name}{'!' if self.immutable else ''}>"
 
     def __iter__(self):
         yield self
@@ -78,22 +62,19 @@ class Entity(MutableMapping):
     def copy(self, field, **kwargs):
         """The dependency on field prevents me from doing this as __copy__"""
 
-        options = {}
-        options.update(self.__dict__["data"])
-        options.update(self.__dict__)
-        options.update(kwargs)
+        for k, v in self.__dict__.items():
+            if k not in kwargs:
+                if isinstance(v, list):
+                    v = v[:]
+                kwargs[k] = v
 
-        for k, v in options.items():
-            if isinstance(v, list):
-                options[k] = v[:]
-
-        return Entity(field, **options)
+        return Entity(field, _data=kwargs)
 
     def controlClone(self, instance):
         """Returns a clone of self."""
         #Set name of new
-        self['increment'] +=1
-        name = self.name + str(self['increment'])
+        self.increment +=1
+        name = self.name + str(self.increment)
 
         #Create new
         return self.copy(instance, name=name, increment=0)

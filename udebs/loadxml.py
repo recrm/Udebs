@@ -59,6 +59,8 @@ def battleWrite(env, location, pretty=False):
         addleaf(config, "version", str(env.version))
     if env.seed != None:
         addleaf(config, "seed", str(env.seed))
+    if env.immutable != True:
+        addleaf(config, "immutable", str(env.immutable))
 
     # Time variables
     var = e.SubElement(root, 'time')
@@ -197,6 +199,7 @@ def battleStart(xml_file, debug=False, script="init", name=None, revert=None, lo
         fillsimple(config, "logging", eval, log)
         fillsimple(config, "version", int, version)
         fillsimple(config, "seed", int, seed)
+        fillsimple(config, "immutable", eval, immutable)
 
     # Time variables
     time = root.find("time")
@@ -298,16 +301,20 @@ def battleStart(xml_file, debug=False, script="init", name=None, revert=None, lo
         field.rand.seed(field.seed)
 
     #Final cleanup
+    logging.basicConfig(**{
+        "stream": sys.stdout,
+        "level": logging.INFO if field.logging else logging.WARNING,
+        "format": "%(message)s",
+    })
+
     if field.logging:
-        logging.basicConfig(stream=sys.stdout, level=logging.INFO, format="%(message)s")
+        logging.info(f"INITIALIZING {field.name}\n")
 
-    logging.info("INITIALIZING {}".format(field.name))
-
-    if script and script in field:
+    if script in field:
         field.castInit(script)
 
-    logging.info('')
-    logging.info('Env time is now {}'.format(field.time))
+    if field.logging:
+        logging.info(f'Env time is now {field.time}')
 
     if field.revert:
         field.state.append(copy.copy(field))

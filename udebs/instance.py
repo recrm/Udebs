@@ -1,11 +1,14 @@
-import random
-import copy
-import itertools
+from random import Random
+from copy import copy
+from itertools import product
 from collections.abc import MutableMapping
-import logging
+from logging import info
+from functools import singledispatchmethod
 
-from udebs import interpret, board, entity
-from  udebs.utilities import dispatchmethod, norecurse, lookup
+from udebs.interpret import Script, UdebsStr, _getEnv
+from udebs.board import Board
+from udebs.entity import Entity
+from udebs.utilities import norecurse
 
 #---------------------------------------------------
 #                 Main Class                       -
@@ -25,7 +28,10 @@ class Instance(MutableMapping):
 
     Other functions are convinience wrappers for public use.
     """
-    def __init__(self):
+    def __init__(self, copy=False):
+        if copy:
+            return
+
         #definitions
         self.lists = {'group', 'effect', 'require'}
         self.stats = {'increment'}
@@ -35,27 +41,24 @@ class Instance(MutableMapping):
         self.rmap = set()
 
         #config
-        self.name = 'Unknown'
-        self.logging = True
-        self.revert = 0
-        self.version = 1
-        self.seed = None
+        self.name = 'Unknown' # only effects what is printed when initialized
+        self.logging = True # Turns logging on and off
+        self.revert = 0 # Determins how many steps should be saved in revert
+        self.version = 1 # What version of Udebs syntax is used.
+        self.seed = None # Random seed for processing.
+        self.immutable = False # Determines default setting for entities immutability.
 
         #time
-        self.time = 0
-        self.increment = 1
-        self.cont = True
-        self.next = None
+        self.time = 0 # In game counter
+        self.increment = 1 # how much time passes between gameloop iterations. Useful for pausing.
+        self.cont = True # Flag to determine if gameloop should continue
+        self.next = None # The next state a gameloop will return. Useful for resets and reverts in gameloop
 
         #internal
         self.map = {}
         self._data = {}
         self.delay = []
-        self.rand = random.Random()
-        self.previous = None
-
-        #Used by players #not implemented in save.
-        self.movestore = {}
+        self.rand = Random()
 
         #Do not copy
         self.state = []
@@ -72,21 +75,24 @@ class Instance(MutableMapping):
         return True
 
     def __copy__(self):
-        new = Instance()
+        new = Instance(True)
 
         for k, v in self.__dict__.items():
             if k not in {"delay", "map", "_data", "state"}:
                 setattr(new, k, v)
 
+        new._data = {}
         for name, entity in self._data.items():
             if entity.immutable:
                 new[name] = entity
             else:
                 new[name] = entity.copy(new)
 
+        new.map = {}
         for name, map_ in self.map.items():
             new.map[name] = map_.copy(new)
 
+        new.delay = []
         for delay in self.delay:
             new.delay.append({
                 "env": delay["env"], # This is likely broken. Environment must be updated.
@@ -94,11 +100,11 @@ class Instance(MutableMapping):
                 "script": delay["script"],
             })
 
+        new.state = []
+
         return new
 
     def __getitem__(self, key):
-        if key == "bump":
-            return self._data["empty"]
         return self._data[key]
 
     def __setitem__(self, key, value):
@@ -120,42 +126,33 @@ class Instance(MutableMapping):
     #               Selector Function                  -
     #---------------------------------------------------
 
-    @dispatchmethod
     def getEntity(self, target, multi=False):
         """Returns entity object based on given selector.
+        Note: This function previously used singledispatch. However, it
+        is a ton slower and no more readable than an if stack.
 
         target - Any entity selector.
         multi - Boolean, allows lists of targets.
 
         """
-        raise UndefinedSelectorError(target, "entity")
-
-    @getEntity.register(entity.Entity)
-    def getEntityEntity(self, target, multi=False):
-        return target
-
-    @getEntity.register(bool)
-    def getEntityBool(self, target, multi=False):
-        # False is an allowable selector for empty.
-        if target is False:
+        if isinstance(target, Entity):
+            return target
+        elif target is False or target == "bump":
             return self['empty']
+        elif isinstance(target, str) and target in self:
+            return self[target]
+        elif isinstance(target, tuple):
+            return self.getEntityTuple(target)
+        elif isinstance(target, list) and len(target) > 0:
+            if multi:
+                return [self.getEntity(i) for i in target]
+            return self.getEntity(value[0])
+        elif isinstance(target, UdebsStr):
+            return self.getEntityUdebsStr(target)
+
         raise UndefinedSelectorError(target, "entity")
 
-    @getEntity.register(str)
-    def getEntityStr(self, target, multi=False):
-        #If string, return associated entity.
-        try:
-            return self[target]
-        except KeyError:
-            raise UndefinedSelectorError(target, "entity")
-
-    @getEntity.register(interpret.UdebsStr)
-    def getEntityUdebsStr(self, target, multi=False):
-        #Interpretted callback
-        # Nameless has already been processed.
-        if target in self:
-            return self[target]
-
+    def getEntityUdebsStr(self, target):
         #Process new nameless.
         scripts = []
         if target[0] == "(":
@@ -170,23 +167,22 @@ class Instance(MutableMapping):
                     bracket -=1
 
                 if not bracket and char == ",":
-                    scripts.append(interpret.Script(interpret.UdebsStr(buf), self.version))
+                    scripts.append(Script(UdebsStr(buf), self.version))
                     buf = ''
                     continue
 
                 buf += char
 
-            raw = interpret.UdebsStr(buf)
-            scripts.append(interpret.Script(raw, self.version))
+            raw = UdebsStr(buf)
+            scripts.append(Script(raw, self.version))
 
         else:
-            scripts.append(interpret.Script(target, self.version))
+            scripts.append(Script(target, self.version))
 
-        self[target] = entity.Entity(self, require=scripts, name=target, immutable=True)
+        self[target] = Entity(self, require=scripts, name=target, immutable=True)
         return self[target]
 
-    @getEntity.register(tuple)
-    def getEntityTuple(self, target, multi=False):
+    def getEntityTuple(self, target):
         #If tuple, this is a location.
         try:
             map_ = self.getMap(target)
@@ -202,41 +198,27 @@ class Instance(MutableMapping):
         unit = self[name]
 
         if not unit.loc:
-            unit = unit.copy(self, loc=(target[0], target[1], map_.name))
+            if len(target) < 3:
+                target = (*target, map_.name)
+            unit = unit.copy(self, loc=target)
 
         return unit
-
-    @getEntity.register(list)
-    def getEntityList(self, target, multi=False):
-        #If type is a list individually check each element.
-        if len(target) == 0:
-            raise UndefinedSelectorError(target, "entity")
-
-        value = map(self.getEntity, target)
-        if multi:
-            return list(value)
-        return next(value)
 
     def getMap(self, target="map"):
         """Gets a map by name or object on it."""
         if not target:
             return False
-
         elif isinstance(target, str):
             try:
                 return self.map[target]
             except KeyError:
                 raise UndefinedSelectorError(target, "map")
-
-        elif isinstance(target, board.Board):
+        elif isinstance(target, Board):
             return target
-
-        elif isinstance(target, entity.Entity):
+        elif isinstance(target, Entity):
             return self.map[target.loc[2] if len(target.loc) == 3 else "map"]
-
         elif isinstance(target, tuple):
             return self.map[target[2] if len(target) == 3 else "map"]
-
         else:
             raise UndefinedSelectorError(target, "map")
 
@@ -251,8 +233,7 @@ class Instance(MutableMapping):
 
         """
         def checkdelay():
-            again = True
-            while again:
+            while True:
                 again = False
                 for delay in self.delay[:]:
                     if delay['ticks'] <= 0:
@@ -260,13 +241,15 @@ class Instance(MutableMapping):
                         delay['script'](delay['env'])
                         again = True
 
+                if not again:
+                    break
+
         checkdelay()
         for i in range(time):
-            logging.info("")
-
             self.time +=1
 
-            logging.info('Env time is now {}'.format(self.time))
+            if self.logging:
+                info(f'\nEnv time is now {self.time}')
             if script in self:
                 self.controlMove(self["empty"], self["empty"], self[script])
                 checkdelay()
@@ -277,7 +260,7 @@ class Instance(MutableMapping):
 
             #Append new version to state.
             if self.revert:
-                self.state.append(copy.copy(self))
+                self.state.append(copy(self))
 
         if self.revert:
             self.state = self.state[-self.revert:]
@@ -287,7 +270,7 @@ class Instance(MutableMapping):
     def getRevert(self, value=0):
         index = -(value +1)
         try:
-            new = copy.copy(self.state[index])
+            new = copy(self.state[index])
         except IndexError:
             return False
 
@@ -300,7 +283,7 @@ class Instance(MutableMapping):
         Creates a new delay object.
 
         """
-        env = interpret._getEnv(storage, {"self": self})
+        env = _getEnv(storage, {"self": self})
 
         new_delay = {
             "env": env,
@@ -309,7 +292,8 @@ class Instance(MutableMapping):
         }
 
         self.delay.append(new_delay)
-        logging.info("effect added to delay for {}".format(delay))
+        if self.logging:
+            info(f"effect added to delay for {delay}")
         return True
 
     @norecurse
@@ -322,14 +306,15 @@ class Instance(MutableMapping):
         time - how much time to pass after event.
         """
 
-        logging.info("Testing future condition.")
+        if self.logging:
+            info("Testing future condition.")
 
         caster = self.getEntity(caster)
         target = self.getEntity(target)
         move = self.getEntity(move)
 
         #create test instance
-        clone = copy.copy(self)
+        clone = copy(self)
         clone.revert = 0
 
         #convert instance targets into clone targets.
@@ -345,15 +330,15 @@ class Instance(MutableMapping):
         effects = clone.getEntity(string)
         test = clone.testMove(caster, target, effects)
 
-        logging.info("Done testing future condition.")
-        logging.info("")
+        if self.logging:
+            info("Done testing future condition.\n")
         return test
 
     #---------------------------------------------------
     #           Coorporate get functions               -
     #---------------------------------------------------
 
-    def getStat(self, target, stat, maps=True):
+    def getStat(self, target, stat):
         """General getter for all attributes.
 
         target - Entity selector.
@@ -361,58 +346,53 @@ class Instance(MutableMapping):
         maps - Boolean turns on and off inheritance from other maps.
 
         """
-        #self and grouped objects
-        def iterValues(target):
-            if target[stat]:
-                yield target[stat]
-
-            #class and rlist
-            for lst in self.rlist:
-                for unit in target[lst]:
-                    try:
-                        group = self[unit]
-                    except KeyError:
-                        raise UndefinedSelectorError(unit, "group")
-
-                    value = self.getStat(group, stat)
-                    if value:
-                        yield value
-
-            #map locations
-            if maps and target.loc:
-                current = self.getMap(target.loc)
-                for map_ in self.rmap:
-                    if map_ != current:
-                        new_loc = (target.loc[0], target.loc[1], map_)
-                        value = self.getStat(new_loc, stat, False)
-                        if value:
-                            yield value
-
-        if not isinstance(target, entity.Entity):
-            target = self.getEntity(target)
-
-        if stat in {'group', 'increment'}:
-            return target[stat]
+        current = self.getEntity(target)
+        if stat in {"increment", "group"}:
+            return current[stat]
         elif stat in self.stats:
-            return sum(iterValues(target))
+            total = 0
         elif stat in self.lists:
-            return list(itertools.chain(*iterValues(target)))
+            total = []
         elif stat in self.strings:
-            try:
-                return next(iterValues(target))
-            except StopIteration:
-                return ""
-
-        # Temporary until I can figure out a better way to do this.
+            total = ""
         elif stat == "envtime":
             return self.time
         else:
             raise UndefinedSelectorError(stat, "stat")
 
+        stack=[]
+
+        # rmaps only apply to current object not rlists.
+        if current.loc:
+            for map_ in self.rmap:
+                if map_ != current.loc[2]:
+                    new_loc = (current.loc[0], current.loc[1], map_)
+                    stack.append(self.getEntity(new_loc))
+
+        while True:
+            if (value := getattr(current, stat)):
+                if isinstance(total, int):
+                    total += value
+                elif isinstance(total, list):
+                    total.extend(value)
+                else:
+                    return value
+
+            for lst in self.rlist:
+                for unit in getattr(current, lst):
+                    stack.append(self[unit])
+
+            if len(stack) == 0:
+                break
+
+            current = stack.pop()
+
+        return total
+
     def getGroup(self, group):
         """Return all objects belonging to group."""
         groupname = self.getEntity(group).name
-        values = [unit for unit in self if groupname in self.getStat(unit, "group")]
+        values = [unit for unit in self if groupname in self[unit]["group"]]
         return sorted(values)
 
     def getListStat(self, lst, stat):
@@ -427,11 +407,9 @@ class Instance(MutableMapping):
         if stat in self.stats:
             return sum(found)
         elif stat in self.lists:
-            return list(itertools.chain(*found))
+            return list(i for j in found for i in j)
         elif stat in self.strings:
             return next(found)
-        else:
-            raise UndefinedSelectorError(stat, "stat")
 
     def getListGroup(self, target, lst, group):
         """Returns first element in list that is a member of group.
@@ -445,7 +423,7 @@ class Instance(MutableMapping):
 
         start = self.getStat(target, lst)
         for item in start:
-            if group.name in self.getStat(item, 'group'):
+            if group.name in self[item]['group']:
                 return item
         return False
 
@@ -477,7 +455,7 @@ class Instance(MutableMapping):
             "T": target,
             "M": move,
         }
-        return interpret._getEnv(var_local, {"self": self})
+        return _getEnv(var_local, {"self": self})
 
     def controlMove(self, casters, targets, moves):
         """Main function to trigger an event."""
@@ -487,33 +465,30 @@ class Instance(MutableMapping):
 
         value = False
 
-        for caster, target, move in itertools.product(casters, targets, moves):
-            # Logging
-            cname = caster
-            if caster.immutable and caster.loc:
-                cname = caster.loc
+        for caster, target, move in product(casters, targets, moves):
+            if self.logging:
+                # Logging
+                cname = caster
+                if caster.immutable and caster.loc:
+                    cname = caster.loc
 
-            tname = target
-            if target.immutable and target.loc:
-                tname = target.loc
+                tname = target
+                if target.immutable and target.loc:
+                    tname = target.loc
 
-            if target.name == caster.name == "empty":
-                logging.info("init {}".format(move))
-            elif target.name == "empty":
-                logging.info("{} uses {}".format(cname, move))
-            else:
-                logging.info("{} uses {} on {}".format(cname, move, tname))
+                if target.name == caster.name == "empty":
+                    info(f"init {move}")
+                elif target.name == "empty":
+                    info(f"{cname} uses {move}")
+                else:
+                    info(f"{cname} uses {move} on {tname}")
 
             # Cast the move
-            env = self.getEnv(caster, target, move)
-            test = move(env)
-            if test != True:
-                logging.info("failed because {}".format(test))
-            else:
+            test = move(self.getEnv(caster, target, move))
+            if test == True:
                 value = True
-
-        if value:
-            self.previous = (casters, targets, moves)
+            elif self.logging:
+                info(f"failed because {test}")
 
         return value
 
@@ -540,8 +515,8 @@ class Instance(MutableMapping):
 
     def castSingle(self, string):
         """Call a function directly from a user inputed Udebs String."""
-        code = interpret.Script(string, version=self.version)
-        env = interpret._getEnv({}, {"self": self})
+        code = Script(string, version=self.version)
+        env = _getEnv({}, {"self": self})
         return code(env)
 
     #---------------------------------------------------
@@ -552,67 +527,63 @@ class Instance(MutableMapping):
         if not isinstance(entries, list):
             entries = [entries]
 
-        for target, entry in itertools.product(targets, entries):
-            if isinstance(entry, entity.Entity):
-                entry = entry.name
-
-            target[lst].append(entry)
-            logging.info("{} added to {} {}".format(entry, target, lst))
+        for target, entry in product(targets, entries):
+            if not target.immutable:
+                getattr(target, lst).append(entry)
+                if self.logging:
+                    info(f"{entry} added to {target} {lst}")
 
     def controlListRemove(self, targets, lst, entries):
         targets = self.getEntity(targets, multi=True)
         if not isinstance(entries, list):
             entries = [entries]
 
-        for target, entry in itertools.product(targets, entries):
+        for target, entry in product(targets, entries):
             if not target.immutable:
-                if isinstance(entry, entity.Entity):
-                    entry = entry.name
-
-                if entry in target[lst]:
-                    target[lst].remove(entry)
-                    logging.info("{} removed from {} {}".format(entry, target, lst))
+                value = getattr(target, lst)
+                if entry in value:
+                    value.remove(entry)
+                    if self.logging:
+                        info(f"{entry} removed from {target} {lst}")
 
     def controlClear(self, targets, lst):
-        targets = self.getEntity(targets, multi=True)
-        for target in targets:
+        for target in self.getEntity(targets, multi=True):
             if not target.immutable:
-                target[lst].clear()
-                logging.info("{} {} has been cleared.".format(target, lst))
+                getattr(target, lst).clear()
+                if self.logging:
+                    info(f"{target} {lst} has been cleared")
 
     def controlShuffle(self, target, stat):
-        target = self.getEntity(target)
-        if not target.immutable:
-            self.rand.shuffle(target[stat])
-            logging.info("{} {} has been shuffled".format(target, stat))
+        for target in self.getEntity(target, multi=True):
+            if not target.immutable:
+                self.rand.shuffle(getattr(target, key))
+                if self.logging:
+                    info(f"{target} {stat} has been shuffled")
 
     def controlIncrement(self, targets, stat, increment, multi=1):
-        if increment == 0:
-            return
-
-        targets = self.getEntity(targets, multi=True)
-        for target in targets:
-            value = int(increment * multi)
-            target[stat] += value
-            logging.info("{} {} changed by {} is now {}".format(target, stat, increment*multi, self.getStat(target, stat)))
+        total = int(increment * multi)
+        for target in self.getEntity(targets, multi=True):
+            if not target.immutable:
+                setattr(target, stat, getattr(target, stat) + total)
+                if self.logging:
+                    info(f"{target} {stat} changed by {total}")
 
     def controlString(self, targets, stat, value):
-        targets = self.getEntity(targets, multi=True)
-        for target in targets:
-            target[stat] = value
-            logging.info("{} {} changed to {}".format(target, stat, value))
+        for target in self.getEntity(targets, multi=True):
+            if not target.immutable:
+                setattr(target, stat, value)
+                if self.logging:
+                    info(f"{target} {stat} changed to {value}")
 
     def controlRecruit(self, target, positions):
         target = self.getEntity(target)
-        if not isinstance(positions, list):
-            positions = [positions]
-
         new = target
-        for position in positions:
+        for position in positions if isinstance(positions, list) else [positions]:
             if not target.immutable:
                 new = target.controlClone(self)
                 self[new.name] = new
-                logging.info("{} has been recruited".format(new))
+                if self.logging:
+                    info(f"{new} has been recruited")
             self.controlTravel(new, position)
 
         return new
@@ -623,9 +594,7 @@ class Instance(MutableMapping):
 
     def getX(self, target, value=0):
         unit = self.getEntity(target)
-        if unit.loc:
-            return unit.loc[value]
-        return False
+        return unit.loc[value] if unit.loc else False
 
     def getY(self, target):
         return self.getX(target, 1)
@@ -662,7 +631,7 @@ class Instance(MutableMapping):
 
     def testValid(self, caster):
         caster = self.getEntity(caster).loc
-        map_ = self.getMap(loc[2])
+        map_ = self.getMap(caster)
         return map_.testLoc(caster)
 
     def getFill(self, center, callback=False, include_center=True, distance=float("inf")):
@@ -693,9 +662,14 @@ class Instance(MutableMapping):
             if target.loc:
                 try:
                     self.getMap(target.loc)[target.loc] = caster.name
-                    logging.info("{} has moved to {}".format(caster, target.loc))
+                    if not target.immutable:
+                        target.loc = None
+
+                    if self.logging:
+                        info(f"{caster} has moved to {target.loc}")
                 except IndexError:
-                    logging.info("{} is an invalid location. {} spawned off the board".format(loc, caster))
+                    if self.logging:
+                        info(f"{loc} is an invalid location. {caster} moving off the board")
                     loc = None
 
             # Update the entity itself.
@@ -709,26 +683,33 @@ class Instance(MutableMapping):
     def gameLoop(self, time=1, script="tick"):
         """Automatically increments in game timer over every iteration."""
         self.increment = time
-        while True:
+        while self.cont:
             yield self
 
             if self.next is not None:
                 yield self.next
                 self = self.next
 
-            if not self.cont:
-                return
+            self.controlTime(time, script=script)
 
-            self.controlTime(self.increment, script=script)
+        if self.logging:
+            info(f"EXITING {self.name}\n")
 
     def exit(self):
         """Ends game if gameLoop is in use."""
+        if self.logging:
+            info("Exit requested")
         self.cont = False
 
-    def resetState(self):
+    def resetState(self, script="reset"):
         """Resets game metadata to default."""
-        self.state.clear()
-        self.state.append(copy.copy(self))
+        if self.revert:
+            self.state.clear()
+            self.state.append(copy(self))
+
+        if script in self:
+            self.controlMove(self["empty"], self["empty"], self[script])
+
         self.cont = True
         self.time = 0
 
