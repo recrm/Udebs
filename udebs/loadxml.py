@@ -148,7 +148,7 @@ def battleWrite(env, location, pretty=False):
     return True
 
 #Creates and instance object from xml file.
-def battleStart(xml_file, debug=False, script="init", name=None, revert=None, log=None, version=None, seed=None):
+def battleStart(xml_file, debug=False, script="init", name=None, revert=None, log=None, version=None, seed=None, immutable=None):
     """
     Creates an instanance object from given xml file.
 
@@ -251,7 +251,13 @@ def battleStart(xml_file, debug=False, script="init", name=None, revert=None, lo
     if entities is not None:
         for item in entities:
             options = {"name": item.tag}
-            if item.get('immutable') is not None:
+
+            immutable = item.get("immutable")
+            if immutable is None:
+                options["immutable"] = field.immutable
+            elif immutable == "False":
+                options["immutable"] = False
+            else:
                 options["immutable"] = True
 
             for stat in field.stats:

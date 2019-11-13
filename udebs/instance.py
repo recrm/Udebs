@@ -3,7 +3,6 @@ from copy import copy
 from itertools import product
 from collections.abc import MutableMapping
 from logging import info
-from functools import singledispatchmethod
 
 from udebs.interpret import Script, UdebsStr, _getEnv
 from udebs.board import Board
@@ -370,7 +369,8 @@ class Instance(MutableMapping):
                     stack.append(self.getEntity(new_loc))
 
         while True:
-            if (value := getattr(current, stat)):
+            value = getattr(current, stat)
+            if value:
                 if isinstance(total, int):
                     total += value
                 elif isinstance(total, list):
@@ -392,7 +392,7 @@ class Instance(MutableMapping):
     def getGroup(self, group):
         """Return all objects belonging to group."""
         groupname = self.getEntity(group).name
-        values = [unit for unit in self if groupname in self[unit]["group"]]
+        values = [unit for unit in self if groupname in self[unit].group]
         return sorted(values)
 
     def getListStat(self, lst, stat):
@@ -566,7 +566,7 @@ class Instance(MutableMapping):
             if not target.immutable:
                 setattr(target, stat, getattr(target, stat) + total)
                 if self.logging:
-                    info(f"{target} {stat} changed by {total}")
+                    info(f"{target} {stat} changed by {total} is now {self.getStat(target, stat)}")
 
     def controlString(self, targets, stat, value):
         for target in self.getEntity(targets, multi=True):
