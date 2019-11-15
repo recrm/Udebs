@@ -31,7 +31,7 @@ xml = """
             <i>INIT gameover</i>
         </effect>
     </tick>
-    
+
     <rps>
         <effect>
             <i>print "You have" user.STAT.lives lives</i>
@@ -69,12 +69,12 @@ xml = """
 
 class Random(udebs.Player):
     def __call__(self, state):
-        return random.choice(["rock", "paper", "scissors", "cooperate"])
+        return random.choice(["rock", "paper", "scissors"])
 
 class Human(udebs.Player):
     def __call__(self, state):
         x = input("what do you play? ")
-        while x not in ["rock", "paper", "scissors", "cooperate"]:
+        while x not in ["rock", "paper", "scissors"]:
             x = input("try again")
 
         return x

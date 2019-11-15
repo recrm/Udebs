@@ -25,18 +25,18 @@ class Pushluck(udebs.State):
             return None
 
         return h("score")
-    
+
 def ev(state, storage=None):
     new_state = copy.deepcopy(state)
-    obj = Pushluck(new_state, storage=storage, algorithm="expectationValue", debug=True)
+    obj = Pushluck(new_state, storage=storage, algorithm="expectationValue", debug=False)
     result = obj.result()
     return result.value - state.getStat("hand", "score"), obj.storage
 
 if __name__ == "__main__":
     storage = {}
     main_map = udebs.battleStart("xml/pushluck.xml")
-    
+
     print()
     main_map.controlTime()
     result, storage = ev(main_map, storage)
-    print(result)
+    print("\nev of next card is:", result)

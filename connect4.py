@@ -142,7 +142,8 @@ def substates(state, legalMoves, time=1):
         if stateNew is None:
             stateNew = copy.copy(state)
 
-        if stateNew.castMove(*move[:3], time=time):
+        if stateNew.castMove(*move[:3]):
+            stateNew.controlTime(time)
             yield stateNew
             stateNew = None
 
@@ -205,7 +206,7 @@ if __name__ == "__main__":
     udebs.importModule(module, {"boardy": boardy})
     main_map = udebs.battleStart("xml/connect4.xml")
     for i in udebs.alternate(players, moves, "placement"):
-        if not main_map.castMove(*i, time=1):
+        if not main_map.castMove(*i):
             print("broken")
             print(i)
             break
