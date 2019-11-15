@@ -72,7 +72,8 @@ class State:
         """Iterate over substates to a state."""
         stateNew = copy.copy(self.state)
         for move in self.legalMoves(self.state):
-            if stateNew.castMove(*move[:3], time=time):
+            if stateNew.castMove(*move[:3]):
+                stateNew.controlTime(time)
                 prob = 1
                 if len(move) > 3:
                     prob = move[3]

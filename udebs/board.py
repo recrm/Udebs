@@ -1,6 +1,6 @@
-import collections
+from collections.abc import MutableMapping
 
-class Board(collections.MutableMapping):
+class Board(MutableMapping):
     def __init__(self, field, **options):
         self.field = field
         self.name = options.get("name", "map")

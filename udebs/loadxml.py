@@ -314,13 +314,13 @@ def battleStart(xml_file, debug=False, script="init", name=None, revert=None, lo
     })
 
     if field.logging:
-        logging.info(f"INITIALIZING {field.name}\n")
+        logging.info(f"INITIALIZING {field.name}")
+        logging.info(f"Env time is now {field.time}")
 
     if script in field:
         field.castInit(script)
-
-    if field.logging:
-        logging.info(f'Env time is now {field.time}')
+    elif field.logging:
+        logging.info("")
 
     if field.revert:
         field.state.append(copy.copy(field))

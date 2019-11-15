@@ -1,7 +1,6 @@
 from random import Random
 from copy import copy
 from itertools import product
-from collections.abc import MutableMapping
 from logging import info
 
 from udebs.interpret import Script, UdebsStr, _getEnv
@@ -13,7 +12,7 @@ from udebs.utilities import norecurse
 #                 Main Class                       -
 #---------------------------------------------------
 
-class Instance(MutableMapping):
+class Instance(dict):
     """
     Main instance class that represents the state space of the entire game.
 
@@ -55,7 +54,6 @@ class Instance(MutableMapping):
 
         #internal
         self.map = {}
-        self._data = {}
         self.delay = []
         self.rand = Random()
 
@@ -80,8 +78,7 @@ class Instance(MutableMapping):
             if k not in {"delay", "map", "_data", "state"}:
                 setattr(new, k, v)
 
-        new._data = {}
-        for name, entity in self._data.items():
+        for name, entity in self.items():
             if entity.immutable:
                 new[name] = entity
             else:
@@ -102,24 +99,6 @@ class Instance(MutableMapping):
         new.state = []
 
         return new
-
-    def __getitem__(self, key):
-        return self._data[key]
-
-    def __setitem__(self, key, value):
-        self._data[key] = value
-
-    def __delitem__(self, key):
-        del self._data[key]
-
-    def __len__(self):
-        return len(self._data)
-
-    def __iter__(self):
-        return iter(self._data)
-
-    def __contains__(self, item):
-        return item in self._data
 
     #---------------------------------------------------
     #               Selector Function                  -
@@ -145,7 +124,7 @@ class Instance(MutableMapping):
         elif isinstance(target, list) and len(target) > 0:
             if multi:
                 return [self.getEntity(i) for i in target]
-            return self.getEntity(value[0])
+            return self.getEntity(target[0])
         elif isinstance(target, UdebsStr):
             return self.getEntityUdebsStr(target)
 
@@ -225,37 +204,44 @@ class Instance(MutableMapping):
     #                 Time Management                  -
     #---------------------------------------------------
 
+    def checkDelay(self):
+        while True:
+            again = False
+            for delay in self.delay[:]:
+                if delay['ticks'] <= 0:
+                    self.delay.remove(delay)
+                    delay['script'](delay['env'])
+                    again = True
+
+            if not again:
+                break
+
+        if self.logging:
+            info("")
+
     def controlTime(self, time=1, script="tick"):
         """Changes internal time, runs tick script, and updates any delayed effects.
 
         time - Integer representing number of updates.
 
         """
-        def checkdelay():
-            while True:
-                again = False
-                for delay in self.delay[:]:
-                    if delay['ticks'] <= 0:
-                        self.delay.remove(delay)
-                        delay['script'](delay['env'])
-                        again = True
-
-                if not again:
-                    break
-
-        checkdelay()
         for i in range(time):
+            # Increment time
             self.time +=1
-
             if self.logging:
-                info(f'\nEnv time is now {self.time}')
-            if script in self:
-                self.controlMove(self["empty"], self["empty"], self[script])
-                checkdelay()
+                info(f'Env time is now {self.time}')
 
-            for delay in self.delay:
-                delay['ticks'] -=1
-            checkdelay()
+            # Processs tick script
+            if script in self:
+                self.castMove(self["empty"], self["empty"], self[script])
+
+            if self.delay:
+                for delay in self.delay:
+                    delay['ticks'] -=1
+
+                if self.logging:
+                    info("Processing delayed effects")
+                self.checkDelay()
 
             #Append new version to state.
             if self.revert:
@@ -270,7 +256,7 @@ class Instance(MutableMapping):
         index = -(value +1)
         try:
             new = copy(self.state[index])
-        except IndexError:
+        except KeyError:
             return False
 
         del self.state[index+1:]
@@ -330,7 +316,7 @@ class Instance(MutableMapping):
         test = clone.testMove(caster, target, effects)
 
         if self.logging:
-            info("Done testing future condition.\n")
+            info("Done testing future condition.")
         return test
 
     #---------------------------------------------------
@@ -347,7 +333,7 @@ class Instance(MutableMapping):
         """
         current = self.getEntity(target)
         if stat in {"increment", "group"}:
-            return current[stat]
+            return getattr(current, stat)
         elif stat in self.stats:
             total = 0
         elif stat in self.lists:
@@ -380,7 +366,9 @@ class Instance(MutableMapping):
 
             for lst in self.rlist:
                 for unit in getattr(current, lst):
-                    stack.append(self[unit])
+                    if isinstance(unit, str):
+                        unit = self[unit]
+                    stack.append(unit)
 
             if len(stack) == 0:
                 break
@@ -423,7 +411,7 @@ class Instance(MutableMapping):
 
         start = self.getStat(target, lst)
         for item in start:
-            if group.name in self[item]['group']:
+            if group.name in self[item].group:
                 return item
         return False
 
@@ -498,19 +486,20 @@ class Instance(MutableMapping):
         env = self.getEnv(caster, target, move)
         return move.testRequire(env) == True
 
-    def castInit(self, moves, time=0):
+    def castInit(self, moves):
         """Wrapper of controlMove where caster and target are unimportant."""
-        return self.castMove(self["empty"], self["empty"], moves, time)
+        return self.castMove(self["empty"], self["empty"], moves)
 
-    def castAction(self, caster, move, time=0):
+    def castAction(self, caster, move):
         """Wrapper of controlMove where target is unimportant."""
-        return self.castMove(caster, self["empty"], move, time)
+        return self.castMove(caster, self["empty"], move)
 
-    def castMove(self, caster, target , move, time=0):
+    def castMove(self, caster, target , move):
         """Wrapper of controlMove that appends a tick."""
         value = self.controlMove(caster, target, move)
         if value:
-            self.controlTime(time)
+            self.checkDelay()
+
         return value
 
     def castSingle(self, string):
@@ -556,7 +545,7 @@ class Instance(MutableMapping):
     def controlShuffle(self, target, stat):
         for target in self.getEntity(target, multi=True):
             if not target.immutable:
-                self.rand.shuffle(getattr(target, key))
+                self.rand.shuffle(getattr(target, stat))
                 if self.logging:
                     info(f"{target} {stat} has been shuffled")
 
@@ -690,7 +679,7 @@ class Instance(MutableMapping):
                 yield self.next
                 self = self.next
 
-            self.controlTime(time, script=script)
+            self.controlTime(self.increment, script=script)
 
         if self.logging:
             info(f"EXITING {self.name}\n")
@@ -703,15 +692,20 @@ class Instance(MutableMapping):
 
     def resetState(self, script="reset"):
         """Resets game metadata to default."""
+        self.cont = True
+        self.time = 0
+        self.delay.clear()
+        if self.logging:
+            info(f"Env time is now {self.time}")
+
+        if script in self:
+            self.castMove(self["empty"], self["empty"], self[script])
+        elif self.logging:
+            info("")
+
         if self.revert:
             self.state.clear()
             self.state.append(copy(self))
-
-        if script in self:
-            self.controlMove(self["empty"], self["empty"], self[script])
-
-        self.cont = True
-        self.time = 0
 
     def mapIter(self, mapname="map"):
         map_ = self.getMap(mapname)
