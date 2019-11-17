@@ -36,7 +36,7 @@ if __name__ == "__main__":
 #    #game loop
     for main_map in field.gameLoop(1):
         redrawBoard(surface, ts)
-        mainClock.tick(30)
+        mainClock.tick(15)
 
         for event in pygame.event.get():
             if event.type == QUIT:

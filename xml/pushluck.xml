@@ -4,6 +4,7 @@
     <revert>0</revert>
     <version>2</version>
     <logging>False</logging>
+    <immutable>True</immutable>
 </config>
 
 <definitions>
@@ -65,26 +66,26 @@
     <!-- system -->
     <hands />
 
-    <hand>
+    <hand immutable="False">
         <group>hands</group>
         <lives>3</lives>
     </hand>
 
-    <deck />
+    <deck immutable="False" />
 
     <!-- Shuffle deck -->
     <shuffle>
         <effect>
             <i>ALL.hands CLEAR cards</i>
             <i>ALL.cards CAST $caster insert</i>
-            <i>$caster cards SHUFFLE</i>
+            <i>$caster SHUFFLE cards</i>
         </effect>
     </shuffle>
 
     <insert>
         <require>$caster.NAME not-in $target.STAT.cards $caster.STAT.amount</require>
         <effect>
-            <i>$target cards GETS $caster</i>
+            <i>$target cards GETS $caster.NAME</i>
             <i>$caster CAST $target insert</i>
         </effect>
     </insert>
@@ -97,13 +98,13 @@
             <i>$drawn != empty</i>
         </require>
         <effect>
-            <i>$target cards LOSES $drawn</i>
-            <i>$caster cards GETS $drawn</i>
+            <i>$target cards LOSES $drawn.NAME</i>
+            <i>$caster cards GETS $drawn.NAME</i>
             <i>print $caster has drawn $drawn</i>
             <i>$caster CAST $target draw</i>
         </effect>
     </draw>
-    
+
     <!-- Hand Actions -->
     <checkdeath>
         <require>$caster.STAT.skulls &gt;= $caster.STAT.lives</require>
@@ -132,7 +133,7 @@
             <i>hand ACTION checkdeath</i>
         </effect>
     </resolve>
-    
+
     <init>
         <group>resolve</group>
         <effect>
@@ -145,16 +146,16 @@
         <group>resolve</group>
         <effect>hand draws += 1</effect>
     </tick>
-    
+
     <!-- Draw a specific card from the deck -->
     <drawsingle>
         <require>$target.NAME in deck.STAT.cards</require>
         <effect>
-            <i>deck cards LOSES $target</i>
-            <i>$caster cards GETS $target</i>
+            <i>deck cards LOSES $target.NAME</i>
+            <i>$caster cards GETS $target.NAME</i>
             <i>hand ACTION tally</i>
         </effect>
     </drawsingle>
-    
+
 </entities>
 </udebs>
