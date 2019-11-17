@@ -4,6 +4,8 @@
     <name>testing</name>
     <logging>False</logging>
     <version>2</version>
+    <revert>4</revert>
+    <seed>690</seed>
 </config>
 <definitions>
     <stats>
@@ -18,7 +20,7 @@
     </lists>
 </definitions>
 <maps>
-    <one rmap=''>
+    <one type="hex" rmap=''>
         <dim>
             <x>4</x>
             <y>4</y>
@@ -29,7 +31,7 @@
         <row>immune, immune</row>
         <row>immune, empty</row>
     </two>
-    <map>
+    <map type="diag">
         <dim>
             <x>5</x>
             <y>6</y>
@@ -39,19 +41,29 @@
 </maps>
 <var>
     <time>4</time>
-    <log>
-        <i>This is a log entry</i>
-        <i>This is another log entry</i>
-    </log>
+    <increment>3</increment>
+    <cont>False</cont>
 </var>
 <entities>
+    <init>
+        <effect><i>DELAY `(print test) 1</i></effect>
+    </init>
+
+    <tick />
+    <reset />
+
+    <move2>
+        <require>move2 ACT == 5</require>
+    </move2>
     <immune immutable='' />
-    <unit1>
+    <unit1 immutable='False'>
         <group>group1</group>
         <ACT>5</ACT>
         <inventory>
             <i>move1</i>
+            <i>move2</i>
         </inventory>
+        <DESC>description</DESC>
     </unit1>
     <unit2 />
     <notempty>
@@ -67,6 +79,7 @@
     <move1>
         <ACT>5</ACT>
         <equipment>1</equipment>
+        <group>move2</group>
     </move1>
     <group1>
         <ACT>5</ACT>

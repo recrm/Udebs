@@ -45,8 +45,12 @@ class standard:
                 return False
         return True
 
-    def notequal(before, after):
-        return before != after
+    def notequal(*args):
+        x = args[0]
+        for y in args[1:]:
+            if x == y:
+                return False
+        return True
 
     def gt(before, after):
         return before > after
@@ -77,9 +81,6 @@ class standard:
             if i:
                 return True
         return False
-
-    def logicif(cond, value, other):
-        return value if cond else other
 
     def mod(before, after):
         return before % after
@@ -138,12 +139,6 @@ def importModule(dicts={}, globs={}, version="other"):
     Allows user to extend base variables available to the interpreter.
     Should be run before the instance object is created.
     """
-    if isinstance(globs, list):
-        globs = {i.__name__: i for i in globs}
-
-    elif not isinstance(globs, dict):
-        globs = {globs.__name__: globs}
-
     variables.modules[version].update(dicts)
     variables.env.update(globs)
 
@@ -196,9 +191,6 @@ def formatS(string, version):
 
 def call(args, version):
     """Converts callList into functionString."""
-    if not isinstance(args, list):
-        raise UdebsParserError("There is a bug in the parser, call recived '{}'".format(args))
-
     #Find keyword
     keywords = [i for i in args if i in variables.keywords(version)]
 
@@ -370,22 +362,19 @@ class Script:
         if not isinstance(effect, UdebsStr):
             self.interpret = interpret(effect, version, debug)
 
-        try:
-            self.code = compile(self.interpret, '<string>', "eval")
-        except SyntaxError:
-            print(self.raw)
-            raise
+        self.code = compile(self.interpret, '<string>', "eval")
 
     def __repr__(self):
         return "<Script " + self.raw + ">"
+
+    def __str__(self):
+        return self.raw
 
     def __call__(self, env):
         try:
             return eval(self.code, env)
         except Exception:
             raise UdebsExecutionError(self)
-
-        return True
 
     def __eq__(self, other):
         if not isinstance(other, Script):
@@ -407,12 +396,6 @@ class UdebsExecutionError(Exception):
         self.script = script
     def __str__(self):
         return "invalid '{}'".format(self.script.raw)
-
-class UdebsParserError(Exception):
-    def __init__(self, string):
-        self.message = string
-    def __str__(self):
-        return repr(self.message)
 
 #---------------------------------------------------
 #                     Runtime                      -

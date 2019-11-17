@@ -1,4 +1,5 @@
 from collections.abc import MutableMapping
+import math
 
 class Board(MutableMapping):
     def __init__(self, field, **options):
@@ -76,10 +77,7 @@ class Board(MutableMapping):
     @property
     def y(self):
         if not hasattr(self, "_y"):
-            try:
-                self._y = max([len(x) for x in self.map])
-            except ValueError:
-                self._y = 0
+            self._y = max([len(x) for x in self.map])
         return self._y
 
     #---------------------------------------------------
@@ -89,7 +87,7 @@ class Board(MutableMapping):
         for x in range(self.y):
             for y in range(self.x):
                 value = self[y,x]
-                if value == "empty":
+                if value == self.empty:
                     value = "_"
 
                 print(value, end=" ")
@@ -120,15 +118,15 @@ class Board(MutableMapping):
         elif method == 'x':
             return int(abs(one[0] - two[0]))
         elif method == 'z':
-            return abs(two[0] + two[1]) - (one[0] + one[1])
+            return int(abs(two[0] + two[1]) - (one[0] + one[1]))
         elif method == 'hex':
-            return (abs(one[0] - two[0]) + abs(one[1] - two[1]) + abs((two[0] + two[1]) - (one[0] + one[1])))/2
+            return int((abs(one[0] - two[0]) + abs(one[1] - two[1]) + abs((two[0] + two[1]) - (one[0] + one[1])))/2)
         elif method == "p1":
             return int(abs(one[0] - two[0]) + abs(one[1] - two[1]))
         elif method == "p2":
             return int(math.sqrt(math.pow(one[0] - two[0], 2) + math.pow(one[1] - two[1], 2)))
         elif method == "pinf":
-            return max(abs(one[0] - two[0]), abs(one[1] - two[1]))
+            return int(max(abs(one[0] - two[0]), abs(one[1] - two[1])))
         else:
             raise UndefinedMetricError(method)
 
@@ -158,7 +156,7 @@ class Board(MutableMapping):
             #Sorted is needed to force program to be deterministic.
             new = set()
             for node in next_search:
-                if callback and self.testLoc(node):
+                if self.testLoc(node):
                     env = self.field.getEnv(center, node, callback)
                     if callback.testRequire(env) == True:
                         new.add(node)
@@ -172,7 +170,7 @@ class Board(MutableMapping):
             else:
                 break
 
-    def getPath(self, start, finish, callback=False):
+    def getPath(self, start, finish, callback):
         """
         Algorithm to find a path between start and finish assuming callback.
 
@@ -205,7 +203,7 @@ class Board(MutableMapping):
                 found.reverse()
                 return found
 
-    def getFill(self, center, callback=False, distance=float("inf"), rand=None, include_center=True):
+    def getFill(self, center, callback, distance=float("inf"), rand=None, include_center=True):
         """
         Returns a list of map spaces that center fills into.
 

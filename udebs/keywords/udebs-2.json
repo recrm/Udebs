@@ -87,12 +87,12 @@
     },
     "LISTSTAT": {
         "f": "self.getListStat",
-        "args": ["-$1", "$1"],
-        "default": {"-$1": "$caster"}
+        "args": ["-$2", "-$1", "$1"],
+        "default": {"-$2": "$caster"}
     },
     "LISTGROUP": {
         "f": "self.getListGroup",
-        "args": ["-$1", "$1", "$2"],
+        "args": ["-$2", "-$1", "$1"],
         "default": {"-$1": "$caster"}
     },
     "XLOC": {
@@ -120,7 +120,7 @@
 
     "SHUFFLE": {
         "f": "self.controlShuffle",
-        "args": ["-$2", "-$1"]
+        "args": ["-$1", "$1"]
     },
     "DICE": {
         "f": "self.rand.randint",
@@ -148,10 +148,6 @@
         "f": "self.getDistance",
         "args": ["$2", "$3", "$1"],
         "default": {"$2": "$caster", "$3": "$target"}
-    },
-    "LOCVALID": {
-        "f": "self.testLoc",
-        "args": ["$1"]
     },
     "BLOCK": {
         "f": "self.testBlock",

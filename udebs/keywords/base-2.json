@@ -27,7 +27,7 @@
     },
     "!=": {
         "f": "standard.notequal",
-        "args": ["-$1", "$1"]
+        "all": true
     },
     ">": {
         "f": "standard.gt",

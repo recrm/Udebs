@@ -6,6 +6,7 @@ from udebs import interpret, entity
 class Timer:
     def __enter__(self):
         self.time = time.time()
+        return self
 
     def __exit__(self, *args, **kwargs):
         print(time.time() - self.time)
@@ -30,9 +31,6 @@ def lookup(name, table):
     def wrapper(*args):
         value = table
         for arg in args:
-            if isinstance(arg, entity.Entity):
-                arg = arg.name
-
             try:
                 value = value[arg]
             except KeyError:

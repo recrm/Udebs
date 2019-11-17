@@ -1,8 +1,9 @@
 from udebs.interpret import *
-from nose.tools import *
+from pytest import raises
+import udebs
 
 class TestInterpret():
-    def setUp(self):
+    def setup(self):
         test = {
             "solitary": {
                 "f": "solitary",
@@ -25,27 +26,24 @@ class TestInterpret():
         assert interpret("one two three") == "('one','two','three')"
         assert interpret("1 2 three") == "(1,2,'three')"
 
-    @raises(UdebsSyntaxError)
-    def test_Syntax(self):
-        interpret("(one two (three)")
+    def test_Syntax_mismatched_brackets(self):
+        with raises(UdebsSyntaxError):
+            interpret("(one two (three)")
 
-    @raises(UdebsSyntaxError)
-    def test_Syntax2(Self):
-        interpret("this is a test(some more stuff)")
+    def test_Syntax_unused_arguments(Self):
+        with raises(UdebsSyntaxError):
+            interpret("one in two unused")
 
-    @raises(UdebsSyntaxError)
-    def test_Syntax3(Self):
-        interpret("one in two unused")
+    def test_Syntax_empty_callstring(self):
+        with raises(UdebsSyntaxError):
+            interpret("() == one")
 
-    @raises(UdebsSyntaxError)
-    def test_Syntax4(self):
-        interpret("max one in two")
+    def test_Syntax_extra_keywords(self):
+        with raises(UdebsSyntaxError):
+            interpret("max one in two")
 
     def test_solitary(self):
         assert interpret("one in (solitary)") == "standard.inside('one',solitary())"
-
-    def test_redundant(self):
-        assert interpret("one two three") == interpret("(one two three)") == interpret("((one two three))")
 
     def test_dot(self):
         assert interpret("one two one.two.three") == interpret("one two (one two three)")
@@ -60,3 +58,88 @@ class TestInterpret():
 
     def test_global(self):
         assert interpret("one $target") == "('one',standard.getvar(storage,'target'))"
+
+    def test_specials(self):
+        assert interpret("self") == "(self)"
+        assert interpret("true") == "(True)"
+        assert interpret("'help'") == "('help')"
+
+    def test_debug(self):
+        interpret("(one) two three", debug=True)
+
+    def test_Script(self):
+        udebs.placeholder("TEST")
+        test = Script("TEST")
+        print(test)
+        repr(test)
+
+        with raises(UdebsExecutionError) as e:
+            test({})
+
+        print(str(e._excinfo[1]))
+
+    def test_ErrorRepr(self):
+        one = UdebsSyntaxError("test")
+        print(one)
+
+class TestBase:
+    def setup(self):
+        path = os.path.dirname(__file__)
+        self.env = udebs.battleStart(path + "/test.xml", log=True)
+
+    def test_logicif(self):
+        assert self.env.castSingle("if 1 0 2") == 0
+        assert self.env.castSingle("if 0 0 2") == 2
+
+    def test_logicor(self):
+        assert self.env.castSingle("1 or 0") == True
+        assert self.env.castSingle("0 or 0") == False
+        assert self.env.castSingle("0 or `move1") == True
+
+    def test_var(self):
+        # not sure how to test if this actually worked
+        assert self.env.castSingle("1 = test")
+        assert self.env.castSingle("1 -> test")
+
+    def test_inside(self):
+        assert self.env.castSingle("1 in (1 0)") == True
+        assert self.env.castSingle("1 in (1 0) 2") == False
+        assert self.env.castSingle("1 in (2 0) 0") == True
+
+        assert self.env.castSingle("a in alberta") == True
+
+    def test_notin(self):
+        assert self.env.castSingle("1 not-in (0 2)") == True
+
+    def test_equal(self):
+        assert self.env.castSingle("1 == 1 1 1 1") == True
+        assert self.env.castSingle("1 == 1 2 1 1") == False
+
+    def test_not_equal(self):
+        assert self.env.castSingle("1 != 1 2 3 4") == False
+        assert self.env.castSingle("1 != 2 3 4 5") == True
+        assert self.env.castSingle("1 != 2") == True
+
+    def test_relations(self):
+        assert self.env.castSingle("1 > 0") == True
+        assert self.env.castSingle("1 < 0") == False
+        assert self.env.castSingle("1 <= 1") == True
+        assert self.env.castSingle("0 >= 1") == False
+
+    def test_math(self):
+        assert self.env.castSingle("+ 1 2 3 4 5") == 15
+        assert self.env.castSingle("* 1 2 3") == 6
+        assert self.env.castSingle("5 % 10") == 5
+        assert self.env.castSingle("10 / 5") == 2
+
+    def test_bool(self):
+        assert self.env.castSingle("!true") == False
+
+    def test_element(self):
+        assert self.env.castSingle("(1 2 3) elem 0") == 1
+
+    def test_len(self):
+        assert self.env.castSingle("length (0 0 0 1)") == 4
+
+
+

@@ -69,7 +69,17 @@ class Instance(dict):
             if k not in ("state", "rand") and v != getattr(other, k):
                 return False
 
+        for k,v in self.items():
+            if other[k] != v:
+                return False
+
+        if len(self) != len(other):
+            return False
+
         return True
+
+    def __ne__(self, other):
+        return not self == other
 
     def __copy__(self):
         new = Instance(True)
@@ -137,7 +147,7 @@ class Instance(dict):
             buf = ''
             bracket = 0
 
-            for char in target[1:-1]:
+            for char in target[:]:
                 if char == "(":
                     bracket +=1
 
@@ -145,13 +155,13 @@ class Instance(dict):
                     bracket -=1
 
                 if not bracket and char == ",":
-                    scripts.append(Script(UdebsStr(buf), self.version))
+                    scripts.append(Script(UdebsStr(buf.strip()), self.version))
                     buf = ''
                     continue
 
                 buf += char
 
-            raw = UdebsStr(buf)
+            raw = UdebsStr(buf.strip())
             scripts.append(Script(raw, self.version))
 
         else:
@@ -186,11 +196,8 @@ class Instance(dict):
         """Gets a map by name or object on it."""
         if not target:
             return False
-        elif isinstance(target, str):
-            try:
+        elif isinstance(target, str) and target in self.map:
                 return self.map[target]
-            except KeyError:
-                raise UndefinedSelectorError(target, "map")
         elif isinstance(target, Board):
             return target
         elif isinstance(target, Entity):
@@ -256,7 +263,7 @@ class Instance(dict):
         index = -(value +1)
         try:
             new = copy(self.state[index])
-        except KeyError:
+        except IndexError:
             return False
 
         del self.state[index+1:]
@@ -383,13 +390,16 @@ class Instance(dict):
         values = [unit for unit in self if groupname in self[unit].group]
         return sorted(values)
 
-    def getListStat(self, lst, stat):
+    def getListStat(self, target, lst, stat):
         """Returns combination of all stats for objects in a units list.
 
         lst - String representing list to check.
         stat - String representing defined stat.
 
         """
+        target = self.getEntity(target)
+        lst = self.getStat(target, lst)
+
         found = (self.getStat(element, stat) for element in lst)
 
         if stat in self.stats:
@@ -414,10 +424,6 @@ class Instance(dict):
             if group.name in self[item].group:
                 return item
         return False
-
-    def getFilter(self, iterable, caster, callback):
-        """Return all elements of list where move suceeds."""
-        return [i for i in iterable if self.testMove(caster, i, callback)]
 
     def getSearch(self, *args):
         """Returns a list of objects contained in all groups.
@@ -598,11 +604,19 @@ class Instance(dict):
     #                 Board get wrappers               -
     #---------------------------------------------------
 
+    def mapIter(self, mapname="map"):
+        map_ = self.getMap(mapname)
+        for loc in map_:
+            yield self[map_[loc]]
+
     def getPath(self, caster, target, callback):
         caster = self.getEntity(caster).loc
         target = self.getEntity(target).loc
         callback = self.getEntity(callback)
-        return self.getMap(caster).getPath(caster, target, callback)
+        try:
+            return self.getMap(caster).getPath(caster, target, callback)
+        except AttributeError:
+            return []
 
     def getDistance(self, caster, target, method):
         caster = self.getEntity(caster).loc
@@ -610,18 +624,19 @@ class Instance(dict):
         if method in self:
             method = self.getEntity(method)
 
-        return self.getMap(caster).getDistance(caster, target, method)
+        try:
+            return self.getMap(caster).getDistance(caster, target, method)
+        except AttributeError:
+            return float("inf")
 
     def testBlock(self, caster, target, callback):
         caster = self.getEntity(caster).loc
         target = self.getEntity(target).loc
         callback = self.getEntity(callback)
-        return self.getMap(caster).testBlock(caster, target, callback)
-
-    def testValid(self, caster):
-        caster = self.getEntity(caster).loc
-        map_ = self.getMap(caster)
-        return map_.testLoc(caster)
+        try:
+            return self.getMap(caster).testBlock(caster, target, callback)
+        except AttributeError:
+            return False
 
     def getFill(self, center, callback=False, include_center=True, distance=float("inf")):
         if distance is None:
@@ -629,7 +644,10 @@ class Instance(dict):
 
         center = self.getEntity(center).loc
         callback = self.getEntity(callback)
-        return self.getMap(center).getFill(center, callback, distance, self.rand, include_center=include_center)
+        try:
+            return self.getMap(center).getFill(center, callback, distance, self.rand, include_center=include_center)
+        except AttributeError:
+            return []
 
     #---------------------------------------------------
     #              Board control wrappers              -
@@ -649,17 +667,12 @@ class Instance(dict):
             # Then move caster to target location.
             loc = target.loc
             if target.loc:
-                try:
-                    self.getMap(target.loc)[target.loc] = caster.name
-                    if not target.immutable:
-                        target.loc = None
+                self.getMap(target.loc)[target.loc] = caster.name
+                if not target.immutable:
+                    target.loc = False
 
-                    if self.logging:
-                        info(f"{caster} has moved to {target.loc}")
-                except IndexError:
-                    if self.logging:
-                        info(f"{loc} is an invalid location. {caster} moving off the board")
-                    loc = None
+                if self.logging:
+                    info(f"{caster} has moved to {target.loc}")
 
             # Update the entity itself.
             if not caster.immutable:
@@ -707,10 +720,7 @@ class Instance(dict):
             self.state.clear()
             self.state.append(copy(self))
 
-    def mapIter(self, mapname="map"):
-        map_ = self.getMap(mapname)
-        for loc in map_:
-            yield self[map_[loc]]
+
 
 #---------------------------------------------------
 #                     Errors                       -

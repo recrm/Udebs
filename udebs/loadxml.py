@@ -63,15 +63,13 @@ def battleWrite(env, location, pretty=False):
         addleaf(config, "immutable", str(env.immutable))
 
     # Time variables
-    var = e.SubElement(root, 'time')
+    var = e.SubElement(root, 'var')
     if env.time != 0:
         addleaf(var, "time", str(env.time))
     if env.increment != 1:
         addleaf(var, "increment", str(env.increment))
     if env.cont != True:
         addleaf(var, "cont", str(env.cont))
-    if env.next != None:
-        addleaf(var, "next", str(env.next))
 
     #map
     maps = e.SubElement(root, 'maps')
@@ -83,7 +81,7 @@ def battleWrite(env, location, pretty=False):
             node.attrib['empty'] = map_.empty
         if map_.type != False:
             node.attrib['type'] = map_.type
-        for row in (list(i) for i in zip(*map_._map)):
+        for row in (list(i) for i in zip(*map_.map)):
             addleaf(node, "row", ", ".join(row))
 
     #entities
@@ -104,10 +102,7 @@ def battleWrite(env, location, pretty=False):
             entity_node.attrib['immutable'] = ''
 
         for stat in stats:
-            value = entity[stat]
-
-            if stat == 'group':
-                value = [i for i in value if i != entity.name]
+            value = getattr(entity, stat)
 
             if value in [0, '', []]:
                 continue
@@ -182,7 +177,7 @@ def battleStart(xml_file, debug=False, script="init", name=None, revert=None, lo
 
     def fillsimple(root, stat, f, overwrite=None):
         if overwrite is not None:
-            setattr(field, stat, f(overwrite))
+            setattr(field, stat, overwrite)
         else:
             tmp = root.findtext(stat)
             if tmp is not None:
@@ -202,7 +197,7 @@ def battleStart(xml_file, debug=False, script="init", name=None, revert=None, lo
         fillsimple(config, "immutable", eval, immutable)
 
     # Time variables
-    time = root.find("time")
+    time = root.find("var")
     if time is not None:
         fillsimple(time, "time", int)
         fillsimple(time, "increment", int)
@@ -234,6 +229,8 @@ def battleStart(xml_file, debug=False, script="init", name=None, revert=None, lo
 
         #Add to field
         field.map[options["name"]] = board.Board(field, **options)
+        if "rmap" in options:
+            field.rmap.add(options["name"])
 
     field_maps = root.find("maps")
     if field_maps is not None:
@@ -282,6 +279,14 @@ def battleStart(xml_file, debug=False, script="init", name=None, revert=None, lo
                         new_list.append(value.text)
                 options[lst] = new_list
 
+            # set loc
+            if not options["immutable"]:
+                for map_ in field.map.values():
+                    for loc in map_:
+                        if map_[loc] == options["name"]:
+                            options["loc"] = loc
+                            break
+
             field[options["name"]] = entity.Entity(field, **options)
 
     #Special
@@ -296,7 +301,7 @@ def battleStart(xml_file, debug=False, script="init", name=None, revert=None, lo
         for delay in delays:
             callback = delay.findtext("script")
             time = int(delay.findtext("ticks"))
-            storage = {node.tag: node.text for node in delay.find("storage")}
+            storage = {node.tag: field[node.text] for node in delay.find("storage")}
             field.controlDelay(callback, time, storage)
 
     # Random
