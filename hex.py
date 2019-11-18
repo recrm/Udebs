@@ -79,7 +79,7 @@ if __name__ == "__main__":
                 for x in range(8):
                     for y in range(8):
                         if hexagon(x, y, ts).square.collidepoint(mouse):
-                            main_map.controlMove('token', (x,y), 'click')
+                            main_map.castMove('token', (x,y), 'click')
                             eventUpdate()
 
         mainClock.tick(60)

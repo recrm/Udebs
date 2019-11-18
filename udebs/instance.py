@@ -88,20 +88,27 @@ class Instance(dict):
             if k not in {"delay", "map", "_data", "state"}:
                 setattr(new, k, v)
 
+        # Handle entities
         for name, entity in self.items():
             if entity.immutable:
                 new[name] = entity
             else:
                 new[name] = entity.copy(new)
 
+        # Handle maps
         new.map = {}
         for name, map_ in self.map.items():
             new.map[name] = map_.copy(new)
 
+        # Handle delays
         new.delay = []
         for delay in self.delay:
+            env = copy(delay["env"])
+            env["self"] = new
+            env["storage"] = {k: new[v.name] for k,v in delay["env"]["storage"].items()}
+
             new.delay.append({
-                "env": delay["env"], # This is likely broken. Environment must be updated.
+                "env": env,
                 "ticks": delay["ticks"],
                 "script": delay["script"],
             })
@@ -144,10 +151,13 @@ class Instance(dict):
         #Process new nameless.
         scripts = []
         if target[0] == "(":
+            while target[0] == "(":
+                target = target[1:-1]
+
             buf = ''
             bracket = 0
 
-            for char in target[:]:
+            for char in target:
                 if char == "(":
                     bracket +=1
 
@@ -155,13 +165,13 @@ class Instance(dict):
                     bracket -=1
 
                 if not bracket and char == ",":
-                    scripts.append(Script(UdebsStr(buf.strip()), self.version))
+                    scripts.append(Script(UdebsStr(buf), self.version))
                     buf = ''
                     continue
 
                 buf += char
 
-            raw = UdebsStr(buf.strip())
+            raw = UdebsStr(buf)
             scripts.append(Script(raw, self.version))
 
         else:
@@ -297,10 +307,6 @@ class Instance(dict):
         caster, target, move - event to triger.
         time - how much time to pass after event.
         """
-
-        if self.logging:
-            info("Testing future condition.")
-
         caster = self.getEntity(caster)
         target = self.getEntity(target)
         move = self.getEntity(move)
@@ -308,6 +314,7 @@ class Instance(dict):
         #create test instance
         clone = copy(self)
         clone.revert = 0
+        clone.logging=False
 
         #convert instance targets into clone targets.
         caster = clone.getEntity(caster.loc)
@@ -322,8 +329,6 @@ class Instance(dict):
         effects = clone.getEntity(string)
         test = clone.testMove(caster, target, effects)
 
-        if self.logging:
-            info("Done testing future condition.")
         return test
 
     #---------------------------------------------------
@@ -633,6 +638,7 @@ class Instance(dict):
         caster = self.getEntity(caster).loc
         target = self.getEntity(target).loc
         callback = self.getEntity(callback)
+
         try:
             return self.getMap(caster).testBlock(caster, target, callback)
         except AttributeError:
