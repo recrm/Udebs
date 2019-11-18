@@ -15,7 +15,6 @@
 </definitions>
 
 <config>
-    <version>2</version>
     <name>RPS</name>
     <logging>False</logging>
 </config>
@@ -28,12 +27,12 @@
             <i>paper</i>
             <i>scissors</i>
         </options>
-        
+
         <require>
             <i>user.NAME in checkresults.STAT.registered</i>
             <i>computer.NAME in checkresults.STAT.registered</i>
         </require>
-        
+
         <effect>
             <i>TIME 1</i>
             <i>user choice REPLACE ''</i>
@@ -44,7 +43,7 @@
             <i>INIT gameover</i>
         </effect>
     </checkresults>
-    
+
     <gameover>
         <require>(user.STAT.lives * computer.STAT.lives) &lt;= 0</require>
         <effect>
@@ -52,9 +51,9 @@
             <i>EXIT</i>
         </effect>
     </gameover>
-    
+
     <!-- Allowed player actions -->
-    
+
     <throw>
         <require>
             <i>$caster.STAT.choice == ''</i>
@@ -69,22 +68,22 @@
             <i>INIT checkresults</i>
         </effect>
     </throw>
-    
+
     <rock>
         <group>throw</group>
         <choice>colliderock</choice>
     </rock>
-    
+
     <paper>
         <group>throw</group>
         <choice>collidepaper</choice>
     </paper>
-    
+
     <scissors>
         <group>throw</group>
         <choice>collidescissors</choice>
     </scissors>
-    
+
     <!-- collisions -->
     <collision>
         <require>$move.STAT.beats == $target.STAT.choice</require>
@@ -93,22 +92,22 @@
             <i>print $target lost a life</i>
         </effect>
     </collision>
-    
+
     <colliderock>
         <group>collision</group>
         <beats>scissors</beats>
     </colliderock>
-    
+
     <collidepaper>
         <group>collision</group>
         <beats>rock</beats>
     </collidepaper>
-    
+
     <collidescissors>
         <group>collision</group>
         <beats>paper</beats>
     </collidescissors>
-    
+
     <!-- Players -->
     <user>
         <lives>5</lives>

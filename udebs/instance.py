@@ -42,7 +42,7 @@ class Instance(dict):
         self.name = 'Unknown' # only effects what is printed when initialized
         self.logging = True # Turns logging on and off
         self.revert = 0 # Determins how many steps should be saved in revert
-        self.version = 1 # What version of Udebs syntax is used.
+        self.version = 2 # What version of Udebs syntax is used.
         self.seed = None # Random seed for processing.
         self.immutable = False # Determines default setting for entities immutability.
 
@@ -393,6 +393,7 @@ class Instance(dict):
         """Return all objects belonging to group."""
         groupname = self.getEntity(group).name
         values = [unit for unit in self if groupname in self[unit].group]
+        # sorted is required to force algorithm to be deterministic
         return sorted(values)
 
     def getListStat(self, target, lst, stat):
@@ -439,6 +440,7 @@ class Instance(dict):
         found = set(self.getGroup(first))
         for arg in args:
             found = found.intersection(self.getGroup(arg))
+        # sorted is required to force algorithm to be deterministic
         return sorted(list(found))
 
     #---------------------------------------------------

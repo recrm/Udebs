@@ -2,7 +2,6 @@
 
 <config>
     <revert>5</revert>
-    <version>2</version>
     <logging>False</logging>
     <seed>4643</seed>
     <name>life</name>

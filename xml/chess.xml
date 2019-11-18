@@ -4,6 +4,7 @@
     <revert>100</revert>
     <logging>False</logging>
     <name>chess</name>
+    <version>1</version>
 </config>
 
 <definitions>

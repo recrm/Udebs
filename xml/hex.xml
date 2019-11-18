@@ -3,7 +3,6 @@
 <config>
     <hex>True</hex>
     <name>hex</name>
-    <version>2</version>
 </config>
 
 <definitions>

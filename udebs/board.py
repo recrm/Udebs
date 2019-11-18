@@ -153,7 +153,6 @@ class Board(MutableMapping):
         next_search.difference_update(searched)
 
         while True:
-            #Sorted is needed to force program to be deterministic.
             new = set()
             for node in next_search:
                 if self.testLoc(node):
@@ -166,6 +165,7 @@ class Board(MutableMapping):
             next_search.difference_update(searched)
 
             if len(new) > 0:
+                # sorted is required to force algorithm to be deterministic
                 yield sorted(list(new))
             else:
                 break

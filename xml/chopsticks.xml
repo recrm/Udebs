@@ -3,7 +3,6 @@
 <config>
     <logging>False</logging>
     <name>chopsticks</name>
-    <version>2</version>
 </config>
 
 <definitions>

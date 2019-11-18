@@ -2,9 +2,10 @@
 
 <config>
     <name>Combat</name>
+    <version>1</version>
 </config>
 
-<definitions>   
+<definitions>
     <stats>
         <ACT /> <!-- Number of action points -->
         <SPD /> <!-- How many action points are gained on tick -->
@@ -39,7 +40,7 @@
 
 <map>
     <row>fighter, empty</row>
-    <row>bmage, empty</row> 
+    <row>bmage, empty</row>
     <row>wmage, empty</row>
 </map>
 
@@ -62,18 +63,18 @@
             <i>CAST ALL.monster monster_activate</i>
         </effect>
     </tick>
-    
+
     <atb>
         <effect>CHANGE $T ACT STAT.$T.SPD</effect>
     </atb>
-    
+
     <finish>
         <effect>
             <i>CHANGE recruiter LVL 1</i>
             <i>CHANGE treasure LVL 1</i>
         </effect>
     </finish>
-    
+
     <recruitBoss>
         <effect>
             <i>boss TRAVEL (1 1)</i>
@@ -91,14 +92,14 @@
             <i>GETS (1 2) group monster</i>
         </effect>
     </recruitBattle>
-    
+
     <get_item>
         <effect>
             <i>GETS $C inventory (STAT.treasure.inventory SUB (DICE.5 + (STAT.treasure.LVL * 6)))</i>
             <i>soundFX pickup</i>
         </effect>
     </get_item>
-    
+
     <monster_activate>
         <require>STAT.$T.ACT >= 2</require>
         <effect>
@@ -119,7 +120,7 @@
         </require>
         <effect>activate $T</effect>
     </party_activate>
-    
+
     <!-- Damage Moves -->
     <globe>
         <DESC>Almost all moves are in this class</DESC>
@@ -128,7 +129,7 @@
             <i>ko not-in STAT.$target.status</i>
         </require>
     </globe>
-    
+
     <active>
         <DESC>Actives moves</DESC>
         <require>
@@ -141,23 +142,23 @@
             <i>CHANGE $caster ACT -2</i>
         </effect>
     </active>
-    
+
     <status>
         <DESC>status and buff</DESC>
         <require>NAME.$move not-in STAT.$T.status</require>
         <effect>GETS $target status NAME.$move</effect>
     </status>
-    
+
     <damage>
         <DESC>Damaging moves</DESC>
         <effect>DELAY `(CAST $target ko) 0</effect>
     </damage>
-    
+
     <!-- Moves -->
     <isnotdead>
         <require>ko not-in STAT.$T.status</require>
     </isnotdead>
-    
+
     <ko>
         <DESC>Characters HP has dropped to 0</DESC>
         <require>STAT.$target.HP &lt;= 0</require>
@@ -172,7 +173,7 @@
         </group>
         <SPD>-1</SPD>
     </ko>
-    
+
     <party_KO>
         <require>(length (FILTER ALL.party isnotdead)) == 0</require>
         <effect>
@@ -180,7 +181,7 @@
             <i>exit</i>
         </effect>
     </party_KO>
-    
+
     <attack>
         <DESC>Attack</DESC>
         <effect>
@@ -193,9 +194,9 @@
             <i>globe</i>
         </group>
     </attack>
-    
+
     <pass>
-        <DESC>Pass</DESC> 
+        <DESC>Pass</DESC>
         <skip>skip</skip>
         <effect>soundFX back</effect>
         <group>
@@ -203,7 +204,7 @@
             <i>globe</i>
         </group>
     </pass>
-    
+
     <spit>
         <DESC>Toxic Spit</DESC>
         <effect>
@@ -218,7 +219,7 @@
         </group>
         <MP>1</MP>
     </spit>
-    
+
     <poison>
         <DESC>DROPS THE CHARACTERS HEALTH ONCE USING A DELAYED CHAIN move</DESC>
         <require>DICE.5 > 2</require>
@@ -231,7 +232,7 @@
         <g>-30</g>
         <b>-30</b>
     </poison>
-    
+
     <poison_active>
         <DESC>Toxic Spit Active Part</DESC>
         <effect>
@@ -247,7 +248,7 @@
             <i>globe</i>
         </group>
     </poison_active>
-    
+
     <defend>
         <DESC>Defend</DESC>
         <skip>skip</skip>
@@ -264,13 +265,13 @@
         <DEF>50</DEF>
         <MDEF>30</MDEF>
     </defend>
-    
+
     <defend_active>
         <DESC>Defend Active Component</DESC>
         <effect>LOSES $caster status defend</effect>
         <group>globe</group>
     </defend_active>
-    
+
     <charge>
         <DESC>Store Energy</DESC>
         <effect>
@@ -285,7 +286,7 @@
         <DEF>-50</DEF>
         <MDEF>-30</MDEF>
     </charge>
-    
+
     <charge_active>
         <DESC>Charge Active Component</DESC>
         <effect>
@@ -298,13 +299,13 @@
             <i>globe</i>
         </group>
     </charge_active>
-    
+
     <magic>
         <DESC>Magic Missiles</DESC>
         <effect>
             <i>soundFX magic</i>
             <i>CHANGE $target HP -(* (STAT.$C.MGK + DICE.10) (1 - (STAT.$T.MDEF / 100)))</i>
-        </effect> 
+        </effect>
         <group>
             <i>damage</i>
             <i>active</i>
@@ -312,13 +313,13 @@
         </group>
         <MP>1</MP>
     </magic>
-    
+
     <fire>
         <DESC>Fireball</DESC>
         <effect>
             <i>soundFX fire</i>
             <i>CHANGE $target HP -(* (STAT.$C.MGK + DICE.10) (1 - (STAT.$T.MDEF / 100)) STAT.$T.FIRE /2)</i>
-        </effect> 
+        </effect>
         <group>
             <i>damage</i>
             <i>active</i>
@@ -326,13 +327,13 @@
         </group>
         <MP>2</MP>
     </fire>
-    
+
     <water>
         <DESC>Waterfall</DESC>
         <effect>
             <i>soundFX water</i>
             <i>CHANGE $target HP -(* (STAT.$C.MGK + DICE.10) (1 - (STAT.$T.MDEF / 100)) STAT.$T.WATER /2)</i>
-        </effect> 
+        </effect>
         <group>
             <i>damage</i>
             <i>active</i>
@@ -340,20 +341,20 @@
         </group>
         <MP>2</MP>
     </water>
-    
+
     <!-- Healing moves groups -->
     <health>
         <DESC>Healing moves</DESC>
         <effect>DELAY `(CAST $target overheal) 0</effect>
     </health>
-    
+
     <regen>
         <DESC>Mana Regen Moves</DESC>
         <effect>DELAY `(CAST $target overmana) 0</effect>
     </regen>
-    
+
     <!-- Healing moves -->
-    
+
     <overheal>
         <DESC>A check to make sure character hasnt overhealed</DESC>
         <require>
@@ -363,7 +364,7 @@
         <effect>CHANGE $target HP (STAT.$T.MAXHP - STAT.$T.HP)</effect>
         <group>globe</group>
     </overheal>
-    
+
     <overmana>
         <DESC>A check to make sure character hasnt overmanad</DESC>
         <require>
@@ -373,7 +374,7 @@
         <effect>CHANGE $target MP (STAT.$target.MAXMP - STAT.$target.MP)</effect>
         <group>globe</group>
     </overmana>
-    
+
     <full_heal>
         <DESC>Fully heals target HP and MP</DESC>
         <effect>
@@ -382,7 +383,7 @@
             <i>CHANGE $T MP (STAT.$target.MAXMP - STAT.$target.MP)</i>
         </effect>
     </full_heal>
-    
+
     <heal>
         <DESC>Heal</DESC>
         <effect>
@@ -396,7 +397,7 @@
         </group>
         <MP>1</MP>
     </heal>
-    
+
     <antidote>
         <DESC>Antidote</DESC>
         <effect>
@@ -409,7 +410,7 @@
         </group>
         <MP>1</MP>
     </antidote>
-    
+
     <sacrifice>
         <DESC>Sacrifice</DESC>
         <skip>skip</skip>
@@ -427,7 +428,7 @@
         </group>
         <SPD>-1</SPD>
     </sacrifice>
-    
+
     <!-- nova -->
     <doomsday>
         <DESC>Doomsday</DESC>
@@ -441,7 +442,7 @@
         </group>
         <MP>1</MP>
     </doomsday>
-    
+
     <doom_active>
         <DESC>Doomsday Active Component</DESC>
         <effect>
@@ -453,10 +454,10 @@
             <i>globe</i>
         </group>
     </doom_active>
-    
+
     <!-- Big Boss -->
     <current_barrier />
-    
+
     <barrier>
         <DESC>Barrier change</DESC>
         <group>
@@ -470,7 +471,7 @@
         </effect>
         <MP>1</MP>
     </barrier>
-    
+
     <red>
         <group>
             <i>status</i>
@@ -484,7 +485,7 @@
         <g>30</g>
         <b>30</b>
     </red>
-    
+
     <blue>
         <group>
             <i>status</i>
@@ -498,7 +499,7 @@
         <g>30</g>
         <b>255</b>
     </blue>
-    
+
     <white>
         <group>
             <i>status</i>
@@ -512,7 +513,7 @@
         <g>255</g>
         <b>255</b>
     </white>
-    
+
     <black>
         <group>
             <i>status</i>
@@ -522,7 +523,7 @@
         <g>30</g>
         <b>30</b>
     </black>
-    
+
     <yellow>
         <group>
             <i>status</i>
@@ -538,7 +539,7 @@
         <g>255</g>
         <b>30</b>
     </yellow>
-        
+
     <!-- Consumables -->
     <one_use>
         <DESC>ONE use consumable is</DESC>
@@ -548,7 +549,7 @@
             <i>SACRIFICE not-in STAT.$target.status</i>
         </require>
     </one_use>
-    
+
     <potion>
         <DESC>An HP potion</DESC>
         <group>
@@ -562,7 +563,7 @@
             <i>LOSES $target status POISON</i>
         </effect>
     </potion>
-    
+
     <mana>
         <DESC>An MP Potion</DESC>
         <group>
@@ -575,10 +576,10 @@
             <i>LOSES $target status POISON</i>
         </effect>
     </mana>
-    
+
     <!-- equipable -->
     <equipable />
-    
+
     <equip_item>
         <DESC>equipable is</DESC>
         <require>
@@ -591,29 +592,29 @@
             <i>GETS $T equip $move</i>
         </effect>
     </equip_item>
-    
+
     <unequip>
         <effect>
             <i>LOSES $C equip $T</i>
             <i>GETS party inventory $T</i>
         </effect>
     </unequip>
-    
+
     <unequip_all>
         <effect>$T CAST STAT.$T.equip unequip</effect>
     </unequip_all>
-    
+
     <weapon>
         <DESC>General weapon Class</DESC>
     </weapon>
-    
+
     <sword>
         <DESC>sword class for is</DESC>
         <MEL>1</MEL>
         <inventory>fighter</inventory>
         <group>equipable</group>
     </sword>
-    
+
     <staff>
         <DESC>staff class for is</DESC>
         <inventory>
@@ -633,7 +634,7 @@
         </inventory>
         <group>equipable</group>
     </hat>
-    
+
     <!-- hats!! -->
     <bor_hat>
         <DESC>A boring hat</DESC>
@@ -645,7 +646,7 @@
             <i>equip_item</i>
         </group>
     </bor_hat>
-    
+
     <med_hat>
         <DESC>A mediocre hat</DESC>
         <MAXHP>20</MAXHP>
@@ -656,7 +657,7 @@
             <i>equip_item</i>
         </group>
     </med_hat>
-    
+
     <metal_hat>
         <DESC>A metal hat</DESC>
         <MAXHP>30</MAXHP>
@@ -667,7 +668,7 @@
             <i>equip_item</i>
         </group>
     </metal_hat>
-    
+
     <fancy_hat>
         <DESC>A fancy hat</DESC>
         <MAXHP>20</MAXHP>
@@ -679,7 +680,7 @@
             <i>equip_item</i>
         </group>
     </fancy_hat>
-    
+
     <!-- swords -->
     <wood_sword>
         <DESC>A wooden Sword</DESC>
@@ -690,7 +691,7 @@
         </group>
         <MEL>10</MEL>
     </wood_sword>
-    
+
     <metal_sword>
         <DESC>A metal Sword</DESC>
         <group>
@@ -700,7 +701,7 @@
         </group>
         <MEL>20</MEL>
     </metal_sword>
-    
+
     <shiny_sword>
         <DESC>A shiny Sword</DESC>
         <group>
@@ -710,7 +711,7 @@
         </group>
         <MEL>30</MEL>
     </shiny_sword>
-    
+
     <!-- staffs -->
     <wood_staff>
         <DESC>A wooden Staff</DESC>
@@ -722,7 +723,7 @@
         <MGK>10</MGK>
         <MAXMP>5</MAXMP>
     </wood_staff>
-    
+
     <metal_staff>
         <DESC>A metal Staff</DESC>
         <group>
@@ -733,7 +734,7 @@
         <MGK>20</MGK>
         <MAXMP>10</MAXMP>
     </metal_staff>
-    
+
     <shiny_staff>
         <DESC>A shiny staff</DESC>
         <group>
@@ -744,7 +745,7 @@
         <MGK>30</MGK>
         <MAXMP>15</MAXMP>
     </shiny_staff>
-        
+
     <!-- Meta Units -->
     <recruiter>
         <DESC>The board recruiter</DESC>
@@ -761,7 +762,7 @@
             <i>nova</i>
         </inventory>
     </recruiter>
-    
+
     <treasure>
         <DESC>Unit that hands out treasure</DESC>
         <inventory>
@@ -785,9 +786,9 @@
             <i>mana</i>
         </inventory>
     </treasure>
-    
+
     <meta />
-    
+
     <party>
         <DESC>heroes main class</DESC>
         <movelist>
@@ -801,12 +802,12 @@
         <group>meta</group>
         <HP>0</HP>
     </party>
-    
+
     <!-- Fighter -->
     <fighter>
         <DESC>Fighter the Brave</DESC>
         <MAXHP>130</MAXHP>
-        <MAXMP>1</MAXMP> 
+        <MAXMP>1</MAXMP>
         <HP>130</HP>
         <MP>1</MP>
         <MEL>45</MEL>
@@ -817,7 +818,7 @@
         <SPD>1</SPD>
         <r>255</r>
         <g>75</g>
-        <b>75</b>  
+        <b>75</b>
         <movelist>
             <i>spit</i>
             <i>defend</i>
@@ -825,14 +826,14 @@
         </movelist>
         <group>party</group>
     </fighter>
-    
+
     <!-- Black Mage -->
     <bmage>
         <DESC>Black Mage the Evil</DESC>
         <MAXHP>100</MAXHP>
-        <MAXMP>15</MAXMP> 
+        <MAXMP>15</MAXMP>
         <HP>100</HP>
-        <MP>15</MP> 
+        <MP>15</MP>
         <MEL>10</MEL>
         <MGK>45</MGK>
         <MDEF>20</MDEF>
@@ -849,14 +850,14 @@
         </movelist>
         <group>party</group>
     </bmage>
-    
+
     <!-- White Mage -->
     <wmage>
         <DESC>White Mage the Good</DESC>
-        <MAXHP>100</MAXHP> 
-        <MAXMP>10</MAXMP> 
-        <HP>100</HP> 
-        <MP>10</MP> 
+        <MAXHP>100</MAXHP>
+        <MAXMP>10</MAXMP>
+        <HP>100</HP>
+        <MP>10</MP>
         <MEL>25</MEL>
         <MGK>45</MGK>
         <MDEF>20</MDEF>
@@ -874,7 +875,7 @@
         <group>party</group>
     </wmage>
     <!-- Monsters -->
-    
+
     <monster>
         <DESC>Monster main class</DESC>
     </monster>

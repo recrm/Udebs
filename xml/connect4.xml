@@ -1,7 +1,6 @@
 <udebs>
 
 <config>
-    <version>2</version>
     <logging>False</logging>
     <name>connectfour</name>
     <immutable>True</immutable>

@@ -2,7 +2,6 @@
 
 <config>
     <revert>0</revert>
-    <version>2</version>
     <logging>False</logging>
     <immutable>True</immutable>
 </config>

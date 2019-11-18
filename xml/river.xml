@@ -3,7 +3,6 @@
 <config>
     <hex>True</hex>
     <logging>False</logging>
-    <version>2</version>
     <seed>26892201</seed>
     <name>river</name>
 </config>
