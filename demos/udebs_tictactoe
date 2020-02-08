@@ -1,0 +1,179 @@
+#!/usr/bin/env python3
+import udebs
+import json
+from udebs.treesearch import BruteForce
+
+game_config = """
+<udebs>
+
+<config>
+    <logging>False</logging>
+    <name>tictactoe</name>
+    <immutable>True</immutable>
+</config>
+
+<map>
+    <dim>
+        <x>3</x>
+        <y>3</y>
+    </dim>
+</map>
+
+<definitions>
+    <stats>
+        <ACT />
+        <END />
+    </stats>
+    <strings>
+        <token />
+    </strings>
+</definitions>
+
+<entities>
+    <result immutable="False" />
+
+    <player />
+
+    <tick>
+        <require>
+            <i>score = (ENDSTATE)</i>
+            <i>$score != None</i>
+        </require>
+        <effect>
+            <i>result END REPLACE $score</i>
+            <i>EXIT</i>
+        </effect>
+    </tick>
+
+    <xPlayer immutable="False">
+        <group>player</group>
+        <ACT>2</ACT>
+        <token>x</token>
+    </xPlayer>
+
+    <oPlayer immutable="False">
+        <group>player</group>
+        <ACT>1</ACT>
+        <token>o</token>
+    </oPlayer>
+
+    <x />
+    <o />
+
+    <placement>
+        <require>
+            <i>$caster.STAT.ACT &gt;= 2</i>
+            <i>$target.NAME == empty</i>
+        </require>
+        <effect>
+            <i>$caster.STAT.token RECRUIT $target</i>
+            <i>$caster ACT -= 2</i>
+            <i>ALL.player ACT += 1</i>
+        </effect>
+    </placement>
+
+</entities>
+</udebs>
+"""
+
+def ENDSTATE(state):
+    def rows(gameMap):
+        """Iterate over possible win conditions in game map."""
+        size = len(gameMap)
+
+        for i in range(size):
+            yield gameMap[i]
+            yield [j[i] for j in gameMap]
+
+        yield [gameMap[i][i] for i in range(size)]
+        yield [gameMap[size - 1 - i][i] for i in range(size)]
+
+    # Check for a win
+    tie = True
+    for i in rows(state.map["map"].map):
+        value = set(i)
+        if "empty" in value:
+            tie = False
+        elif len(value) == 1:
+            if i[0] == "x":
+                return 1
+            elif i[0] == "o":
+                return -1
+
+    if tie:
+        return 0
+
+# Setup Udebs
+module = {"ENDSTATE": {
+    "f": "ENDSTATE",
+    "args": ["self"],
+}}
+udebs.importModule(module, {"ENDSTATE": ENDSTATE})
+
+class TicTacToe(BruteForce):
+    def legalMoves(self, state):
+        """Create a list of legal moves in current state space."""
+        player = "xPlayer" if state.getStat("xPlayer", "ACT") == 2 else "oPlayer"
+        for loc, value in state.map["map"].items():
+            if value == "empty":
+                yield player, loc, "placement"
+
+    def endState(self, state):
+        if not state.cont:
+            return state.getStat("result", "END")
+
+    def tree(self, state, debug=True):
+        """Compile all results into a tree."""
+        # If node is solvable return solution
+        if int(self.result(state)) != 0:
+            return self.result(state)
+
+        # Collect all possible outputs
+        completed = set()
+        storage = {}
+        for substate, entry in self.substates(state):
+            if self.pState(substate) not in completed:
+                completed.add(self.pState(substate))
+                subresult = self.tree(substate, debug=False)
+
+                # Remove any options that don't block oponents autowin.
+                if not isinstance(subresult, dict):
+                    if subresult.turns == 1:
+                        continue
+
+                storage[entryName(entry)] = subresult
+
+        # Flatten inevitable ties
+        for k, v in storage.items():
+            if isinstance(v, dict) or int(v) != 0:
+                return storage
+        else:
+            return self.result(state)
+
+def entryName(entry):
+    if entry is not None:
+        player, (x, y, _), _ = entry
+        return player[0] + "_" + str(x) + "_" + str(y)
+
+    return "root"
+
+def deserialize(node):
+    if isinstance(node, dict):
+        return {k:deserialize(v) for k,v in node.items()}
+    return int(node)
+
+if __name__ == "__main__":
+    game = udebs.battleStart(game_config)
+
+    # Create state analysis engine
+    with udebs.Timer():
+        analysis = TicTacToe()
+        final = analysis.result(game)
+    print("final", final.value, final.turns)
+    print("states checked", len(analysis.storage))
+
+    tree = deserialize(analysis.tree(game))
+
+    # Save tree
+    with open("tictactoe.json", "w+") as f:
+        json.dump(tree, f)

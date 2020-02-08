@@ -1,0 +1,178 @@
+#!/usr/bin/env python3
+import sys
+import math
+import udebs
+try:
+    import pygame
+except ImportError:
+    print("This udebs demo requires pygame to be installed.")
+    sys.exit()
+
+game_config = """
+<udebs>
+
+<config>
+    <hex>True</hex>
+    <name>hex</name>
+</config>
+
+<definitions>
+    <stats>
+        <ACT />
+    </stats>
+    <strings>
+        <sprite />
+    </strings>
+    <lists>
+        <direction />
+    </lists>
+</definitions>
+
+<map type='hex'>
+    <dim>
+        <x>8</x>
+        <y>8</y>
+    </dim>
+</map>
+
+<entities>
+
+    <!-- scripts -->
+    <init>
+        <effect>
+            <i>CAST (DICE.7 DICE.7) earthquake</i>
+            <i>token MOVE (0 0)</i>
+        </effect>
+    </init>
+
+    <!-- Metrics -->
+    <suptravel>
+        <require>$T.NAME == empty</require>
+    </suptravel>
+
+    <!-- Events -->
+    <click>
+        <effect>
+            <i>CAST $T travel</i>
+            <i>CAST $T query</i>
+        </effect>
+    </click>
+
+    <query>
+        <effect>
+            <i>token CLEAR direction</i>
+            <i>token direction GETS (PATH suptravel token $target)</i>
+        </effect>
+    </query>
+
+    <travel>
+        <require>(DISTANCE suptravel) &lt;= ($caster STAT ACT)</require>
+        <effect>$caster MOVE $target</effect>
+    </travel>
+
+    <earthquake>
+        <effect>earth RECRUIT (FILL $target `(DISTANCE.y == 0) true 2)</effect>
+    </earthquake>
+
+    <!-- Units -->
+    <earth>
+        <sprite>M</sprite>
+    </earth>
+
+    <token>
+        <sprite>K</sprite>
+        <ACT>2</ACT>
+    </token>
+</entities>
+
+</udebs>
+"""
+
+class hexagon:
+    def __init__(self, a, b, ts):
+        rad = math.cos(math.pi / 6)
+        self.center = (ts*(2*a+b+1.5), ts*(1.5*b/rad+1.5))
+        self.points = []
+
+        length = ts / rad
+        for i in range(6):
+            angle = i * math.pi / 3
+            x = self.center[0] + length*math.sin(angle)
+            y = self.center[1] + length*math.cos(angle)
+            self.points.append((x, y))
+
+        self.square = pygame.Rect(0, 0, ts*1.5, ts*1.5)
+        self.square.center = self.center
+
+def eventUpdate():
+    #redraw the board
+    mainSurface.fill(BLACK)
+    ACT = main_map.getStat('token', 'ACT')
+    highlight = main_map.getFill('token', 'suptravel', distance=ACT)
+    direction = main_map.getStat("token", "direction")
+    for y in range(8):
+        for x in range(8):
+            loc = (x,y,'map')
+            if loc in highlight:
+                colour = GREEN
+            elif loc in direction:
+                colour = RED
+            else:
+                colour = WHITE
+
+            hexa = hexagon(x, y, ts)
+            pygame.draw.polygon(mainSurface, colour, hexa.points, 0)
+            pygame.draw.polygon(mainSurface, BLACK, hexa.points, 1)
+
+            unit = main_map.getName(loc)
+            if unit != 'empty':
+                sprite_symbol = main_map.getStat(unit, 'sprite')
+                mainSurface.blit(mainFont.render(sprite_symbol, True, BLACK, colour), hexa.square)
+
+    pygame.display.update()
+
+if __name__ == "__main__":
+    print("""Welcome to Hex!!
+
+    This game is a basic demonstration of hexagonal boards, pathing, and logging.
+
+    controls:
+    - Click on a green tile to move to that tile.
+    - Click on a white tile to see a fastest path to that tile.
+    - The mountains are randomly generated. Reset the game to try a different position.
+    """)
+
+    #definitions
+    ts = 20
+    BLACK = (0, 0, 0)
+    GREEN = (0, 255, 0)
+    WHITE = (255, 255, 255)
+    RED = (255, 0, 0)
+
+    #Setup pygame
+    pygame.init()
+    mainFont = pygame.font.SysFont(None, 48)
+    mainClock = pygame.time.Clock()
+    mainSurface = pygame.display.set_mode((500, 400), 0, 32)
+    pygame.display.set_caption('A simple hex GUI')
+
+    #Setup udebs
+    main_map = udebs.battleStart(game_config)
+
+    #game loop
+    eventUpdate()
+    while True:
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                pygame.quit()
+                sys.exit()
+
+            elif event.type == pygame.MOUSEBUTTONDOWN:
+                mouse = pygame.mouse.get_pos()
+                for x in range(8):
+                    for y in range(8):
+                        if hexagon(x, y, ts).square.collidepoint(mouse):
+                            main_map.castMove('token', (x,y), 'click')
+                            eventUpdate()
+
+        mainClock.tick(60)
