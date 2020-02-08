@@ -1,12 +1,28 @@
 from collections.abc import MutableMapping
 import math
+from functools import reduce
+
+sides = [
+    (-1, 0),
+    (0, 1),
+    (1, 0),
+    (0, -1),
+    (-1, 1),
+    (1, -1),
+    (1, 1),
+    (-1, -1),
+]
 
 class Board(MutableMapping):
-    def __init__(self, field, **options):
-        self.field = field
+    def __init__(self, **options):
         self.name = options.get("name", "map")
         self.empty = options.get("empty", "empty")
         self.type = options.get("type", False)
+        self.count = 4
+        if self.type:
+            self.count += 2
+            if self.type == "diag":
+                self.count +=2
 
         #Set up maps.
         dim = options.get("dim", (1,1))
@@ -60,7 +76,7 @@ class Board(MutableMapping):
     def __repr__(self):
         return "<board: "+self.name+">"
 
-    def copy(self, field):
+    def __copy__(self):
         options = {
             "name": self.name,
             "empty": self.empty,
@@ -68,7 +84,7 @@ class Board(MutableMapping):
             "dim": [i[:] for i in self.map]
         }
 
-        return Board(field, **options)
+        return Board(**options)
 
     @property
     def x(self):
@@ -84,17 +100,26 @@ class Board(MutableMapping):
     #                    Methods                       -
     #---------------------------------------------------
     def show(self):
-        for x in range(self.y):
-            for y in range(self.x):
-                value = self[y,x]
+        """Pretty prints a map."""
+        maxi = 0
+        for name in self.values():
+            if name != self.empty and len(str(name)) > maxi:
+                maxi = len(str(name))
+
+        for y in range(self.y):
+            if self.type == "hex":
+                print(" " * y * maxi, end="")
+
+            for x in range(self.x):
+                value = self[x,y]
                 if value == self.empty:
                     value = "_"
 
-                print(value, end=" ")
+                print(str(value).ljust(maxi), end=" ")
 
             print()
 
-    def getDistance(self, one, two, method):
+    def getDistance(self, one, two, method, **kwargs):
         """Returns distance between two locations.
 
         one - starting loc
@@ -104,14 +129,10 @@ class Board(MutableMapping):
         """
         if not isinstance(method, str):
             count = 0
-            for i in self.getAdjacent(one, method):
+            for i in self.getAdjacent({one}, callback=method, **kwargs):
                 if two in i:
                     return count
                 count +=1
-            return float("inf")
-
-        #Note: Dictonary switch method doubles this functions run time.
-        elif not self.testLoc(one) or not self.testLoc(two):
             return float("inf")
         elif method == 'y':
             return int(abs(one[1] - two[1]))
@@ -130,103 +151,87 @@ class Board(MutableMapping):
         else:
             raise UndefinedMetricError(method)
 
-    def getAdjacent(self, center, callback, pointer=None, include_center=True):
+    def getAdjacent(self, new, sort=None, **kwargs):
         """
         Iterates over concentric circles of adjacent tiles.
 
-        center - starting local
-        callback - Callback used to determine what is a valid tile.
-        pointer - Optional dict to store pathing data.
+        new - starting local
+        sort - a function that can be used to sort the order nodes are explored.
 
         """
-        if not self.testLoc(center):
-            yield []
-            return
+        searched = set()
+        union = lambda x,y: x.union(y)
 
-        if include_center:
-            yield [center]
-        else:
-            yield []
+        while len(new) > 0:
+            yield new
 
-        searched = {center}
-        next_search = self.adjacent(center, pointer)
-        next_search.difference_update(searched)
+            searched.update(new)
+            new = reduce(union, (self.adjacent(i, **kwargs) for i in new))
+            new.difference_update(searched)
 
-        while True:
-            new = set()
-            for node in next_search:
-                if self.testLoc(node):
-                    env = self.field.getEnv(center, node, callback)
-                    if callback.testRequire(env) == True:
-                        new.add(node)
+            if sort is not None:
+                new = sort(new)
 
-            searched.update(next_search)
-            next_search = set().union(*[self.adjacent(node, pointer) for node in new])
-            next_search.difference_update(searched)
-
-            if len(new) > 0:
-                # sorted is required to force algorithm to be deterministic
-                yield sorted(list(new))
-            else:
-                break
-
-    def getPath(self, start, finish, callback):
+    def getPath(self, start, finish, pointer=None, **kwargs):
         """
         Algorithm to find a path between start and finish assuming callback.
 
         start, finish - Start and finish locations.
-        callback - Callback used to determine what is a valid tile.
 
         Returns empty list if there is no path.
 
         """
-        if not self.testLoc(start) or not self.testLoc(finish):
-            return []
+        if not isinstance(start, set):
+            start = {start}
+        if not isinstance(finish, set):
+            finish = {finish}
 
-        pointer = {}
+        if pointer is None:
+            pointer = {}
 
-        if start == finish:
-            return [start]
+        for i in start:
+            pointer[i] = None
 
         #Populate pointer.
-        for i in self.getAdjacent(start, callback, pointer):
-            if finish in i:
+        for i in self.getAdjacent(start, pointer=pointer, **kwargs):
+            final = finish.intersection(i)
+            if len(final) > 0:
                 break
         else:
             return []
 
-        found = [finish]
-        while True:
-            new = pointer[found[-1]]
+        new = final.pop()
+        found = [new]
+        while pointer[new]:
+            new = pointer[new]
             found.append(new)
-            if new == start:
-                found.reverse()
-                return found
 
-    def getFill(self, center, callback, distance=float("inf"), rand=None, include_center=True):
+        found.reverse()
+        return found
+
+    def getFill(self, center, distance=float("inf"), include_center=True, **kwargs):
         """
         Returns a list of map spaces that center fills into.
 
         center - Starting loc
-        callback - Callback used to determine what is a valid tile.
         distance - Maximum fill distance from target.
-        rand - Instance of random.Random() to use for data shuffle.
+        include_center - Boolean to determine if center should be included.
 
         """
-        if not self.testLoc(center):
-            return []
+        if not isinstance(center, set):
+            center = {center}
 
-        found = []
+        found = set()
         count = 0
-        #first iteration is always the center itself.
-        for i in self.getAdjacent(center, callback, include_center=include_center):
-            found.extend(i)
+        for i in self.getAdjacent(center, **kwargs):
+            found.update(i)
             if count >= distance:
                 break
             count +=1
 
-        if rand:
-            rand.shuffle(found)
+        if not include_center:
+            found -= center
+
         return found
 
     def testLoc(self, loc):
@@ -249,54 +254,45 @@ class Board(MutableMapping):
 
         return False
 
-    def testBlock(self, start, finish, callback):
+    def testBlock(self, start, finish, **kwargs):
         """
         Tests to see if there exists a path from start to finish.
 
         start, finish - Starting and finishing locations.
-        callback - Callback used to determine what is a valid tile.
 
         """
-        if self.testLoc(start) and self.testLoc(finish):
-            for i in self.getAdjacent(start, callback):
-                for q in i:
-                    if finish in self.adjacent(q):
-                        return True
+        final = self.adjacent(finish, **kwargs)
+        for i in self.getAdjacent({start}, **kwargs):
+            for q in i:
+                if q in final:
+                    return True
         return False
 
-    def adjacent(self, location, pointer=None):
+    def adjacent(self, location, pointer=None, state=None, callback=None):
         """
         Returns rough index of tiles adjacent to given tile.
 
         location - Any tuple location.
         pointer - optional pointer dict to keep track of path.
+        callback, state - optional udebs callback to determine if location is valid.
 
         """
-        x = location[0]
-        y = location[1]
-        map_ = location[2]
+        filtered = set()
+        for x_, y_ in sides[:self.count]:
+            loc = (location[0] + x_, location[1] + y_, self.name)
+            if self.testLoc(loc):
+                if callback:
+                    env = state.getEnv(location, loc, callback)
+                    if not callback.testRequire(env) == True:
+                        continue
+                filtered.add(loc)
 
-        found = {
-            (x -1, y, map_),
-            (x, y +1, map_),
-            (x +1, y, map_),
-            (x, y -1, map_),
-        }
+        if pointer is not None:
+            for i in filtered:
+                if i not in pointer:
+                    pointer[i] = location
 
-        if self.type:
-            found.add((x -1, y +1, map_))
-            found.add((x +1, y -1, map_))
-
-        if self.type == "diag":
-            found.add((x +1, y +1, map_))
-            found.add((x -1, y -1, map_))
-
-        if isinstance(pointer, dict):
-            for item in found:
-                if item not in pointer:
-                    pointer[item] = location
-
-        return found
+        return filtered
 
 class UndefinedMetricError(Exception):
     def __init__(self, metric):
