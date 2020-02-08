@@ -4,6 +4,7 @@ import sys
 import logging
 from udebs import board, entity, instance, interpret
 from xml.etree import ElementTree
+from collections import deque
 
 #This is a pretty printing algorithm I stole from the internet.
 def indent(elem, level=0):
@@ -228,7 +229,7 @@ def battleStart(xml_file, debug=False, script="init", name=None, revert=None, lo
             options['dim'] = [list(i) for i in zip(*dim)]
 
         #Add to field
-        field.map[options["name"]] = board.Board(field, **options)
+        field.map[options["name"]] = board.Board(**options)
         if "rmap" in options:
             field.rmap.add(options["name"])
 
@@ -328,6 +329,7 @@ def battleStart(xml_file, debug=False, script="init", name=None, revert=None, lo
         logging.info("")
 
     if field.revert:
+        field.state = deque(maxlen=field.revert + 1)
         field.state.append(copy.copy(field))
 
     return field
