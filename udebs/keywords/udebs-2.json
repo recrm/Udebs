@@ -44,6 +44,10 @@
         "args": ["-$1", "$1"],
         "default": {"-$1": "$caster"}
     },
+    "DELETE": {
+        "f": "self.controlDelete",
+        "args": ["-$1"]
+    },
     "MOVE": {
         "f": "self.controlTravel",
         "args": ["-$1", "$1"],
