@@ -2,6 +2,7 @@ from random import Random
 from copy import copy
 from itertools import product
 from logging import info
+from collections import deque
 
 from udebs.interpret import Script, UdebsStr, _getEnv
 from udebs.board import Board
@@ -58,7 +59,10 @@ class Instance(dict):
         self.rand = Random()
 
         #Do not copy
-        self.state = []
+        self.state = False
+
+    def __bool__(self):
+        return self.cont
 
     @norecurse
     def __eq__(self, other):
@@ -98,7 +102,7 @@ class Instance(dict):
         # Handle maps
         new.map = {}
         for name, map_ in self.map.items():
-            new.map[name] = map_.copy(new)
+            new.map[name] = copy(map_)
 
         # Handle delays
         new.delay = []
@@ -113,7 +117,7 @@ class Instance(dict):
                 "script": delay["script"],
             })
 
-        new.state = []
+        new.state = deque(maxlen=new.revert + 1)
 
         return new
 
@@ -122,9 +126,8 @@ class Instance(dict):
     #---------------------------------------------------
 
     def getEntity(self, target, multi=False):
-        """Returns entity object based on given selector.
-        Note: This function previously used singledispatch. However, it
-        is a ton slower and no more readable than an if stack.
+        """
+        Returns entity object based on given selector.
 
         target - Any entity selector.
         multi - Boolean, allows lists of targets.
@@ -138,10 +141,11 @@ class Instance(dict):
             return self[target]
         elif isinstance(target, tuple):
             return self.getEntityTuple(target)
-        elif isinstance(target, list) and len(target) > 0:
+        elif isinstance(target, list):
             if multi:
                 return [self.getEntity(i) for i in target]
-            return self.getEntity(target[0])
+            elif len(target) > 0:
+                return self.getEntity(target[0])
         elif isinstance(target, UdebsStr):
             return self.getEntityUdebsStr(target)
 
@@ -222,6 +226,7 @@ class Instance(dict):
     #---------------------------------------------------
 
     def checkDelay(self):
+        """Checks and runs actions waiting in delay."""
         while True:
             again = False
             for delay in self.delay[:]:
@@ -236,12 +241,17 @@ class Instance(dict):
         if self.logging:
             info("")
 
-    def controlTime(self, time=1, script="tick"):
-        """Changes internal time, runs tick script, and updates any delayed effects.
+    def controlTime(self, time=None, script="tick"):
+        """
+        Changes internal time, runs tick script, and updates any delayed effects.
 
         time - Integer representing number of updates.
+        script - A string representing the action that should be run after incrementing time.
 
         """
+        if time == None:
+            time = self.increment
+
         for i in range(time):
             # Increment time
             self.time +=1
@@ -261,51 +271,62 @@ class Instance(dict):
                 self.checkDelay()
 
             #Append new version to state.
-            if self.revert:
+            if self.state:
                 self.state.append(copy(self))
-
-        if self.revert:
-            self.state = self.state[-self.revert:]
 
         return self.cont
 
-    def getRevert(self, value=0):
-        index = -(value +1)
-        try:
-            new = copy(self.state[index])
-        except IndexError:
-            return False
-
-        del self.state[index+1:]
-        new.state = self.state
-        return new
-
-    def controlDelay(self, callback, delay, storage):
+    def getRevert(self, time=0):
         """
-        Creates a new delay object.
+        Returns previous states.
 
+        time - The number of time increments to revert.
+               A time of zero reverts to the begining of the current increment.
+        """
+        if self.state:
+            for i in range(time + 1):
+                try:
+                    new = self.state.pop()
+                except IndexError:
+                    self.state.append(new)
+                    return False
+
+            new.state = self.state
+            new.state.append(copy(new))
+            return new
+
+    def controlDelay(self, callback, time, storage):
+        """
+        Creates and stores a new delay object.
+
+        callback - An entity selector represeting the action to store.
+        time - The amount of time to delay the action for.
+        storage - The current calling context.
+
+        Note: A delay of 0 will delay an action until the end of the current action window.
         """
         env = _getEnv(storage, {"self": self})
 
         new_delay = {
             "env": env,
             "script": self.getEntity(callback),
-            "ticks": delay
+            "ticks": time
         }
 
         self.delay.append(new_delay)
         if self.logging:
-            info(f"effect added to delay for {delay}")
+            info(f"effect added to delay for {time}")
         return True
 
     @norecurse
-    def testFuture(self, caster, target, move, string, time=0):
+    def testFuture(self, caster, target, move, callback, time=0):
         """
         Experimental function. Checks if condition is true in the future.
         (Works for chess, I doubt I will touch it.)
 
-        caster, target, move - event to triger.
-        time - how much time to pass after event.
+        caster, target, move - Event to trigger.
+        callback - Condition to check in the future.
+        time - how much time to travel into the future.
         """
         caster = self.getEntity(caster)
         target = self.getEntity(target)
@@ -326,7 +347,7 @@ class Instance(dict):
         move.controlEffect(env)
         clone.controlTime(time)
 
-        effects = clone.getEntity(string)
+        effects = clone.getEntity(callback)
         test = clone.testMove(caster, target, effects)
 
         return test
@@ -336,12 +357,11 @@ class Instance(dict):
     #---------------------------------------------------
 
     def getStat(self, target, stat):
-        """General getter for all attributes.
+        """
+        General getter for all attributes.
 
         target - Entity selector.
         stat - Stat defined in env.lists, env.stats, or env.strings.
-        maps - Boolean turns on and off inheritance from other maps.
-
         """
         current = self.getEntity(target)
         if stat in {"increment", "group"}:
@@ -397,8 +417,10 @@ class Instance(dict):
         return sorted(values)
 
     def getListStat(self, target, lst, stat):
-        """Returns combination of all stats for objects in a units list.
+        """
+        Returns sum object stats in a list.
 
+        target - Entity selector for object to check.
         lst - String representing list to check.
         stat - String representing defined stat.
 
@@ -416,7 +438,9 @@ class Instance(dict):
             return next(found)
 
     def getListGroup(self, target, lst, group):
-        """Returns first element in list that is a member of group.
+        """
+        Returns first element in list that is a member of group.
+        Note: This function is useful for equipment type checks.
 
         target - Entity selector.
         lst - String representing list to check.
@@ -432,7 +456,8 @@ class Instance(dict):
         return False
 
     def getSearch(self, *args):
-        """Returns a list of objects contained in all groups.
+        """
+        Returns the intersect of objects contained in a list of groups.
         *args - lists of groups.
         """
         foundIter = iter(args)
@@ -448,6 +473,8 @@ class Instance(dict):
     #---------------------------------------------------
 
     def getEnv(self, caster, target, move):
+        """Internal method for creating contexts for calls."""
+
         var_local = {
             "caster": caster,
             "target": target,
@@ -459,7 +486,15 @@ class Instance(dict):
         return _getEnv(var_local, {"self": self})
 
     def controlMove(self, casters, targets, moves):
-        """Main function to trigger an event."""
+        """
+        Function to trigger an event. Returns True if an action triggers succesfully.
+
+        casters - An entity selector representing the entity that will perform the action.
+        targets - An entity selector representing the entity that will recieve the action.
+        moves - An entity selector representing the entity that is the action.
+
+        Note: If a list of entity selectors is recieved for any argument, all actions in the product will trigger.
+        """
         casters = self.getEntity(casters, multi=True)
         targets = self.getEntity(targets, multi=True)
         moves = self.getEntity(moves, multi=True)
@@ -477,9 +512,9 @@ class Instance(dict):
                 if target.immutable and target.loc:
                     tname = target.loc
 
-                if target.name == caster.name == "empty":
+                if target == caster == self["empty"]:
                     info(f"init {move}")
-                elif target.name == "empty":
+                elif target == self["empty"]:
                     info(f"{cname} uses {move}")
                 else:
                     info(f"{cname} uses {move} on {tname}")
@@ -494,7 +529,9 @@ class Instance(dict):
         return value
 
     def testMove(self, caster, target, move):
-        """Gutted controlMove, returns if event would have activated."""
+        """
+        Simulates an action. Returns true if require passes succesfully.
+        """
         move = self.getEntity(move)
         env = self.getEnv(caster, target, move)
         return move.testRequire(env) == True
@@ -508,7 +545,7 @@ class Instance(dict):
         return self.castMove(caster, self["empty"], move)
 
     def castMove(self, caster, target , move):
-        """Wrapper of controlMove that appends a tick."""
+        """Main function to trigger an event. Same as controlMove but properly handles delayed effects as well."""
         value = self.controlMove(caster, target, move)
         if value:
             self.checkDelay()
@@ -516,7 +553,11 @@ class Instance(dict):
         return value
 
     def castSingle(self, string):
-        """Call a function directly from a user inputed Udebs String."""
+        """
+        Call a function directly from a user inputed Udebs String.
+
+        string - Action represented as a Udebs String.
+        """
         code = Script(string, version=self.version)
         env = _getEnv({}, {"self": self})
         return code(env)
@@ -525,6 +566,14 @@ class Instance(dict):
     #               Entity control                     -
     #---------------------------------------------------
     def controlListAdd(self, targets, lst, entries):
+        """
+        Adds an element to a list.
+
+        targets - Entity selector representing entities who will recive an object.
+        lst - Stat that will recieve the object.
+        entries - String or list of strings to append to the list.
+        """
+
         targets = self.getEntity(targets, multi=True)
         if not isinstance(entries, list):
             entries = [entries]
@@ -536,6 +585,14 @@ class Instance(dict):
                     info(f"{entry} added to {target} {lst}")
 
     def controlListRemove(self, targets, lst, entries):
+        """
+        Removes an element from a list.
+
+        targets - Entity selector representing entities who will lose the object.
+        lst - Stat that will lose the object.
+        entries - String or list of strings to remove from the list.
+        """
+
         targets = self.getEntity(targets, multi=True)
         if not isinstance(entries, list):
             entries = [entries]
@@ -549,6 +606,13 @@ class Instance(dict):
                         info(f"{entry} removed from {target} {lst}")
 
     def controlClear(self, targets, lst):
+        """
+        Removes all elements from a list.
+
+        targets - Entity selector representing entities who will lose the object.
+        lst - Stat that will lose the object.
+        """
+
         for target in self.getEntity(targets, multi=True):
             if not target.immutable:
                 getattr(target, lst).clear()
@@ -556,6 +620,13 @@ class Instance(dict):
                     info(f"{target} {lst} has been cleared")
 
     def controlShuffle(self, target, stat):
+        """
+        Randomize order of a list.
+
+        targets - Entity selector representing entities who will be shuffled.
+        lst - Stat that will be shuffled.
+        """
+
         for target in self.getEntity(target, multi=True):
             if not target.immutable:
                 self.rand.shuffle(getattr(target, stat))
@@ -563,6 +634,17 @@ class Instance(dict):
                     info(f"{target} {stat} has been shuffled")
 
     def controlIncrement(self, targets, stat, increment, multi=1):
+        """
+        Increment a statistic by a static value.
+
+        targets - Entity selector representing entities who will be modified.
+        lst - Stat that will be incremented.
+        increment - Amount that the stat will be incremented.
+        multi - Multiplyer effecting the increment.
+
+        Note: Final value will be modified as follows (Stat = Stat + (increment * multi))
+        """
+
         total = int(increment * multi)
         for target in self.getEntity(targets, multi=True):
             if not target.immutable:
@@ -571,6 +653,16 @@ class Instance(dict):
                     info(f"{target} {stat} changed by {total} is now {self.getStat(target, stat)}")
 
     def controlString(self, targets, stat, value):
+        """
+        Replace a value with another value.
+
+        targets - Entity selector representing entities who will be modified.
+        lst - Stat or string that will be modified.
+        value - The new value for the stat or string.
+
+        Note: This function also works on stats.
+        """
+
         for target in self.getEntity(targets, multi=True):
             if not target.immutable:
                 setattr(target, stat, value)
@@ -578,6 +670,15 @@ class Instance(dict):
                     info(f"{target} {stat} changed to {value}")
 
     def controlRecruit(self, target, positions):
+        """
+        Create a new entity by copying another.
+
+        target - Entity selector representing the entity who will be copied.
+        positions - Entity selectors representing the locations where the new entities will be copied to.
+
+        Note: One new entity will be created for each position given.
+        """
+
         target = self.getEntity(target)
         new = target
         for position in positions if isinstance(positions, list) else [positions]:
@@ -589,6 +690,17 @@ class Instance(dict):
             self.controlTravel(new, position)
 
         return new
+
+    def controlDelete(self, target):
+        target = self.getEntity(target)
+        if not target.immutable:
+            del self[target.name]
+            if target.loc:
+                del self.getMap(target)[target.loc]
+            if self.logging:
+                info(f"{target} has been deleted")
+            return True
+        return False
 
     #---------------------------------------------------
     #                 Entity get wrappers              -
@@ -614,16 +726,18 @@ class Instance(dict):
     def mapIter(self, mapname="map"):
         map_ = self.getMap(mapname)
         for loc in map_:
-            yield self[map_[loc]]
+            yield self.getEntity(loc)
 
     def getPath(self, caster, target, callback):
         caster = self.getEntity(caster).loc
         target = self.getEntity(target).loc
         callback = self.getEntity(callback)
-        try:
-            return self.getMap(caster).getPath(caster, target, callback)
-        except AttributeError:
-            return []
+
+        map_ = self.getMap(caster)
+        if map_ and map_.testLoc(target):
+            return map_.getPath(caster, target, callback=callback, state=self)
+
+        return []
 
     def getDistance(self, caster, target, method):
         caster = self.getEntity(caster).loc
@@ -631,20 +745,22 @@ class Instance(dict):
         if method in self:
             method = self.getEntity(method)
 
-        try:
-            return self.getMap(caster).getDistance(caster, target, method)
-        except AttributeError:
-            return float("inf")
+        map_ = self.getMap(caster)
+        if map_ and map_.testLoc(target):
+            return map_.getDistance(caster, target, method, state=self)
+
+        return float("inf")
 
     def testBlock(self, caster, target, callback):
         caster = self.getEntity(caster).loc
         target = self.getEntity(target).loc
         callback = self.getEntity(callback)
 
-        try:
-            return self.getMap(caster).testBlock(caster, target, callback)
-        except AttributeError:
-            return False
+        map_ = self.getMap(caster)
+        if map_ and map_.testLoc(target):
+            return map_.testBlock(caster, target, callback=callback, state=self)
+
+        return False
 
     def getFill(self, center, callback=False, include_center=True, distance=float("inf")):
         if distance is None:
@@ -652,11 +768,14 @@ class Instance(dict):
 
         center = self.getEntity(center).loc
         callback = self.getEntity(callback)
-        try:
-            return self.getMap(center).getFill(center, callback, distance, self.rand, include_center=include_center)
-        except AttributeError:
-            return []
+        map_ = self.getMap(center)
+        if map_:
+            fill = sorted(map_.getFill(center, distance, include_center,
+                                       callback=callback, state=self))
+            self.rand.shuffle(fill)
+            return fill
 
+        return []
     #---------------------------------------------------
     #              Board control wrappers              -
     #---------------------------------------------------
@@ -724,11 +843,9 @@ class Instance(dict):
         elif self.logging:
             info("")
 
-        if self.revert:
+        if self.state:
             self.state.clear()
             self.state.append(copy(self))
-
-
 
 #---------------------------------------------------
 #                     Errors                       -
