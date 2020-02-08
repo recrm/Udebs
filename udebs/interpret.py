@@ -134,6 +134,16 @@ class variables:
     def keywords(version=1):
         return dict(variables.modules[version], **variables.modules["other"])
 
+def importFunction(f, args):
+    module = {
+        f.__name__: {
+            "f": f.__name__
+        }
+    }
+
+    module[f.__name__].update(args)
+    importModule(module, {f.__name__: f})
+
 def importModule(dicts={}, globs={}, version="other"):
     """
     Allows user to extend base variables available to the interpreter.
@@ -248,7 +258,7 @@ def call(args, version):
             del nodes[key]
 
     if len(nodes) > 0:
-        raise UdebsSyntaxError("Keyword contains unused arguments. '{}'".format(" ".join(nodes.values())))
+        raise UdebsSyntaxError("Keyword contains unused arguments. '{}'".format(" ".join(args)))
 
     #Insert keyword arguments.
     for key in sorted(kwargs.keys()):
