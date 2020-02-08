@@ -1,6 +1,7 @@
 import udebs
 import os
 from pytest import raises
+import copy
 
 class TestBoardClass():
     def setup(self):
@@ -60,7 +61,7 @@ class TestBoardClass():
         assert self.two.y == 3
 
     def test_copy(self):
-        three = self.two.copy(self.test)
+        three = copy.copy(self.two)
         assert three == self.two
         self.two[(0,0)] = "empty"
         assert three != self.two
@@ -122,14 +123,14 @@ class TestPathing():
         assert self.test.testBlock("unit1", "empty", "notempty") == False
 
     def test_getFill(self):
-        test = self.test.getFill("unit1", "notempty")
+        test = self.test.getFill("unit1", callback="notempty")
         assert (2,2,"map") not in test
-        test = self.test.getFill("unit2", "sideways")
+        test = self.test.getFill("unit2", callback="sideways")
         assert all([i[0] == 4 for i in test])
-        assert len(self.test.getFill("empty", "empty")) == 0
-        test = self.test.getFill((0,0,"two"), "empty", distance=1)
+        assert len(self.test.getFill("empty", callback="empty")) == 0
+        test = self.test.getFill((0,0,"two"), callback="empty", distance=1)
         assert len(test) == 3
-        assert self.test.getMap("two").getFill(False, "empty") == []
+        assert len(self.test.getFill(False, "empty")) == 0
 
 class TestDirectPathing:
     def setup(self):
@@ -140,21 +141,20 @@ class TestDirectPathing:
         self.map = self.test.map['map']
 
     def test_getAdjacent(self):
-        assert list(self.two.getAdjacent(False, "empty")) == [[]]
-        test = list(self.two.getAdjacent((0,0, "two"), self.test["empty"]))
+        test = list(self.two.getAdjacent({(0,0, "two")}, callback=self.test["empty"], state=self.test))
         assert len(test) == 4
         assert len(test[0]) == 1
-        test2 = list(self.two.getAdjacent((0,0,"two"), self.test["empty"], include_center=False))
+        test2 = list(self.two.getAdjacent({(0,0,"two")}, callback=self.test["empty"], state=self.test))
         assert len(test2) == 4
-        assert test2[0] == []
+        assert test2[0] == {(0,0,"two")}
 
     def test_testLoc(self):
         assert self.two.testLoc((0,0)) == False
 
     def test_adjacent(self):
-        assert len(self.two.adjacent((0,0, "two"))) == 4
-        assert len(self.one.adjacent((0,0, "one"))) == 6
-        assert len(self.map.adjacent((0,0, "map"))) == 8
+        assert len(self.two.adjacent((1,1, "two"))) == 3
+        assert len(self.one.adjacent((1,1, "one"))) == 6
+        assert len(self.map.adjacent((1,1, "map"))) == 8
 
     def test_error_repr(self):
         test = udebs.UndefinedMetricError("nope")
