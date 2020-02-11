@@ -121,7 +121,7 @@ class AlphaBeta(State):
 
         return self.storage[pState]
 
-class MontyCarlo(State):
+class AlphaMontyCarlo(State):
     def __init__(self, state, entry=None, prior=None):
         self.state = state
         self.children = None
@@ -153,6 +153,43 @@ class MontyCarlo(State):
         un = math.sqrt(self.n / (child.n + 1))
         u = c * child.prior * un
         return q + u
+
+    def simulate(self, maximizer=True):
+        raise NotImplementedError
+
+class MontyCarlo(State):
+    def __init__(self, state, entry=None, prior=None):
+        self.state = state
+        self.children = None
+        self.v = 0
+        self.n = 0
+        self.entry = entry
+
+    def result(self, maximizer=True, **kwargs):
+        if self.children is None:
+            value = self.simulate(maximizer, **kwargs)
+            self.children = []
+            for child, entry in self.substates(self.state):
+                node = self.__class__(child, entry=entry)
+                self.children.append(node)
+
+        else:
+            # selection
+            node = max(self.children, key=self.weight)
+            value = node.result(not maximizer, **kwargs)
+            value = 1 - value
+
+        self.v += value
+        self.n += 1
+        return self.v / self.n
+
+    def weight(self, child, c=1):
+        if child.n == 0:
+            return float("inf")
+
+        q = 1 - (child.v / child.n)
+        un = math.sqrt(math.log(self.n) / child.n)
+        return q + (c * un)
 
     def simulate(self, maximizer=True):
         raise NotImplementedError

@@ -2,7 +2,7 @@
 import sys
 import math
 import udebs
-from udebs.treesearch import MontyCarlo
+from udebs.treesearch import AlphaMontyCarlo
 import itertools
 import copy
 from collections import Counter
@@ -155,7 +155,7 @@ def eventUpdate(main_map):
 
     pygame.display.update()
 
-class Hex(MontyCarlo):
+class Hex(AlphaMontyCarlo):
     wwalla = {(i, 0, "map") for i in range(hexes)}
     wwallb = {(i, hexes - 1, "map") for i in range(hexes)}
     bwalla = {(0, i, "map") for i in range(hexes)}
