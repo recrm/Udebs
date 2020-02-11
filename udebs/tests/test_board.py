@@ -151,11 +151,6 @@ class TestDirectPathing:
     def test_testLoc(self):
         assert self.two.testLoc((0,0)) == False
 
-    def test_adjacent(self):
-        assert len(self.two.adjacent((1,1, "two"))) == 3
-        assert len(self.one.adjacent((1,1, "one"))) == 6
-        assert len(self.map.adjacent((1,1, "map"))) == 8
-
     def test_error_repr(self):
         test = udebs.UndefinedMetricError("nope")
         print(test)

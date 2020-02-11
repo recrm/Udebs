@@ -1,6 +1,6 @@
 from collections.abc import MutableMapping
 import math
-from functools import reduce
+import copy
 
 sides = [
     (-1, 0),
@@ -38,12 +38,11 @@ class Board(MutableMapping):
         if not isinstance(other, Board):
             return False
 
-        values = [
-            self.map == other.map,
-            self.name == other.name,
-            self.empty == other.empty,
-        ]
-        return all(values)
+        if self.map == other.map:
+            if self.name == other.name:
+                if self.empty == other.empty:
+                    return True
+        return False
 
     def __getitem__(self, key):
         if key[0] >= 0:
@@ -77,14 +76,7 @@ class Board(MutableMapping):
         return "<board: "+self.name+">"
 
     def __copy__(self):
-        options = {
-            "name": self.name,
-            "empty": self.empty,
-            "type": self.type,
-            "dim": [i[:] for i in self.map]
-        }
-
-        return Board(**options)
+        return Board(name=self.name, empty=self.empty, type=self.type, dim=[i[:] for i in self.map])
 
     @property
     def x(self):
@@ -129,7 +121,7 @@ class Board(MutableMapping):
         """
         if not isinstance(method, str):
             count = 0
-            for i in self.getAdjacent({one}, callback=method, **kwargs):
+            for i in self.getAdjacent(one, callback=method, **kwargs):
                 if two in i:
                     return count
                 count +=1
@@ -151,28 +143,44 @@ class Board(MutableMapping):
         else:
             raise UndefinedMetricError(method)
 
-    def getAdjacent(self, new, sort=None, **kwargs):
+    def getAdjacent(self, new, sort=None, pointer=None, state=None, callback=None):
         """
         Iterates over concentric circles of adjacent tiles.
 
         new - starting local
         sort - a function that can be used to sort the order nodes are explored.
+        pointer - optional dictionary for tracking pathing
+        state - the state if callback is to be used
+        callback - callback to filter cells
 
         """
-        searched = set()
-        union = lambda x,y: x.union(y)
+        if not isinstance(new, set):
+            new = {new}
+
+        searched = copy.copy(new)
 
         while len(new) > 0:
             yield new
 
-            searched.update(new)
-            new = reduce(union, (self.adjacent(i, **kwargs) for i in new))
-            new.difference_update(searched)
-
-            if sort is not None:
+            next_ = set()
+            for child in new:
+                for x_, y_ in sides[:self.count]:
+                    loc = (child[0] + x_, child[1] + y_, self.name)
+                    if loc not in searched:
+                        searched.add(loc)
+                        if self.testLoc(loc):
+                            if callback:
+                                env = state.getEnv(child, loc, callback)
+                                if not callback.testRequire(env) == True:
+                                    continue
+                            next_.add(loc)
+                            if pointer:
+                                pointer[loc] = child
+            new = next_
+            if sort:
                 new = sort(new)
 
-    def getPath(self, start, finish, pointer=None, **kwargs):
+    def getPath(self, start, finish, **kwargs):
         """
         Algorithm to find a path between start and finish assuming callback.
 
@@ -183,14 +191,11 @@ class Board(MutableMapping):
         """
         if not isinstance(start, set):
             start = {start}
+
         if not isinstance(finish, set):
             finish = {finish}
 
-        if pointer is None:
-            pointer = {}
-
-        for i in start:
-            pointer[i] = None
+        pointer = {i: None for i in start}
 
         #Populate pointer.
         for i in self.getAdjacent(start, pointer=pointer, **kwargs):
@@ -261,38 +266,14 @@ class Board(MutableMapping):
         start, finish - Starting and finishing locations.
 
         """
-        final = self.adjacent(finish, **kwargs)
-        for i in self.getAdjacent({start}, **kwargs):
+        i = self.getAdjacent(finish, **kwargs)
+        final = next(i)
+        final = next(i)
+        for i in self.getAdjacent(start, **kwargs):
             for q in i:
                 if q in final:
                     return True
         return False
-
-    def adjacent(self, location, pointer=None, state=None, callback=None):
-        """
-        Returns rough index of tiles adjacent to given tile.
-
-        location - Any tuple location.
-        pointer - optional pointer dict to keep track of path.
-        callback, state - optional udebs callback to determine if location is valid.
-
-        """
-        filtered = set()
-        for x_, y_ in sides[:self.count]:
-            loc = (location[0] + x_, location[1] + y_, self.name)
-            if self.testLoc(loc):
-                if callback:
-                    env = state.getEnv(location, loc, callback)
-                    if not callback.testRequire(env) == True:
-                        continue
-                filtered.add(loc)
-
-        if pointer is not None:
-            for i in filtered:
-                if i not in pointer:
-                    pointer[i] = location
-
-        return filtered
 
 class UndefinedMetricError(Exception):
     def __init__(self, metric):
