@@ -130,9 +130,9 @@ class MontyCarlo(State):
         self.prior = prior
         self.entry = entry
 
-    def result(self, maximizer=True):
+    def result(self, maximizer=True, **kwargs):
         if self.children is None:
-            value, policy = self.simulate(maximizer)
+            value, policy = self.simulate(maximizer, **kwargs)
             self.children = []
             for child, entry in self.substates(self.state):
                 node = self.__class__(child, entry=entry, prior=policy.get(entry[1], 0))
@@ -141,7 +141,7 @@ class MontyCarlo(State):
         else:
             # selection
             node = max(self.children, key=self.weight)
-            value = node.result(not maximizer)
+            value = node.result(not maximizer, **kwargs)
             value = 1 - value
 
         self.v += value
@@ -150,7 +150,7 @@ class MontyCarlo(State):
 
     def weight(self, child, c=1, p=0.5):
         q = 1 - (child.v / child.n if child.n > 0 else p)
-        un = math.sqrt(self.n) / (child.n + 1)
+        un = math.sqrt(self.n / (child.n + 1))
         u = c * child.prior * un
         return q + u
 
