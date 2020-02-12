@@ -151,10 +151,10 @@ if __name__ == "__main__":
     surface = pygame.display.set_mode((ts*field.getMap().x, ts*field.getMap().y), 0, 32)
     mainClock = pygame.time.Clock()
 
-#    #game loop
+    #game loop
     for main_map in field.gameLoop(1):
         redrawBoard(surface, ts)
-        mainClock.tick(15)
+        mainClock.tick(10)
 
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
