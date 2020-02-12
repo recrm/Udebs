@@ -98,6 +98,7 @@ game_config = f"""
     <checkwin>
         <require>PATH same</require>
         <effect>
+            <i>print game over</i>
             <i>tick WIN REPLACE $caster.NAME</i>
             <i>EXIT</i>
         </effect>
@@ -116,7 +117,7 @@ game_config = f"""
 
     <safeplacement>
         <group>placement</group>
-        <effect>$caster.STAT.walla CAST $caster.STAT.wallb checkwin</effect>
+        <effect>DELAY `($caster.STAT.walla CAST $caster.STAT.wallb checkwin) 0</effect>
     </safeplacement>
 
 </entities>
@@ -140,7 +141,7 @@ class hexagon:
         self.square = pygame.Rect(0, 0, ts*1.5, ts*1.5)
         self.square.center = self.center
 
-def eventUpdate(main_map):
+def eventUpdate(main_map, mainSurface, mainFont):
     #redraw the board
     mainSurface.fill((0, 0, 0))
     for x, y in itertools.product(range(hexes), range(hexes)):
@@ -263,6 +264,19 @@ class Cplayer(udebs.Player):
         return self.tree.entry[1]
 
 if __name__ == "__main__":
+    print("""Welcome to Hex: a simple Hex ai build with udebs!
+    controls:
+
+    Human plays as white and goes first. Click on the hex you want to place a stone in.
+    By default the cpu is allowed to "think" for 10 seconds before making a move. This can be changed
+    by giving the program an integer command line argument.
+    """)
+
+    try:
+        think_time = int(sys.argv[1])
+    except IndexError:
+        think_time = 10
+
     #definitions
     ts = 15
 
@@ -274,11 +288,11 @@ if __name__ == "__main__":
     mainClock = pygame.time.Clock()
 
     #Setup udebs
-    comp = Cplayer("HEX", iters=100, think_time=20)
+    comp = Cplayer("HEX", iters=100, think_time=think_time)
     main_map = udebs.battleStart(game_config)
 
     #game loop
-    eventUpdate(main_map)
+    eventUpdate(main_map, mainSurface, mainFont)
 
     player = "human"
     while main_map:
@@ -299,17 +313,17 @@ if __name__ == "__main__":
             print("computer is moving")
             if main_map.castMove("black", comp(main_map), "safeplacement"):
                 main_map.controlTime()
-                eventUpdate(main_map)
+                eventUpdate(main_map, mainSurface, mainFont)
                 player = "human"
 
         elif player == "human" and loc:
             if main_map.castMove("white", (x,y), 'safeplacement'):
                 main_map.controlTime()
-                eventUpdate(main_map)
+                eventUpdate(main_map, mainSurface, mainFont)
                 player = "computer"
 
         mainClock.tick(15)
 
 
-    input()
+    input("press button to quit")
     pygame.quit()
