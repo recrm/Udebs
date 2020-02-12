@@ -1,0 +1,16 @@
+[tool.poetry]
+name = "udebs"
+version = "1.0.0-alpha.0"
+description = ""
+authors = ["Ryan Chartier <redrecrm@gmail.com>"]
+
+[tool.poetry.dependencies]
+python = "^3.6"
+pygame = {version = "^1.9.6", optional = true}
+
+[tool.poetry.dev-dependencies]
+pygame = "^1.9.6"
+
+[build-system]
+requires = ["poetry>=0.12"]
+build-backend = "poetry.masonry.api"
