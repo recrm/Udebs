@@ -113,8 +113,8 @@ class standard:
 
 class variables:
     modules = {
+        0: {},
         1: {},
-        2: {},
         "other": {},
     }
     env = {
@@ -154,7 +154,7 @@ def importModule(dicts={}, globs={}, version="other"):
 
 def importSystemModule(name, globs={}):
     """Convenience script for import system keywords."""
-    versions = [1,2]
+    versions = [0,1]
     path = os.path.dirname(__file__)
     for version in versions:
         filename = "{}/keywords/{}-{}.json".format(path, name, str(version))

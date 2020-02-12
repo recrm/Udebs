@@ -3,7 +3,6 @@
     <hex>True</hex>
     <name>testing</name>
     <logging>False</logging>
-    <version>2</version>
     <revert>4</revert>
     <seed>690</seed>
 </config>

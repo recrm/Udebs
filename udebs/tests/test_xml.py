@@ -12,7 +12,7 @@ class TestBattleStart:
         assert self.test.logging == False
         assert self.test.name == "testing"
         assert self.test.revert == 4
-        assert self.test.version == 2
+        assert self.test.version == 1
         assert self.test.seed == 690
         assert self.test.immutable == False
 

@@ -32,7 +32,7 @@ class TestInterpret():
 
     def test_Syntax_unused_arguments(Self):
         with raises(UdebsSyntaxError):
-            interpret("one in two unused")
+            interpret("one in two unused, unused2")
 
     def test_Syntax_empty_callstring(self):
         with raises(UdebsSyntaxError):
@@ -43,7 +43,7 @@ class TestInterpret():
             interpret("max one in two")
 
     def test_solitary(self):
-        assert interpret("one in (solitary)") == "standard.inside('one',solitary())"
+        assert interpret("one in (solitary)") == "standard.inside('one',solitary(),1)"
 
     def test_dot(self):
         assert interpret("one two one.two.three") == interpret("one two (one two three)")

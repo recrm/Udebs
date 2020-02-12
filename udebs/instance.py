@@ -43,7 +43,7 @@ class Instance(dict):
         self.name = 'Unknown' # only effects what is printed when initialized
         self.logging = True # Turns logging on and off
         self.revert = 0 # Determins how many steps should be saved in revert
-        self.version = 2 # What version of Udebs syntax is used.
+        self.version = 1 # What version of Udebs syntax is used.
         self.seed = None # Random seed for processing.
         self.immutable = False # Determines default setting for entities immutability.
 

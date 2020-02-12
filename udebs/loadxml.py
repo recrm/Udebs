@@ -56,7 +56,7 @@ def battleWrite(env, location, pretty=False):
         addleaf(config, "logging", str(env.logging))
     if env.revert != 0:
         addleaf(config, "revert", str(env.revert))
-    if env.version != 2:
+    if env.version != 1:
         addleaf(config, "version", str(env.version))
     if env.seed != None:
         addleaf(config, "seed", str(env.seed))
