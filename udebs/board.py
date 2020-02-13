@@ -154,11 +154,11 @@ class Board(MutableMapping):
         callback - callback to filter cells
 
         """
-        if not isinstance(start, set):
-            new = {new}
-        else:
+        if isinstance(start, set):
             new = start
             start = next(iter(start))
+        else:
+            new = {start}
 
         searched = copy.copy(new)
 
