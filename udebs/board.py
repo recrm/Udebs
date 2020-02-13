@@ -143,7 +143,7 @@ class Board(MutableMapping):
         else:
             raise UndefinedMetricError(method)
 
-    def getAdjacent(self, new, sort=None, pointer=None, state=None, callback=None):
+    def getAdjacent(self, start, sort=None, pointer=None, state=None, callback=None):
         """
         Iterates over concentric circles of adjacent tiles.
 
@@ -154,8 +154,11 @@ class Board(MutableMapping):
         callback - callback to filter cells
 
         """
-        if not isinstance(new, set):
+        if not isinstance(start, set):
             new = {new}
+        else:
+            new = start
+            start = next(iter(start))
 
         searched = copy.copy(new)
 
@@ -170,7 +173,7 @@ class Board(MutableMapping):
                         searched.add(loc)
                         if self.testLoc(loc):
                             if callback:
-                                env = state.getEnv(child, loc, callback)
+                                env = state.getEnv(start, loc, callback)
                                 if not callback.testRequire(env) == True:
                                     continue
                             next_.add(loc)
@@ -266,7 +269,7 @@ class Board(MutableMapping):
         start, finish - Starting and finishing locations.
 
         """
-        i = self.getAdjacent(finish, **kwargs)
+        i = self.getAdjacent(finish)
         final = next(i)
         final = next(i)
         for i in self.getAdjacent(start, **kwargs):
