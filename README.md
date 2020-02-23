@@ -14,7 +14,7 @@ pip install udebs
 
 ### Tutorial
 
-See the [tutorial.ipynb](Tutorial) for a quick primer on how to use udebs. As well there are demos available in the demos folder.
+See [tutorial.ipynb](tutorial.ipynb) for a quick primer on how to use udebs. As well there are demos available in the demos folder.
 
 ## Authors
 
