@@ -1,5 +1,3 @@
-Udebs: A descrete game battle system for python3.
-
 # Udebs:
 
 Udebs is a descrete game engine for python3.
