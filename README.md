@@ -16,10 +16,14 @@ pip install udebs
 
 See [tutorial.ipynb](tutorial.ipynb) for a quick primer on how to use udebs. As well there are demos available in the demos folder.
 
-## Authors
+### Links
+
+github - https://github.com/recrm/Udebs
+
+### Authors
 
 * **Ryan Chartier**
 
-## License
+### License
 
 This project is licensed under the MIT License - see the [LICENSE.md](LICENSE.md) file for details
