@@ -2,3 +2,5 @@
 *.ipynb_*
 .coverage
 results/*
+docs/_build/*
+dist/*
