@@ -1,5 +1,5 @@
 [[package]]
-category = "main"
+category = "dev"
 description = "Python Game Development"
 name = "pygame"
 optional = false
@@ -7,7 +7,7 @@ python-versions = "*"
 version = "1.9.6"
 
 [metadata]
-content-hash = "bb6b88095e1b7c592d3e719933eb1ecb2d861cb1697d1f7f91bdf0a79ca797fb"
+content-hash = "ccc51ca5119dd426cf146caf1b983615b82f98d6e3f08830e1b2904ab2744197"
 python-versions = "^3.6"
 
 [metadata.files]

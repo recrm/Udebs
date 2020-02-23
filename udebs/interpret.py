@@ -9,17 +9,41 @@ import os
 
 class standard:
     """
-    Basic functionality built into the Udebs scripting language.
-    None of the functions here can depend on any other Udebs module.
+    Basic functionality wrappers.
+
+    Do not import any of these, included only as reference for udebs config file syntax.
     """
-    def _print(*args):
+    def print(*args):
+        """
+        prints extra output to console.
+
+        .. code-block:: xml
+
+            <i>print arg1 arg2 ...</i>
+        """
         print(*args)
         return True
 
     def logicif(cond, value, other):
+        """
+        returns value if condition else other.
+
+        TODO: Other is executed even if value is true.
+
+        .. code-block:: xml
+
+            <i>if cond value other</i>
+        """
         return value if cond else other
 
     def inside(before, after, amount=1):
+        """
+        Returns true if before in after amount times else false.
+
+        .. code-block:: xml
+
+            <i>value in obj</i>
+        """
         if isinstance(after, str):
             return before in after
 
@@ -36,9 +60,23 @@ class standard:
         return False
 
     def notin(*args, **kwargs):
+        """
+        Returns false if value in obj else true.
+
+        .. code-block:: xml
+
+            <i>value in obj</i>
+        """
         return not standard.inside(*args, **kwargs)
 
     def equal(*args):
+        """Checks for equality of args.
+
+        .. code-block:: xml
+
+            <i>== arg1 arg2 ...</i>
+            <i>arg1 == arg2</i>
+        """
         x = args[0]
         for y in args:
             if y != x:
@@ -46,6 +84,13 @@ class standard:
         return True
 
     def notequal(*args):
+        """Checks for inequality of args.
+
+        .. code-block:: xml
+
+            <i>!= arg1 arg2 ...</i>
+            <i>arg1 != arg2</i>
+        """
         x = args[0]
         for y in args[1:]:
             if x == y:
@@ -53,27 +98,75 @@ class standard:
         return True
 
     def gt(before, after):
+        """Checks if before is greater than after
+
+        .. code-block:: xml
+
+            <i>before &gt; after</i>
+        """
         return before > after
 
     def lt(before, after):
+        """Checks if before is less than after
+
+        .. code-block:: xml
+
+            <i>before &lt; after</i>
+        """
         return before < after
 
     def gtequal(before, after):
+        """Checks if before is greater than or equal to after
+
+        .. code-block:: xml
+
+            <i>before &gt;= after</i>
+        """
         return before >= after
 
     def ltequal(before, after):
+        """Checks if before is less than or equal to after
+
+        .. code-block:: xml
+
+            <i>before &lt;= after</i>
+        """
         return before <= after
 
     def plus(*args):
+        """Sums arguments
+
+        .. code-block:: xml
+
+            <i>arg1 + arg2</i>
+            <i>+ arg1 arg2 ...</i>
+        """
         return sum(args)
 
     def multiply(*args):
+        """Multiplies arguments
+
+        .. code-block:: xml
+
+            <i>arg1 * arg2</i>
+            <i>* arg1 arg2 ...</i>
+        """
         i = 1
         for number in args:
             i *= number
         return i
 
     def logicor(*args, storage=None, field=None):
+        """
+        returns true if even one of args is true.
+
+        Note: All arguments are processed unless extra arguments are quoted.
+
+        .. code-block:: xml
+
+            <i>arg1 or arg2</i>
+            <i>or arg1 arg2 ...</i>
+        """
         env = _getEnv(storage, {"self": field})
         for i in args:
             if isinstance(i, UdebsStr):
@@ -83,32 +176,91 @@ class standard:
         return False
 
     def mod(before, after):
+        """Returns before mod after.
+
+        .. code-block:: xml
+
+            <i>before % after</i>
+        """
         return before % after
 
     def setvar(storage, variable, value):
+        """Stores value inside of variable.
+
+        Note: allways returns true so can be used in require block.
+
+        .. code-block:: xml
+
+            <i>variable = value</i>
+            <i>variable -> value</i>
+        """
         storage[variable] = value
         return True
 
-    #prefix functions
     def getvar(storage, variable):
+        """Retrieves a variable
+
+        .. code-block:: xml
+
+            <i>$ variable</i>
+            <i>$variable</i>
+        """
         return storage[variable]
 
     def div(before, after):
+        """Returns before divided by after.
+
+        .. code-block:: xml
+
+            <i>before / after</i>
+        """
         return before/after
 
     def logicnot(element):
+        """Switches a boolean from true to false and vice versa
+
+        .. code-block:: xml
+
+            <i>! element</i>
+            <i>!element</i>
+        """
         return not element
 
     def minus(before, element):
+        """Returns before - element. (before defaults to 0 if not given)
+
+        .. code-block:: xml
+
+            <i>before - element</i>
+            <i>-element</i>
+        """
         return before - element
 
-    def sub(before, after):
-        return next(itertools.islice(before, int(after), None), 'empty')
+    def sub(array, i):
+        """Gets the ith element of array.
+
+        .. code-block:: xml
+
+            <i>array sub i</i>
+        """
+        return next(itertools.islice(array, int(i), None), 'empty')
 
     def length(list_):
+        """Returns the length of an iterable.
+
+        .. code-block:: xml
+
+            <i>length list_</i>
+        """
         return len(list(list_))
 
     def quote(string):
+        """Treats input as string literal and does not process commands.
+
+        .. code-block:: xml
+
+            <i>`(caster CAST target move)</i>
+        """
         return UdebsStr(string)
 
 class variables:
@@ -135,6 +287,10 @@ class variables:
         return dict(variables.modules[version], **variables.modules["other"])
 
 def importFunction(f, args):
+    """
+    Allows a user to import a single function into udebs.
+    """
+
     module = {
         f.__name__: {
             "f": f.__name__
@@ -396,12 +552,14 @@ class Script:
 #                     Errors                       -
 #---------------------------------------------------
 class UdebsSyntaxError(Exception):
+    """Is raised when an effect or require is malformed and fails to parse."""
     def __init__(self, string):
         self.message = string
     def __str__(self):
         return repr(self.message)
 
 class UdebsExecutionError(Exception):
+    """Is raised when an error occurs during execution of a udebs action."""
     def __init__(self, script):
         self.script = script
     def __str__(self):

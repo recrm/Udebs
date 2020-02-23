@@ -14,6 +14,8 @@ sides = [
 ]
 
 class Board(MutableMapping):
+    """This is a test."""
+
     def __init__(self, **options):
         self.name = options.get("name", "map")
         self.empty = options.get("empty", "empty")
@@ -141,7 +143,7 @@ class Board(MutableMapping):
         elif method == "pinf":
             return int(max(abs(one[0] - two[0]), abs(one[1] - two[1])))
         else:
-            raise UndefinedMetricError(method)
+            raise ValueError(f"{method} is an invalid metric")
 
     def getAdjacent(self, start, sort=None, pointer=None, state=None, callback=None):
         """
@@ -173,7 +175,7 @@ class Board(MutableMapping):
                         searched.add(loc)
                         if self.testLoc(loc):
                             if callback:
-                                env = state.getEnv(start, loc, callback)
+                                env = state._getEnv(start, loc, callback)
                                 if not callback.testRequire(env) == True:
                                     continue
                             next_.add(loc)
@@ -277,9 +279,3 @@ class Board(MutableMapping):
                 if q in final:
                     return True
         return False
-
-class UndefinedMetricError(Exception):
-    def __init__(self, metric):
-        self.metric = metric
-    def __str__(self):
-        return repr(self.metric)+" is not a valid distance metric."

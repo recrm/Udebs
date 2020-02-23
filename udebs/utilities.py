@@ -4,6 +4,7 @@ import time
 from udebs import interpret, entity
 
 class Timer:
+    """Why is this not showing up?"""
     def __enter__(self):
         self.time = time.time()
         return self
@@ -44,7 +45,7 @@ def lookup(name, table):
     }}, {"f_" + name: wrapper})
 
 def alternate(*args):
-    """An alternation function for processing moves."""
+    """An alternation function for processing moves. 3"""
     processed = []
     for i in args:
         if not isinstance(i, list):
@@ -56,12 +57,14 @@ def alternate(*args):
     yield from zip(*gen)
 
 def placeholder(name):
+    """This is a placeholder"""
     interpret.importModule({name: {
         "f": "f_" + name,
         "args": ["self"],
     }}, {"f_" + name: lambda x: None})
 
 class Player:
+    """Base Class for players."""
     def __init__(self, name):
         interpret.importModule({name: {
             "f": "f_" + name,

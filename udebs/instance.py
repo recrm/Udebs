@@ -22,7 +22,7 @@ class Instance(dict):
     All methods begining with 'get' return information about the game's state
     space and are not allowed to change the state itself.
 
-    All methods beggining with 'control' manage some aspect of the state space
+    All methods beggining with 'control' or 'cast' manage some aspect of the state space
     and return true if changes were (probobaly) made and false otherwise.
 
     Other functions are convinience wrappers for public use.
@@ -225,7 +225,7 @@ class Instance(dict):
     #                 Time Management                  -
     #---------------------------------------------------
 
-    def checkDelay(self):
+    def _checkDelay(self):
         """Checks and runs actions waiting in delay."""
         while True:
             again = False
@@ -243,11 +243,11 @@ class Instance(dict):
 
     def controlTime(self, time=None, script="tick"):
         """
-        Changes internal time, runs tick script, and updates any delayed effects.
+        Increments internal time by 'time' ticks, runs tick script, and activates any delayed effects.
 
-        time - Integer representing number of updates.
-        script - A string representing the action that should be run after incrementing time.
+        .. code-block:: xml
 
+            <i>TIME time</i>
         """
         if time == None:
             time = self.increment
@@ -268,7 +268,7 @@ class Instance(dict):
 
                 if self.logging:
                     info("Processing delayed effects")
-                self.checkDelay()
+                self._checkDelay()
 
             #Append new version to state.
             if self.state:
@@ -278,10 +278,13 @@ class Instance(dict):
 
     def getRevert(self, time=0):
         """
-        Returns previous states.
+        Returns a previous game state.
 
-        time - The number of time increments to revert.
-               A time of zero reverts to the begining of the current increment.
+        Note: time represents how many ticks to revert.
+
+        .. code-block:: python
+
+            main_map.getRevert(5)
         """
         if self.state:
             for i in range(time + 1):
@@ -297,13 +300,14 @@ class Instance(dict):
 
     def controlDelay(self, callback, time, storage):
         """
-        Creates and stores a new delay object.
-
-        callback - An entity selector represeting the action to store.
-        time - The amount of time to delay the action for.
-        storage - The current calling context.
+        Delays an effect a number of ticks.
 
         Note: A delay of 0 will delay an action until the end of the current action window.
+        Note: Notice the backtick.
+
+        .. code-block:: xml
+
+            <i>DELAY `(caster CAST target move) 0</i>
         """
         env = _getEnv(storage, {"self": self})
 
@@ -343,7 +347,7 @@ class Instance(dict):
         move = clone.getEntity(move.name)
 
         #Send clone into the future.
-        env = clone.getEnv(caster, target, move)
+        env = clone._getEnv(caster, target, move)
         move.controlEffect(env)
         clone.controlTime(time)
 
@@ -360,8 +364,11 @@ class Instance(dict):
         """
         General getter for all attributes.
 
-        target - Entity selector.
-        stat - Stat defined in env.lists, env.stats, or env.strings.
+        Note: Attributes will include values inherited from their group.
+
+        .. code-block:: xml
+
+            <i>target [$caster] STAT stat</i>
         """
         current = self.getEntity(target)
         if stat in {"increment", "group"}:
@@ -410,7 +417,12 @@ class Instance(dict):
         return total
 
     def getGroup(self, group):
-        """Return all objects belonging to group."""
+        """Return all objects belonging to group.
+
+         .. code-block:: xml
+
+            <i>ALL group</i>
+        """
         groupname = self.getEntity(group).name
         values = [unit for unit in self if groupname in self[unit].group]
         # sorted is required to force algorithm to be deterministic
@@ -418,12 +430,11 @@ class Instance(dict):
 
     def getListStat(self, target, lst, stat):
         """
-        Returns sum object stats in a list.
+        Returns sum of all object stats in a list.
 
-        target - Entity selector for object to check.
-        lst - String representing list to check.
-        stat - String representing defined stat.
+        .. code-block:: xml
 
+            <i>target [$caster] lst LISTSTAT stat</i>
         """
         target = self.getEntity(target)
         lst = self.getStat(target, lst)
@@ -440,12 +451,11 @@ class Instance(dict):
     def getListGroup(self, target, lst, group):
         """
         Returns first element in list that is a member of group.
-        Note: This function is useful for equipment type checks.
 
-        target - Entity selector.
-        lst - String representing list to check.
-        group - Entity selector representing group.
+        .. code-block:: xml
 
+            <i>target [$caster] lst LISTGROUP group</i>
+            <i>target [$caster] CLASS group</i>
         """
         group = self.getEntity(group)
 
@@ -457,8 +467,11 @@ class Instance(dict):
 
     def getSearch(self, *args):
         """
-        Returns the intersect of objects contained in a list of groups.
-        *args - lists of groups.
+        Return objects contained in all given groups.
+
+        .. code-block:: xml
+
+            <i>SEARCH arg1 arg2 ...</i>
         """
         foundIter = iter(args)
         first = foundIter.__next__()
@@ -472,7 +485,7 @@ class Instance(dict):
     #                 Call wrappers                    -
     #---------------------------------------------------
 
-    def getEnv(self, caster, target, move):
+    def _getEnv(self, caster, target, move):
         """Internal method for creating contexts for calls."""
 
         var_local = {
@@ -488,10 +501,6 @@ class Instance(dict):
     def controlMove(self, casters, targets, moves):
         """
         Function to trigger an event. Returns True if an action triggers succesfully.
-
-        casters - An entity selector representing the entity that will perform the action.
-        targets - An entity selector representing the entity that will recieve the action.
-        moves - An entity selector representing the entity that is the action.
 
         Note: If a list of entity selectors is recieved for any argument, all actions in the product will trigger.
         """
@@ -520,7 +529,7 @@ class Instance(dict):
                     info(f"{cname} uses {move} on {tname}")
 
             # Cast the move
-            test = move(self.getEnv(caster, target, move))
+            test = move(self._getEnv(caster, target, move))
             if test == True:
                 value = True
             elif self.logging:
@@ -530,33 +539,55 @@ class Instance(dict):
 
     def testMove(self, caster, target, move):
         """
-        Simulates an action. Returns true if require passes succesfully.
+        Simulates an action. Returns true if require passes succesfully, False otherwise.
+
+        .. code-block:: python
+
+            main_map.testMove(caster, target, move)
+
         """
         move = self.getEntity(move)
-        env = self.getEnv(caster, target, move)
+        env = self._getEnv(caster, target, move)
         return move.testRequire(env) == True
 
     def castInit(self, moves):
-        """Wrapper of controlMove where caster and target are unimportant."""
+        """Cast an action without variables.
+
+        .. code-block:: xml
+
+            <i>INIT move</i>
+        """
         return self.castMove(self["empty"], self["empty"], moves)
 
     def castAction(self, caster, move):
-        """Wrapper of controlMove where target is unimportant."""
+        """Cast an action with only a caster.
+
+        .. code-block:: xml
+
+            <i>caster [$caster] ACTION move</i>
+        """
         return self.castMove(caster, self["empty"], move)
 
     def castMove(self, caster, target , move):
-        """Main function to trigger an event. Same as controlMove but properly handles delayed effects as well."""
+        """Cast an action including both a caster and an action.
+
+        .. code-block:: xml
+
+            <i>caster [$caster] CAST target move</i>
+        """
         value = self.controlMove(caster, target, move)
         if value:
-            self.checkDelay()
+            self._checkDelay()
 
         return value
 
     def castSingle(self, string):
         """
-        Call a function directly from a user inputed Udebs String.
+        Call a function directly from a user inputed effect String.
 
-        string - Action represented as a Udebs String.
+        .. code-block:: python
+
+            main_map.castSingle("caster CAST target move")
         """
         code = Script(string, version=self.version)
         env = _getEnv({}, {"self": self})
@@ -569,9 +600,9 @@ class Instance(dict):
         """
         Adds an element to a list.
 
-        targets - Entity selector representing entities who will recive an object.
-        lst - Stat that will recieve the object.
-        entries - String or list of strings to append to the list.
+        .. code-block:: xml
+
+            <i>caster [$caster] lst GETS entries</i>
         """
 
         targets = self.getEntity(targets, multi=True)
@@ -588,9 +619,9 @@ class Instance(dict):
         """
         Removes an element from a list.
 
-        targets - Entity selector representing entities who will lose the object.
-        lst - Stat that will lose the object.
-        entries - String or list of strings to remove from the list.
+        .. code-block:: xml
+
+            <i>caster [$caster] lst LOSES entries</i>
         """
 
         targets = self.getEntity(targets, multi=True)
@@ -607,10 +638,11 @@ class Instance(dict):
 
     def controlClear(self, targets, lst):
         """
-        Removes all elements from a list.
+        Removes all from a targets list attribute.
 
-        targets - Entity selector representing entities who will lose the object.
-        lst - Stat that will lose the object.
+        .. code-block:: xml
+
+            <i>target [$caster] CLEAR lst</i>
         """
 
         for target in self.getEntity(targets, multi=True):
@@ -619,30 +651,32 @@ class Instance(dict):
                 if self.logging:
                     info(f"{target} {lst} has been cleared")
 
-    def controlShuffle(self, target, stat):
+    def controlShuffle(self, target, lst):
         """
         Randomize order of a list.
 
-        targets - Entity selector representing entities who will be shuffled.
-        lst - Stat that will be shuffled.
+        .. code-block:: xml
+
+            <i>target SHUFFLE lst</i>
         """
 
         for target in self.getEntity(target, multi=True):
             if not target.immutable:
-                self.rand.shuffle(getattr(target, stat))
+                self.rand.shuffle(getattr(target, lst))
                 if self.logging:
-                    info(f"{target} {stat} has been shuffled")
+                    info(f"{target} {lst} has been shuffled")
 
     def controlIncrement(self, targets, stat, increment, multi=1):
         """
         Increment a statistic by a static value.
 
-        targets - Entity selector representing entities who will be modified.
-        lst - Stat that will be incremented.
-        increment - Amount that the stat will be incremented.
-        multi - Multiplyer effecting the increment.
-
         Note: Final value will be modified as follows (Stat = Stat + (increment * multi))
+
+        .. code-block:: xml
+
+            <i>target stat += increment</i>
+            <i>target stat -= increment</i>
+            <i>target [$caster] stat CHANGE increment</i>
         """
 
         total = int(increment * multi)
@@ -656,11 +690,11 @@ class Instance(dict):
         """
         Replace a value with another value.
 
-        targets - Entity selector representing entities who will be modified.
-        lst - Stat or string that will be modified.
-        value - The new value for the stat or string.
+        Note: This function also works on all attributes.
 
-        Note: This function also works on stats.
+        .. code-block:: xml
+
+            <i>caster [$caster] stat REPLACE value</i>
         """
 
         for target in self.getEntity(targets, multi=True):
@@ -671,12 +705,14 @@ class Instance(dict):
 
     def controlRecruit(self, target, positions):
         """
-        Create a new entity by copying another.
+        Create a new entity by copying another then move it to a position.
 
-        target - Entity selector representing the entity who will be copied.
-        positions - Entity selectors representing the locations where the new entities will be copied to.
-
+        Note: If position is set to False copy will be made but not moved into a location.
         Note: One new entity will be created for each position given.
+
+        .. code-block:: xml
+
+            <i>caster [$caster] RECRUIT position</i>
         """
 
         target = self.getEntity(target)
@@ -692,6 +728,14 @@ class Instance(dict):
         return new
 
     def controlDelete(self, target):
+        """
+        Permanently remove an object from the game.
+
+        .. code-block:: xml
+
+            <i>target DELETE</i>
+        """
+
         target = self.getEntity(target)
         if not target.immutable:
             del self[target.name]
@@ -707,16 +751,45 @@ class Instance(dict):
     #---------------------------------------------------
 
     def getX(self, target, value=0):
+        """
+        Gets the x coordinate of target, False if target not on a map.
+
+        .. code-block:: xml
+
+            <i>target [$caster] XLOC</i>
+        """
+
         unit = self.getEntity(target)
         return unit.loc[value] if unit.loc else False
 
     def getY(self, target):
+        """
+        Gets the y coordinate of target, False if target not on a map.
+
+        .. code-block:: xml
+
+            <i>target [$caster] YLOC</i>
+        """
         return self.getX(target, 1)
 
     def getLoc(self, target):
+        """
+        Gets the location tuple of a target, False if target not on a map.
+
+        .. code-block:: xml
+
+            <i>target [$caster] LOC</i>
+        """
         return self.getEntity(target).loc
 
     def getName(self, target):
+        """
+        Gets the name of a target.
+
+        .. code-block:: xml
+
+            <i>target [$caster] NAME</i>
+        """
         return self.getEntity(target).name
 
     #---------------------------------------------------
@@ -724,11 +797,19 @@ class Instance(dict):
     #---------------------------------------------------
 
     def mapIter(self, mapname="map"):
+        """Iterate over all cells in a map."""
         map_ = self.getMap(mapname)
         for loc in map_:
             yield self.getEntity(loc)
 
     def getPath(self, caster, target, callback):
+        """
+        Finds a path between caster and target using callback as filter for valid space.
+
+        .. code-block:: xml
+
+            <i>PATH callback caster [$caster] target [$target]</i>
+        """
         caster = self.getEntity(caster).loc
         target = self.getEntity(target).loc
         callback = self.getEntity(callback)
@@ -740,6 +821,14 @@ class Instance(dict):
         return []
 
     def getDistance(self, caster, target, method):
+        """
+        Returns distance between caster and target using method as a metric.
+
+        .. code-block:: xml
+
+            <i>PATH method caster [$caster] target [$target]</i>
+        """
+
         caster = self.getEntity(caster).loc
         target = self.getEntity(target).loc
         if method in self:
@@ -752,6 +841,13 @@ class Instance(dict):
         return float("inf")
 
     def testBlock(self, caster, target, callback):
+        """
+        Test to see if path exists between caster and target using callback as filter for valid space.
+
+        .. code-block:: xml
+
+            <i>BLOCK callback caster [$caster] target [$target]</i>
+        """
         caster = self.getEntity(caster).loc
         target = self.getEntity(target).loc
         callback = self.getEntity(callback)
@@ -763,6 +859,13 @@ class Instance(dict):
         return False
 
     def getFill(self, center, callback=False, include_center=True, distance=float("inf")):
+        """
+        Gets all squares in a pattern starting at center, using callback as filter for valid space.
+
+        .. code-block:: xml
+
+            <i>FILL center callback include_center [true] distance [null]</i>
+        """
         if distance is None:
             distance = float("inf")
 
@@ -776,10 +879,22 @@ class Instance(dict):
             return fill
 
         return []
+
+    def printMap(self, board="map"):
+        """Print a map."""
+        self.getMap(board).show()
+
     #---------------------------------------------------
     #              Board control wrappers              -
     #---------------------------------------------------
     def controlTravel(self, caster, targets=False):
+        """Move one object to a new location.
+
+        .. code-block:: xml
+
+            <i>caster [$caster] MOVE target</i>
+        """
+
         caster = self.getEntity(caster)
         targets = self.getEntity(targets, multi=True)
 
@@ -810,7 +925,13 @@ class Instance(dict):
     #---------------------------------------------------
 
     def gameLoop(self, time=1, script="tick"):
-        """Automatically increments in game timer over every iteration."""
+        """Iterate over in game time.
+
+        .. code-block:: python
+
+            for state in main_map.gameLoop():
+                state.castMove(caster, target, move)
+        """
         self.increment = time
         while self.cont:
             yield self
@@ -825,13 +946,23 @@ class Instance(dict):
             info(f"EXITING {self.name}\n")
 
     def exit(self):
-        """Ends game if gameLoop is in use."""
+        """Requests the end of the game by setting Instance.cont to False, and exiting out of the gameloop.
+
+        .. code-block:: xml
+
+            <i>EXIT</i>
+        """
         if self.logging:
             info("Exit requested")
         self.cont = False
 
     def resetState(self, script="reset"):
-        """Resets game metadata to default."""
+        """Resets the game metadata to default.
+
+        .. code-block:: python
+
+            main_map.resetState()
+        """
         self.cont = True
         self.time = 0
         self.delay.clear()
@@ -851,6 +982,7 @@ class Instance(dict):
 #                     Errors                       -
 #---------------------------------------------------
 class UndefinedSelectorError(Exception):
+    """Is raised when udebs encounters an invalid reference to a udebs object."""
     def __init__(self, target, _type):
         self.selector = target
         self.type = _type

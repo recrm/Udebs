@@ -91,7 +91,7 @@
         "args": ["storage","$1"]
     },
     "print": {
-        "f": "standard._print",
+        "f": "standard.print",
         "all": true
     },
     "length": {

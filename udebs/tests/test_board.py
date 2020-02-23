@@ -114,7 +114,7 @@ class TestPathing():
         assert self.test.getDistance("unit1", "unit2", 'pinf') == 4
         assert self.test.getDistance("unit1", "unit2", "notempty") == 4
 
-        with raises(udebs.UndefinedMetricError):
+        with raises(ValueError):
             self.test.getDistance("unit1", "unit2", "dfdfdfdf")
 
     def test_testBlock(self):
@@ -150,10 +150,6 @@ class TestDirectPathing:
 
     def test_testLoc(self):
         assert self.two.testLoc((0,0)) == False
-
-    def test_error_repr(self):
-        test = udebs.UndefinedMetricError("nope")
-        print(test)
 
 
 
