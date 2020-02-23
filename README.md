@@ -19,6 +19,7 @@ See [tutorial.ipynb](tutorial.ipynb) for a quick primer on how to use udebs. As 
 ### Links
 
 github - https://github.com/recrm/Udebs
+documentation - https://udebs.readthedocs.io/en/latest/
 
 ### Authors
 
