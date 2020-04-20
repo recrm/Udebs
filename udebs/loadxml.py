@@ -229,7 +229,7 @@ def battleStart(xml_file, debug=False, script="init", name=None, revert=None, lo
         else:
             dim = []
             for row in field_map:
-                dim.append(re.split("\W*,\W*", row.text))
+                dim.append(re.split(r"\W*,\W*", row.text))
             options['dim'] = [list(i) for i in zip(*dim)]
 
         #Add to field
