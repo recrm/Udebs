@@ -36,8 +36,8 @@ class Instance(dict):
         self.stats = {'increment'}
         self.strings = set()
         #rlist and rmap are flags that indicate objects entities should inherit from.
-        self.rlist = {'group'}
-        self.rmap = set()
+        self.rlist = ['group']
+        self.rmap = []
 
         #config
         self.name = 'Unknown' # only effects what is printed when initialized

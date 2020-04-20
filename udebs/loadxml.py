@@ -144,13 +144,16 @@ def battleWrite(env, location, pretty=False):
     return True
 
 #Creates and instance object from xml file.
-def battleStart(xml_file, debug=False, script="init", name=None, revert=None, log=None, version=None, seed=None, immutable=None):
+def battleStart(xml_file, debug=False, script="init", name=None, revert=None, log=None, version=None, seed=None, immutable=None, field=None):
     """
     Creates an instanance object from given xml file.
 
     xml_file - String representing file to look in.
     debug - Boolean that gets passed to the interpret.interpret function.
     """
+    if xml_file is None:
+        xml_file = "<udebs />"
+
     try:
         tree = ElementTree.parse(xml_file)
         root = tree.getroot()
@@ -158,7 +161,8 @@ def battleStart(xml_file, debug=False, script="init", name=None, revert=None, lo
         root = ElementTree.fromstring(xml_file)
 
     #ENV
-    field = instance.Instance()
+    if field is None:
+        field = instance.Instance()
 
     #Definition
     defs = root.find("definitions")
@@ -174,7 +178,7 @@ def battleStart(xml_file, debug=False, script="init", name=None, revert=None, lo
             for stat in def_lists:
                 field.lists.add(stat.tag)
                 if stat.get('rlist') is not None:
-                    field.rlist.add(stat.tag)
+                    field.rlist.append(stat.tag)
 
     def fillsimple(root, stat, f, overwrite=None):
         if overwrite is not None:
@@ -231,7 +235,7 @@ def battleStart(xml_file, debug=False, script="init", name=None, revert=None, lo
         #Add to field
         field.map[options["name"]] = board.Board(**options)
         if "rmap" in options:
-            field.rmap.add(options["name"])
+            field.rmap.append(options["name"])
 
     field_maps = root.find("maps")
     if field_maps is not None:
