@@ -4,7 +4,7 @@ import time
 from udebs import interpret, entity
 
 class Timer:
-    """Why is this not showing up?"""
+    """Basic Timing context manager. Prints out the time it takes it's context to close."""
     def __enter__(self):
         self.time = time.time()
         return self
@@ -45,7 +45,7 @@ def lookup(name, table):
     }}, {"f_" + name: wrapper})
 
 def alternate(*args):
-    """An alternation function for processing moves. 3"""
+    """An alternation function for processing moves."""
     processed = []
     for i in args:
         if not isinstance(i, list):
@@ -57,7 +57,7 @@ def alternate(*args):
     yield from zip(*gen)
 
 def placeholder(name):
-    """This is a placeholder"""
+    """Register a placeholder function that will be allocated after the udebs instance is created."""
     interpret.importModule({name: {
         "f": "f_" + name,
         "args": ["self"],
@@ -73,3 +73,16 @@ class Player:
 
     def __call__(self, state):
         raise NotImplementedError("Player subclasses should implement a __call__ method.")
+
+def register(args, second=None):
+    """Register a function with udebs. Works as a function or a decorator."""
+    if second is not None:
+        interpret.importFunction(args, second)
+        return None
+
+    def wrapper(f):
+        interpret.importFunction(f, args)
+        return f
+
+    return wrapper
+
