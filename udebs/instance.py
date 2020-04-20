@@ -140,18 +140,18 @@ class Instance(dict):
         elif isinstance(target, str) and target in self:
             return self[target]
         elif isinstance(target, tuple):
-            return self.getEntityTuple(target)
+            return self._getEntityTuple(target)
         elif isinstance(target, list):
             if multi:
                 return [self.getEntity(i) for i in target]
             elif len(target) > 0:
                 return self.getEntity(target[0])
         elif isinstance(target, UdebsStr):
-            return self.getEntityUdebsStr(target)
+            return self._getEntityUdebsStr(target)
 
         raise UndefinedSelectorError(target, "entity")
 
-    def getEntityUdebsStr(self, target):
+    def _getEntityUdebsStr(self, target):
         #Process new nameless.
         scripts = []
         if target[0] == "(":
@@ -184,7 +184,7 @@ class Instance(dict):
         self[target] = Entity(self, require=scripts, name=target, immutable=True)
         return self[target]
 
-    def getEntityTuple(self, target):
+    def _getEntityTuple(self, target):
         #If tuple, this is a location.
         try:
             map_ = self.getMap(target)
