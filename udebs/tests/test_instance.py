@@ -58,7 +58,7 @@ class TestInstanceGets():
         assert self.env.getStat("unit1", "ACT") == 16
 
     def test_udebs_parser(self):
-        test = self.env.getEntityUdebsStr("(function((unit).NAME),function(unit.LOC))")
+        test = self.env._getEntityUdebsStr("(function((unit).NAME),function(unit.LOC))")
         assert len(test.require) == 2
 
     # Entity controlers
