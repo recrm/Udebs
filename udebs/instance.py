@@ -86,7 +86,7 @@ class Instance(dict):
         return not self == other
 
     def __copy__(self):
-        new = Instance(True)
+        new = type(self)(True)
 
         for k, v in self.__dict__.items():
             if k not in {"delay", "map", "_data", "state"}:
