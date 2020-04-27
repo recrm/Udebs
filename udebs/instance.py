@@ -1,6 +1,6 @@
 from random import Random
 from copy import copy
-from itertools import product
+from itertools import product, chain
 from logging import info
 from collections import deque
 
@@ -373,48 +373,37 @@ class Instance(dict):
         current = self.getEntity(target)
         if stat in {"increment", "group"}:
             return getattr(current, stat)
-        elif stat in self.stats:
-            total = 0
-        elif stat in self.lists:
-            total = []
-        elif stat in self.strings:
-            total = ""
         elif stat == "envtime":
             return self.time
-        else:
+        elif stat not in self.lists.union(self.stats).union(self.strings):
             raise UndefinedSelectorError(stat, "stat")
 
-        stack=[]
+        values = self._getStatHelper(current, stat)
 
         # rmaps only apply to current object not rlists.
         if current.loc:
             for map_ in self.rmap:
                 if map_ != current.loc[2]:
-                    new_loc = (current.loc[0], current.loc[1], map_)
-                    stack.append(self.getEntity(new_loc))
+                    child = self.getEntity((current.loc[0], current.loc[1], map_))
+                    values = chain(values, self._getStatHelper(child, stat))
 
-        while True:
-            value = getattr(current, stat)
-            if value:
-                if isinstance(total, int):
-                    total += value
-                elif isinstance(total, list):
-                    total.extend(value)
-                else:
-                    return value
+        if stat in self.stats:
+            return sum(values)
+        elif stat in self.lists:
+            return [i for j in values for i in j]
+        elif stat in self.strings:
+            return next(values, "")
 
-            for lst in self.rlist:
-                for unit in getattr(current, lst):
-                    if isinstance(unit, str):
-                        unit = self[unit]
-                    stack.append(unit)
+    def _getStatHelper(self, target, stat):
+        value = getattr(target, stat)
+        if value:
+            yield value
 
-            if len(stack) == 0:
-                break
-
-            current = stack.pop()
-
-        return total
+        for lst in self.rlist:
+            for unit in getattr(target, lst):
+                if isinstance(unit, str):
+                    unit = self[unit]
+                yield from self._getStatHelper(unit, stat)
 
     def getGroup(self, group):
         """Return all objects belonging to group.
