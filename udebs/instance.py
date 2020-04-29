@@ -402,6 +402,8 @@ class Instance(dict):
             for i in values:
                 if i != "":
                     return i
+            else:
+                return ""
 
     def _getStatHelper(self, target, stat):
         yield getattr(target, stat)
