@@ -117,7 +117,7 @@ class Instance(dict):
                 "script": delay["script"],
             })
 
-        new.state = deque(maxlen=new.revert + 1)
+        new.state = copy(self.state)
 
         return new
 
@@ -286,15 +286,16 @@ class Instance(dict):
 
             main_map.getRevert(5)
         """
+
+        new_states = copy(self.state)
         if self.state:
             for i in range(time + 1):
                 try:
-                    new = self.state.pop()
+                    new = new_states.pop()
                 except IndexError:
-                    self.state.append(new)
                     return False
 
-            new.state = self.state
+            new.state = new_states
             new.state.append(copy(new))
             return new
 
