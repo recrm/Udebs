@@ -16,7 +16,7 @@ Instance
 
 .. autoclass:: udebs.instance.Instance
    :members:
-   :exclude-members: getEntity, controlMove, testFuture, getMap
+   :exclude-members: getEntity, controlMove, testFuture
 
 Standard
 --------
@@ -31,7 +31,8 @@ Utilities
     :members:
 
 .. automodule:: udebs.utilities
-    :members: alternate, lookup, placeholder, Player, Timer
+    :members:
+    :exclude-members: norecurse
 
 .. automodule:: udebs.interpret
     :members: importModule, importFunction

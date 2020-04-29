@@ -75,7 +75,24 @@ class Player:
         raise NotImplementedError("Player subclasses should implement a __call__ method.")
 
 def register(args, second=None):
-    """Register a function with udebs. Works as a function or a decorator."""
+    """Register a function with udebs. Works as a function or a decorator.
+
+    .. code-block:: python
+
+        @udebs.register({"args": ["$1", "$2", "$3"]})
+        def TEST(arg1, arg2, arg3):
+            return "hello world"
+
+        def TEST2(arg1, arg2, arg3):
+            return "hello world"
+
+        udebs.register(TEST2, {"args": ["$1", "$2", "$3"]})
+
+    .. code-block:: xml
+
+        <i>TEST one two three</i>
+
+    """
     if second is not None:
         interpret.importFunction(args, second)
         return None

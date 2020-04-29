@@ -289,6 +289,8 @@ class variables:
 def importFunction(f, args):
     """
     Allows a user to import a single function into udebs.
+
+    **depricated - please use udebs.utilities.register
     """
 
     module = {
@@ -304,6 +306,8 @@ def importModule(dicts={}, globs={}, version="other"):
     """
     Allows user to extend base variables available to the interpreter.
     Should be run before the instance object is created.
+
+    **depricated - please use udebs.utilities.register
     """
     variables.modules[version].update(dicts)
     variables.env.update(globs)
