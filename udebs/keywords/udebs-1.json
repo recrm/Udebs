@@ -162,5 +162,11 @@
         "f": "self.testFuture",
         "args": ["$caster", "$target", "$move", "$1", "$2"],
         "default": {"$2": 0}
+    },
+    "MAP": {
+        "f": "self.getMap",
+        "args": ["-$1"],
+        "default": {"-$1": "$caster"}
     }
+
 }

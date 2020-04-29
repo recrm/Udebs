@@ -207,7 +207,13 @@ class Instance(dict):
         return unit
 
     def getMap(self, target="map"):
-        """Gets a map by name or object on it."""
+        """
+        Fetches the map object caster currently resides on.
+
+        .. code-block:: xml
+
+            <i>caster MAP</i>
+        """
         if not target:
             return False
         elif isinstance(target, str) and target in self.map:
