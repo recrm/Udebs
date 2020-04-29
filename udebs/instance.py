@@ -393,13 +393,12 @@ class Instance(dict):
         elif stat in self.lists:
             return [i for j in values for i in j]
         elif stat in self.strings:
-            return next(values, "")
+            for i in values:
+                if i != "":
+                    return i
 
     def _getStatHelper(self, target, stat):
-        value = getattr(target, stat)
-        if value:
-            yield value
-
+        yield getattr(target, stat)
         for lst in self.rlist:
             for unit in getattr(target, lst):
                 if isinstance(unit, str):
