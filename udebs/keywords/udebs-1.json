@@ -109,6 +109,11 @@
         "args": ["-$1"],
         "default": {"-$1": "$caster"}
     },
+    "MAPNAME": {
+        "f": "self.getMapName",
+        "args": ["-$1"],
+        "default": {"-$1": "$caster"}
+    },
     "LOC": {
         "f": "self.getLoc",
         "args": ["-$1"],

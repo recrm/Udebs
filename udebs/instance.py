@@ -212,7 +212,7 @@ class Instance(dict):
 
         .. code-block:: xml
 
-            <i>caster MAP</i>
+            <i>caster [$caster] MAP</i>
         """
         if not target:
             return False
@@ -766,6 +766,16 @@ class Instance(dict):
             <i>target [$caster] YLOC</i>
         """
         return self.getX(target, 1)
+
+    def getMapName(self, target):
+        """
+        Gets the y coordinate of target, False if target not on a map.
+
+        .. code-block:: xml
+
+            <i>target [$caster] MAPNAME</i>
+        """
+        return self.getX(target, 2)
 
     def getLoc(self, target):
         """
