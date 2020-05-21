@@ -56,16 +56,16 @@
 
     "#": "Callback actions.",
     "CAST": {
-        "f": "self.controlMove",
+        "f": "self._controlMove",
         "args": ["-$1", "$1", "$2"],
         "default": {"-$1": "$caster"}
     },
     "INIT": {
-        "f": "self.controlMove",
+        "f": "self._controlMove",
         "args": ["empty", "empty", "$1"]
     },
     "ACTION": {
-        "f": "self.controlMove",
+        "f": "self._controlMove",
         "args": ["-$1", "empty", "$1"]
     },
     "DELAY": {

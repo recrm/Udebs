@@ -10,7 +10,7 @@
         "args": ["$1"]
     },
     "CAST": {
-        "f": "self.controlMove",
+        "f": "self._controlMove",
         "args": ["-$1", "$1", "$2"],
         "default": {"-$1": "$caster"}
     },

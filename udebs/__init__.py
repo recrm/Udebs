@@ -1,4 +1,4 @@
 from .loadxml import battleStart, battleWrite
-from .interpret import importModule, importFunction, UdebsExecutionError, UdebsSyntaxError
+from .interpret import importModule, importFunction
 from .utilities import *
-from .instance import UndefinedSelectorError
+from .errors import *

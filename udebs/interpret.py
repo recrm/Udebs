@@ -2,6 +2,7 @@ import copy
 import json
 import itertools
 import os
+from .errors import *
 
 #---------------------------------------------------
 #            Imports and Variables                 -
@@ -307,7 +308,7 @@ def importModule(dicts={}, globs={}, version="other"):
     Allows user to extend base variables available to the interpreter.
     Should be run before the instance object is created.
 
-    **depricated - please use udebs.utilities.register
+    **depricated for users - please use udebs.utilities.register
     """
     variables.modules[version].update(dicts)
     variables.env.update(globs)
@@ -543,6 +544,8 @@ class Script:
     def __call__(self, env):
         try:
             return eval(self.code, env)
+        except UdebsError:
+            raise
         except Exception:
             raise UdebsExecutionError(self)
 
@@ -551,23 +554,6 @@ class Script:
             return False
 
         return self.raw == other.raw
-
-#---------------------------------------------------
-#                     Errors                       -
-#---------------------------------------------------
-class UdebsSyntaxError(Exception):
-    """Is raised when an effect or require is malformed and fails to parse."""
-    def __init__(self, string):
-        self.message = string
-    def __str__(self):
-        return repr(self.message)
-
-class UdebsExecutionError(Exception):
-    """Is raised when an error occurs during execution of a udebs action."""
-    def __init__(self, script):
-        self.script = script
-    def __str__(self):
-        return "invalid '{}'".format(self.script.raw)
 
 #---------------------------------------------------
 #                     Runtime                      -

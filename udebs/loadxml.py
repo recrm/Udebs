@@ -2,12 +2,13 @@ import copy
 import re
 import sys
 import logging
-from udebs import board, entity, instance, interpret
+from . import board, entity, instance, interpret
 from xml.etree import ElementTree
 from collections import deque
 
 #This is a pretty printing algorithm I stole from the internet.
-def indent(elem, level=0):
+def _indent(elem, level=0):
+    """A simple pretty print function for xml."""
     i = "\n" + level*"  "
     if len(elem):
         if not elem.text or not elem.text.strip():
@@ -15,7 +16,7 @@ def indent(elem, level=0):
         if not elem.tail or not elem.tail.strip():
             elem.tail = i
         for elem in elem:
-            indent(elem, level+1)
+            _indent(elem, level+1)
         if not elem.tail or not elem.tail.strip():
             elem.tail = i
     else:
@@ -134,7 +135,7 @@ def battleWrite(env, location, pretty=False):
 
     # Final Cleanup
     if pretty:
-        indent(root)
+        _indent(root)
 
     for node in root[:]:
         if node.text is None:
@@ -144,7 +145,7 @@ def battleWrite(env, location, pretty=False):
     return True
 
 #Creates and instance object from xml file.
-def battleStart(xml_file, debug=False, script="init", name=None, revert=None, log=None, version=None, seed=None, immutable=None, field=None):
+def battleStart(xml_file=None, debug=False, script="init", name=None, revert=None, log=None, version=None, seed=None, immutable=None, field=None):
     """
     Creates an instanance object from given xml file.
 

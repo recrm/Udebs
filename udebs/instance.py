@@ -4,10 +4,11 @@ from itertools import product, chain
 from logging import info
 from collections import deque
 
-from udebs.interpret import Script, UdebsStr, _getEnv
-from udebs.board import Board
-from udebs.entity import Entity
-from udebs.utilities import norecurse
+from .interpret import Script, UdebsStr, _getEnv
+from .board import Board
+from .entity import Entity
+from .utilities import _norecurse
+from .errors import UndefinedSelectorError
 
 #---------------------------------------------------
 #                 Main Class                       -
@@ -64,7 +65,6 @@ class Instance(dict):
     def __bool__(self):
         return self.cont
 
-    @norecurse
     def __eq__(self, other):
         if not isinstance(other, Instance):
             return False
@@ -127,10 +127,18 @@ class Instance(dict):
 
     def getEntity(self, target, multi=False):
         """
-        Returns entity object based on given selector.
+        Fetches the udebs entity object given a selector.
 
-        target - Any entity selector.
-        multi - Boolean, allows lists of targets.
+        Udebs selectors can take all of the following forms.
+
+        * string - The name of the object we are looking for.
+        * tuple - A tuple of the form (x, y, mapname) representing a location on a map.
+        * list - A list containing other selectors.
+        * False - Returns the default empty selector.
+
+        .. code-block:: python
+
+            main_map.getEntity("empty")
 
         """
         if isinstance(target, Entity):
@@ -185,16 +193,10 @@ class Instance(dict):
         return self[target]
 
     def _getEntityTuple(self, target):
-        #If tuple, this is a location.
-        try:
-            map_ = self.getMap(target)
-        except KeyError:
-            raise UndefinedSelectorError(target, "entity")
-
-        # entity stored in the map
+        map_ = self.getMap(target)
         try:
             name = map_[target]
-        except IndexError:
+        except (IndexError, TypeError):
             raise UndefinedSelectorError(target, "entity")
 
         unit = self[name]
@@ -214,16 +216,16 @@ class Instance(dict):
 
             <i>caster [$caster] MAP</i>
         """
+        if isinstance(target, tuple):
+            target = target[2] if len(target) == 3 else "map"
         if not target:
             return False
         elif isinstance(target, str) and target in self.map:
-                return self.map[target]
+            return self.map[target]
         elif isinstance(target, Board):
             return target
         elif isinstance(target, Entity):
-            return self.map[target.loc[2] if len(target.loc) == 3 else "map"]
-        elif isinstance(target, tuple):
-            return self.map[target[2] if len(target) == 3 else "map"]
+            return self.map[target.loc[2]]
         else:
             raise UndefinedSelectorError(target, "map")
 
@@ -329,7 +331,7 @@ class Instance(dict):
             info(f"effect added to delay for {time}")
         return True
 
-    @norecurse
+    @_norecurse
     def testFuture(self, caster, target, move, callback, time=0):
         """
         Experimental function. Checks if condition is true in the future.
@@ -495,7 +497,7 @@ class Instance(dict):
         }
         return _getEnv(var_local, {"self": self})
 
-    def controlMove(self, casters, targets, moves):
+    def _controlMove(self, casters, targets, moves):
         """
         Function to trigger an event. Returns True if an action triggers succesfully.
 
@@ -572,7 +574,7 @@ class Instance(dict):
 
             <i>caster [$caster] CAST target move</i>
         """
-        value = self.controlMove(caster, target, move)
+        value = self._controlMove(caster, target, move)
         if value:
             self._checkDelay()
 
@@ -984,14 +986,3 @@ class Instance(dict):
         if self.state:
             self.state.clear()
             self.state.append(copy(self))
-
-#---------------------------------------------------
-#                     Errors                       -
-#---------------------------------------------------
-class UndefinedSelectorError(Exception):
-    """Is raised when udebs encounters an invalid reference to a udebs object."""
-    def __init__(self, target, _type):
-        self.selector = target
-        self.type = _type
-    def __str__(self):
-        return "{} is not a valid {} selector.".format(repr(self.selector), self.type)
