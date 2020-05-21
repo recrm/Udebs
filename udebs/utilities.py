@@ -1,7 +1,9 @@
 import traceback
 import itertools
 import time
-from udebs import interpret, entity
+from . import interpret, entity
+from functools import partial
+import inspect
 
 class Timer:
     """Basic Timing context manager. Prints out the time it takes it's context to close."""
@@ -16,7 +18,7 @@ class Timer:
 #                  Utilities                       -
 #---------------------------------------------------
 
-def norecurse(f):
+def _norecurse(f):
     """Wrapper function that forces a function to return True if it recurses."""
     def func(*args, **kwargs):
         for i in traceback.extract_stack():
@@ -57,14 +59,20 @@ def alternate(*args):
     yield from zip(*gen)
 
 def placeholder(name):
-    """Register a placeholder function that will be allocated after the udebs instance is created."""
+    """Register a placeholder function that will be allocated after the udebs instance is created.
+
+    **depricated - just register an empty function.
+    """
     interpret.importModule({name: {
         "f": "f_" + name,
         "args": ["self"],
     }}, {"f_" + name: lambda x: None})
 
 class Player:
-    """Base Class for players."""
+    """Base Class for players.
+
+    **depricated - please use udebs.utilities.register
+    """
     def __init__(self, name):
         interpret.importModule({name: {
             "f": "f_" + name,
@@ -74,7 +82,7 @@ class Player:
     def __call__(self, state):
         raise NotImplementedError("Player subclasses should implement a __call__ method.")
 
-def register(args, second=None):
+def register(f, args=None, name=None):
     """Register a function with udebs. Works as a function or a decorator.
 
     .. code-block:: python
@@ -88,18 +96,36 @@ def register(args, second=None):
 
         udebs.register(TEST2, {"args": ["$1", "$2", "$3"]})
 
+        @udebs.register({"args": ["$1", $2, $3]})
+        class Test3:
+            def __init__(self):
+                self.message = "hello "
+
+            def __call__(self, world):
+                return self.message + world
+
+
     .. code-block:: xml
 
         <i>TEST one two three</i>
 
     """
-    if second is not None:
-        interpret.importFunction(args, second)
-        return None
+    def wrapper(args, f):
+        f_name = f.__name__ if name is None else name
 
-    def wrapper(f):
-        interpret.importFunction(f, args)
+        if isinstance(args, list):
+            args = {"args": args}
+
+        interpret.importModule({
+            f_name: {
+                "f": f_name,
+                **args,
+            }
+        }, {f_name: f() if inspect.isclass(f) else f})
         return f
 
-    return wrapper
+    if args is None:
+        return partial(wrapper, f)
+
+    return wrapper(args, f)
 
