@@ -30,7 +30,10 @@ def _norecurse(f):
     return func
 
 def lookup(name, table):
-    """Function for adding a basic lookup function to the interpreter."""
+    """Function for adding a basic lookup function to the interpreter.
+
+    ** depricated - please use custom function.
+    """
     def wrapper(*args):
         value = table
         for arg in args:
