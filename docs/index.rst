@@ -24,17 +24,19 @@ Standard
 .. autoclass:: udebs.interpret.standard
     :members:
 
-Utilities
----------
+Xml
+---
 
 .. automodule:: udebs.loadxml
     :members:
 
+Utilities
+---------
+
 .. automodule:: udebs.utilities
     :members:
+    :exclude-members: Player, lookup, placeholder
 
-.. automodule:: udebs.interpret
-    :members: importModule, importFunction
 
 Errors
 ------
