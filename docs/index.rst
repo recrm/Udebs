@@ -16,7 +16,7 @@ Instance
 
 .. autoclass:: udebs.instance.Instance
    :members:
-   :exclude-members: getEntity, controlMove, testFuture
+   :exclude-members: testFuture
 
 Standard
 --------
@@ -32,7 +32,6 @@ Utilities
 
 .. automodule:: udebs.utilities
     :members:
-    :exclude-members: norecurse
 
 .. automodule:: udebs.interpret
     :members: importModule, importFunction
@@ -40,6 +39,5 @@ Utilities
 Errors
 ------
 
-.. autoexception:: udebs.instance.UndefinedSelectorError
-.. autoexception:: udebs.interpret.UdebsExecutionError
-.. autoexception:: udebs.interpret.UdebsSyntaxError
+.. automodule:: udebs.errors
+    :members:
