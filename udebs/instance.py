@@ -65,6 +65,7 @@ class Instance(dict):
     def __bool__(self):
         return self.cont
 
+    @_norecurse
     def __eq__(self, other):
         if not isinstance(other, Instance):
             return False
