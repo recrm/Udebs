@@ -281,7 +281,7 @@ class variables:
         "kwargs": {},
         "all": False,
         "default": {},
-         "string": [],
+        "string": [],
     }
 
     def keywords(version=1):

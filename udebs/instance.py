@@ -28,7 +28,7 @@ class Instance(dict):
 
     Other functions are convinience wrappers for public use.
     """
-    def __init__(self, copy=False):
+    def __init__(self, copy=False, **kwargs):
         if copy:
             return
 
