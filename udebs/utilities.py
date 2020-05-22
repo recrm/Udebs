@@ -7,12 +7,21 @@ import inspect
 
 class Timer:
     """Basic Timing context manager. Prints out the time it takes it's context to close."""
-    def __enter__(self):
+    def __init__(self, verbose=True):
+        self.verbose = verbose
+        self.total = None
+
+    def __enter__(self, verbose=True):
         self.time = time.time()
         return self
 
     def __exit__(self, *args, **kwargs):
-        print(time.time() - self.time)
+        self.total = time.time() - self.time
+        if self.verbose:
+            print(self.total)
+
+    def __str__(self):
+        return str(self.total)
 
 #---------------------------------------------------
 #                  Utilities                       -
