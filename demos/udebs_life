@@ -114,6 +114,7 @@ def redrawBoard(surface, ts):
 
     pygame.display.update()
 
+@udebs.register(["$1"])
 def dedup(lst):
     return list(set(lst))
 
@@ -133,13 +134,6 @@ if __name__ == "__main__":
         seed = int(sys.argv[1])
     except IndexError:
         seed = None
-
-    # Setup Udebs
-    module = {"dedup": {
-        "f": "dedup",
-        "args": ["$1"],
-    }}
-    udebs.importModule(module, {"dedup": dedup})
 
      # State variables
     ts = 10

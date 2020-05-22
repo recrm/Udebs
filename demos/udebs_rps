@@ -36,8 +36,8 @@ xml = """
         <effect>
             <i>print "You have" user.STAT.lives lives</i>
             <i>print "Your opponent has" computer.STAT.lives lives</i>
-            <i>user = (CHOICE_H)</i>
-            <i>computer = (CHOICE_C)</i>
+            <i>user = (HUMAN)</i>
+            <i>computer = (RANDOM)</i>
             <i>print you played $user</i>
             <i>print your opponent played $computer</i>
             <i>user lives += LOOKUP.$user.$computer</i>
@@ -69,32 +69,32 @@ xml = """
 </udebs>
 """
 
-class Random(udebs.Player):
-    def __call__(self, state):
-        return random.choice(["rock", "paper", "scissors"])
+@udebs.register([])
+def RANDOM():
+    return random.choice(["rock", "paper", "scissors"])
 
-class Human(udebs.Player):
-    def __call__(self, state):
-        x = input("what do you play? ")
-        while x not in ["rock", "paper", "scissors"]:
-            x = input("Try again? ")
+@udebs.register([])
+def HUMAN():
+    x = input("what do you play? ")
+    while x not in ["rock", "paper", "scissors"]:
+        x = input("Try again? ")
 
-        return x
+    return x
+
+@udebs.register(["$1", "$2"])
+def LOOKUP(one, two):
+    data = {
+        "rock": {"paper": -1},
+        "paper": {"scissors": -1},
+        "scissors": {"rock": -1},
+    }
+    return data.get(one, {}).get(two, 0)
 
 if __name__ == "__main__":
     print("""Welcome to rock paper scissors
 
     Simply type in your selection when prompted!
     """)
-
-    Random("CHOICE_C")
-    Human("CHOICE_H")
-    udebs.lookup("LOOKUP", {
-        "rock": {"paper": -1},
-        "paper": {"scissors": -1},
-        "scissors": {"rock": -1},
-    })
-
     game = udebs.battleStart(xml)
     for i in game.gameLoop():
         pass

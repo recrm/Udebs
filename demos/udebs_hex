@@ -225,7 +225,7 @@ class Hex(AlphaMontyCarlo):
 
         return wins / games, {i: v / total for i,v in policy.items()}
 
-class Cplayer(udebs.Player):
+class Cplayer():
     def __init__(self, *args, iters=100, think_time=30, **kwargs):
         self.tree = None
         self.iters = iters
@@ -288,7 +288,8 @@ if __name__ == "__main__":
     mainClock = pygame.time.Clock()
 
     #Setup udebs
-    comp = Cplayer("HEX", iters=100, think_time=think_time)
+    comp = Cplayer(iters=100, think_time=think_time)
+    udebs.register(comp, ["self"], name="HEX")
     main_map = udebs.battleStart(game_config)
 
     #game loop

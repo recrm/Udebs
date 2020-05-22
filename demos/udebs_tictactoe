@@ -76,6 +76,8 @@ game_config = """
 </udebs>
 """
 
+# Setup Udebs
+@udebs.register(["self"])
 def ENDSTATE(state):
     def rows(gameMap):
         """Iterate over possible win conditions in game map."""
@@ -103,38 +105,49 @@ def ENDSTATE(state):
     if tie:
         return 0
 
-# Setup Udebs
-module = {"ENDSTATE": {
-    "f": "ENDSTATE",
-    "args": ["self"],
-}}
-udebs.importModule(module, {"ENDSTATE": ENDSTATE})
-
 class TicTacToe(BruteForce):
-    def legalMoves(self, state):
+    def legalMoves(self):
         """Create a list of legal moves in current state space."""
-        player = "xPlayer" if state.getStat("xPlayer", "ACT") == 2 else "oPlayer"
-        for loc, value in state.map["map"].items():
+        player = "xPlayer" if self.getStat("xPlayer", "ACT") == 2 else "oPlayer"
+        for loc, value in self.map["map"].items():
             if value == "empty":
                 yield player, loc, "placement"
 
-    def endState(self, state):
-        if not state.cont:
-            return state.getStat("result", "END")
+    def endState(self):
+        if not self.cont:
+            return self.getStat("result", "END")
 
-    def tree(self, state, debug=True):
+    def pState(self):
+        """Return an immutable representation of a game map."""
+        def rotate(matrix):
+            return tuple(zip(*matrix[::-1]))
+
+        def flip(matrix):
+            return tuple(reversed(matrix))
+
+        value = self.map["map"].map
+
+        symetries = [tuple(tuple(i) for i in value)]
+        symetries.append(flip(symetries[0]))
+
+        for i in range(6):
+            symetries.append(rotate(symetries[-2]))
+
+        return frozenset(symetries)
+
+    def tree(self, debug=True):
         """Compile all results into a tree."""
         # If node is solvable return solution
-        if int(self.result(state)) != 0:
-            return self.result(state)
+        if int(self.result()) != 0:
+            return self.result()
 
         # Collect all possible outputs
         completed = set()
         storage = {}
-        for substate, entry in self.substates(state):
-            if self.pState(substate) not in completed:
-                completed.add(self.pState(substate))
-                subresult = self.tree(substate, debug=False)
+        for substate, entry in self.substates():
+            if substate.pState() not in completed:
+                completed.add(substate.pState())
+                subresult = substate.tree(debug=False)
 
                 # Remove any options that don't block oponents autowin.
                 if not isinstance(subresult, dict):
@@ -148,7 +161,7 @@ class TicTacToe(BruteForce):
             if isinstance(v, dict) or int(v) != 0:
                 return storage
         else:
-            return self.result(state)
+            return self.result()
 
 def entryName(entry):
     if entry is not None:
@@ -163,16 +176,15 @@ def deserialize(node):
     return int(node)
 
 if __name__ == "__main__":
-    game = udebs.battleStart(game_config)
-
     # Create state analysis engine
+    game = udebs.battleStart(game_config, field=TicTacToe())
     with udebs.Timer():
-        analysis = TicTacToe()
-        final = analysis.result(game)
-    print("final", final.value, final.turns)
-    print("states checked", len(analysis.storage))
+        final = game.result()
 
-    tree = deserialize(analysis.tree(game))
+    print("final", final.value, final.turns)
+    print("states checked", len(game.storage))
+
+    tree = deserialize(game.tree())
 
     # Save tree
     with open("tictactoe.json", "w+") as f:
