@@ -1,6 +1,7 @@
 import copy
 import functools
 import math
+from .instance import Instance
 
 @functools.total_ordering
 class Result:
@@ -24,17 +25,17 @@ class Result:
     def __int__(self):
         return self.value
 
-class State:
+class State(Instance):
     def __init__(self, *args, **kwargs):
-        super.__init__(**kwargs)
-        self.storage = kwargs.get("storage", {})
+        self.storage = kwargs.pop("storage", {})
+        super().__init__(*args, **kwargs)
 
     def substates(self, time=1):
         """Iterate over substates to a state."""
         stateNew = None
         for move in self.legalMoves():
             if stateNew is None:
-                stateNew = copy.copy(state)
+                stateNew = copy.copy(self)
 
             if stateNew.castMove(*move[:3]):
                 stateNew.controlTime(time)
@@ -108,7 +109,7 @@ class AlphaBeta(State):
         return self.storage[pState]
 
 class BruteLoop(State):
-    def result(self,maximizer=True, deps=None, states=None, **kwargs):
+    def result(self, maximizer=True, deps=None, states=None):
         """Modified brute force solution for a situation where a game can loop in on itself.
         example - chopsticks.
         Note - This method is not guerenteed to work.
