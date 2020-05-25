@@ -132,7 +132,7 @@ class AlphaBeta(State):
 
             value = -float("inf") if maximizer else float("inf")
             for child, e in self.substates(time=time):
-                result = child.prod_result(not maximizer, alpha, beta, storage=storage, partial=partial, **kwargs)
+                result = child.result(not maximizer, alpha, beta, time, storage=storage, partial=partial, **kwargs)
 
                 if maximizer:
                     if result > value:
@@ -140,7 +140,7 @@ class AlphaBeta(State):
                         if result > alpha:
                             alpha = result
                 else:
-                    if result < beta:
+                    if result < value:
                         value = result
                         if result < beta:
                             beta = result
