@@ -1,9 +1,14 @@
 import traceback
 import itertools
 import time
-from . import interpret, entity
-from functools import partial
 import inspect
+from functools import partial
+
+from .interpret import importModule
+
+#---------------------------------------------------
+#                  Utilities                       -
+#---------------------------------------------------
 
 class Timer:
     """Basic Timing context manager. Prints out the time it takes it's context to close."""
@@ -18,14 +23,10 @@ class Timer:
     def __exit__(self, *args, **kwargs):
         self.total = time.time() - self.time
         if self.verbose:
-            print(self.total)
+            print("total time:", self.total)
 
     def __str__(self):
         return str(self.total)
-
-#---------------------------------------------------
-#                  Utilities                       -
-#---------------------------------------------------
 
 def _norecurse(f):
     """Wrapper function that forces a function to return True if it recurses."""
@@ -38,26 +39,6 @@ def _norecurse(f):
 
     return func
 
-def lookup(name, table):
-    """Function for adding a basic lookup function to the interpreter.
-
-    ** depricated - please use custom function.
-    """
-    def wrapper(*args):
-        value = table
-        for arg in args:
-            try:
-                value = value[arg]
-            except KeyError:
-                return 0
-
-        return value
-
-    interpret.importModule({name: {
-        "f": "f_" + name,
-        "all": True,
-    }}, {"f_" + name: wrapper})
-
 def alternate(*args):
     """An alternation function for processing moves."""
     processed = []
@@ -69,30 +50,6 @@ def alternate(*args):
     maximum = max(len(i) for i in processed)
     gen = (itertools.islice(itertools.cycle(i), maximum) for i in processed)
     yield from zip(*gen)
-
-def placeholder(name):
-    """Register a placeholder function that will be allocated after the udebs instance is created.
-
-    **depricated - just register an empty function.
-    """
-    interpret.importModule({name: {
-        "f": "f_" + name,
-        "args": ["self"],
-    }}, {"f_" + name: lambda x: None})
-
-class Player:
-    """Base Class for players.
-
-    **depricated - please use udebs.utilities.register
-    """
-    def __init__(self, name):
-        interpret.importModule({name: {
-            "f": "f_" + name,
-            "args": ["self"],
-        }}, {"f_" + name: self})
-
-    def __call__(self, state):
-        raise NotImplementedError("Player subclasses should implement a __call__ method.")
 
 def register(f, args=None, name=None):
     """Register a function with udebs. Works as a function or a decorator.
@@ -128,7 +85,7 @@ def register(f, args=None, name=None):
         if isinstance(args, list):
             args = {"args": args}
 
-        interpret.importModule({
+        importModule({
             f_name: {
                 "f": f_name,
                 **args,
@@ -141,3 +98,50 @@ def register(f, args=None, name=None):
 
     return wrapper(args, f)
 
+#---------------------------------------------------
+#                  Depricated                      -
+#---------------------------------------------------
+
+def placeholder(name):
+    """Register a placeholder function that will be allocated after the udebs instance is created.
+
+    **depricated - just register an empty function.
+    """
+    importModule({name: {
+        "f": "f_" + name,
+        "args": ["self"],
+    }}, {"f_" + name: lambda x: None})
+
+class Player:
+    """Base Class for players.
+
+    **depricated - please use udebs.utilities.register
+    """
+    def __init__(self, name):
+        importModule({name: {
+            "f": "f_" + name,
+            "args": ["self"],
+        }}, {"f_" + name: self})
+
+    def __call__(self, state):
+        raise NotImplementedError("Player subclasses should implement a __call__ method.")
+
+def lookup(name, table):
+    """Function for adding a basic lookup function to the interpreter.
+
+    ** depricated - please use custom function.
+    """
+    def wrapper(*args):
+        value = table
+        for arg in args:
+            try:
+                value = value[arg]
+            except KeyError:
+                return 0
+
+        return value
+
+    importModule({name: {
+        "f": "f_" + name,
+        "all": True,
+    }}, {"f_" + name: wrapper})
