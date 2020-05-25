@@ -53,6 +53,7 @@ class Instance(dict):
         self.increment = 1 # how much time passes between gameloop iterations. Useful for pausing.
         self.cont = True # Flag to determine if gameloop should continue
         self.next = None # The next state a gameloop will return. Useful for resets and reverts in gameloop
+        self.value = None # Value of the game.
 
         #internal
         self.map = {}
@@ -955,7 +956,7 @@ class Instance(dict):
         if self.logging:
             info(f"EXITING {self.name}\n")
 
-    def exit(self):
+    def exit(self, value=1):
         """Requests the end of the game by setting Instance.cont to False, and exiting out of the gameloop.
 
         .. code-block:: xml
@@ -965,6 +966,7 @@ class Instance(dict):
         if self.logging:
             info("Exit requested")
         self.cont = False
+        self.value = value
 
     def resetState(self, script="reset"):
         """Resets the game metadata to default.
@@ -974,6 +976,7 @@ class Instance(dict):
             main_map.resetState()
         """
         self.cont = True
+        self.value = None
         self.time = 0
         self.delay.clear()
         if self.logging:

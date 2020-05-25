@@ -72,6 +72,8 @@ def battleWrite(env, location, pretty=False):
         addleaf(var, "increment", str(env.increment))
     if env.cont != True:
         addleaf(var, "cont", str(env.cont))
+    if env.value != None:
+        addleaf(var, "value", str(env.value))
 
     #map
     maps = e.SubElement(root, 'maps')
@@ -209,6 +211,7 @@ def battleStart(xml_file=None, debug=False, script="init", name=None, revert=Non
         fillsimple(time, "increment", int)
         fillsimple(time, "cont", eval)
         fillsimple(time, "next", eval)
+        fillsimple(time, "value", eval)
 
     #Maps
     def addMap(field_map):

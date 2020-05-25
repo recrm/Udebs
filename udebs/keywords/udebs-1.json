@@ -21,7 +21,9 @@
         "default": {"-$2": "$caster"}
     },
     "EXIT": {
-        "f": "self.exit"
+        "f": "self.exit",
+        "args": ["$1"],
+        "default": {"$1": 1}
     },
 
     "#": "CHANGE convinience wrappers.",
