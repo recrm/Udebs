@@ -3,6 +3,54 @@ import functools
 import math
 from .instance import Instance
 
+class MutableInt:
+    def __init__(self):
+        self.value = 0
+
+    def inc(self):
+        self.value +=1
+
+    def __str__(self):
+        return str(self.value)
+
+def countrecursion(f):
+    """Function decorator, prints how many times a function calls itself."""
+    def wrapper(*args, times=None, **kwargs):
+        p = False
+        if times is None:
+            times = MutableInt()
+            p = True
+
+        times.inc()
+        r = f(*args, times=times, **kwargs)
+        if p:
+            print("nodes visited:", times)
+        return r
+
+    return wrapper
+
+def prefill(arguments):
+    def outer(f):
+        @functools.wraps(f)
+        def wrapper(*args, **kwargs):
+            for i in arguments:
+                if kwargs.get(i) is None:
+                    kwargs[i] = {}
+
+            return f(*args, **kwargs)
+
+        return wrapper
+    return outer
+
+def leafreturn(f):
+    @functools.wraps(f)
+    def wrapper(self, *args, **kwargs):
+        value = self.endState()
+        if value is not None:
+            return value
+        return f(self, *args, **kwargs)
+    return wrapper
+
 @functools.total_ordering
 class Result:
     def __init__(self, value, turns):
@@ -26,10 +74,6 @@ class Result:
         return self.value
 
 class State(Instance):
-    def __init__(self, *args, **kwargs):
-        self.storage = kwargs.pop("storage", {})
-        super().__init__(*args, **kwargs)
-
     def substates(self, time=1):
         """Iterate over substates to a state."""
         stateNew = None
@@ -42,118 +86,116 @@ class State(Instance):
                 yield stateNew, move
                 stateNew = None
 
-    #---------------------------------------------------
-    #                    Game Defined functions        -
-    #---------------------------------------------------
-    def pState(self, state):
+    def pState(self):
         raise NotImplementedError
 
-    def legalMoves(self, state):
+    def legalMoves(self):
         raise NotImplementedError
 
-    def endState(self, state):
-        raise NotImplementedError
+    def endState(self):
+        return self.value
 
 #---------------------------------------------------
 #             Various Tree Search Aglorithms       -
 #---------------------------------------------------
 class BruteForce(State):
-    def result(self, maximizer=True):
+    @prefill(["storage"])
+    @leafreturn
+    def result(self, maximizer=True, storage=None, **kwargs):
         pState = self.pState()
-        if pState not in self.storage:
-            value, turns = self.endState(), 0
-            if value is None:
-                result = (max if maximizer else min)(c.result(not maximizer) for c, e in self.substates())
-                value, turns = result.value, result.turns + 1
-
-            self.storage[pState] = Result(value, turns)
-        return self.storage[pState]
+        if pState not in storage:
+            gen = (c.result(not maximizer, storage=storage, **kwargs) for c, e in self.substates())
+            result = (max if maximizer else min)(gen)
+            storage[pState] = Result(result.value, result.turns + 1)
+        return storage[pState]
 
 class MarkovChain(State):
-    def result(self, time=0):
+    @prefill(["storage"])
+    @leafreturn
+    def result(self, time=0, storage=None, **kwargs):
         pState = self.pState()
-        if pState not in self.storage:
-            ev = self.endState()
-            if ev is None:
-                ev = sum(c.result(time) * p[3] for c, p in self.substates(time))
-
-            self.storage[pState] = ev
-        return self.storage[pState]
+        if pState not in storage:
+            gen = (c.result(time, storage=storage, **kwargs) * p[3] for c, p in self.substates(time))
+            storage[pState] = sum(gen)
+        return storage[pState]
 
 class AlphaBeta(State):
-    def result(self, maximizer=True, alpha=-1, beta=1):
+    @prefill(["storage", "partial"])
+    @leafreturn
+    def result(self, maximizer=True, alpha=-1, beta=1, time=1, storage=None, partial=None, **kwargs):
         pState = self.pState()
-        if pState not in self.storage:
-            value = self.endState()
-            if value is None:
-                value = -float("inf") if maximizer else float("inf")
-                for child, entry in self.substates():
-                    result = child.result(not maximizer, alpha, beta)
-                    if maximizer:
-                        if result > value:
-                            value = result
-                            if result > alpha:
-                                alpha = result
+        if pState not in storage:
 
-                    else:
-                        if result < value:
-                            value = result
-                            if result < beta:
-                                beta = result
+            label = beta if maximizer else alpha
+            if partial.get(pState, {}).get(label, None) is not None:
+                return partial[pState][label]
 
-                    if alpha >= beta:
-                        return value
+            value = -float("inf") if maximizer else float("inf")
+            for child, e in self.substates(time=time):
+                result = child.prod_result(not maximizer, alpha, beta, storage=storage, partial=partial, **kwargs)
 
-            self.storage[pState] = value
+                if maximizer:
+                    if result > value:
+                        value = result
+                        if result > alpha:
+                            alpha = result
+                else:
+                    if result < beta:
+                        value = result
+                        if result < beta:
+                            beta = result
 
-        return self.storage[pState]
+                if alpha >= beta:
+                    if pState not in partial:
+                        partial[pState] = {}
+
+                    partial[pState][label] = value
+
+                    return value
+
+            storage[pState] = value
+
+        return storage[pState]
 
 class BruteLoop(State):
-    def result(self, maximizer=True, deps=None, states=None):
+    @prefill(["deps", "states", "storage"])
+    @leafreturn
+    def result(self, maximizer=True, deps=None, states=None, storage=None, **kwargs):
         """Modified brute force solution for a situation where a game can loop in on itself.
         example - chopsticks.
         Note - This method is not guerenteed to work.
-        Also - This method cannot count turns to victory.
         """
-        if deps is None:
-            deps = {}
-
-        if states is None:
-            states = {}
-
         pState = self.pState()
-        if pState not in self.storage:
-            self.storage[pState] = self.endState()
-            if self.storage[pState] is None:
+        if pState not in storage:
+            storage[pState] = None
+            substates, results = [], []
+            for child, entry in self.substates():
+                substates.append(child)
+                results.append(child.result(not maximizer, deps=deps, states=states, storage=storage, **kwargs))
 
-                substates, results = [], []
-                for child, entry in self.substates():
-                    substates.append(child)
-                    results.append(child.result(not maximizer, deps, states))
+            best = (max if maximizer else min)(results, key=lambda x: 0 if x is None else x)
 
-                best = (max if maximizer else min)(results, key=lambda x: 0 if x is None else x)
+            if best is None:
+                # If value is not found record dependencies and return None
+                states[pState] = self
+                for s, r in zip(substates, results):
+                    if r is None:
+                        child_pState = s.pState()
+                        if child_pState not in deps:
+                            deps[child_pState] = set()
 
-                if best is None:
-                    # If value is not found record dependencies and return None
-                    states[pState] = state
-                    for s, r in zip(substates, results):
-                        if r is None:
-                            child_pState = a.pState()
-                            if child_pState not in deps:
-                                deps[child_pState] = set()
+                        deps[child_pState].add(pState)
 
-                            deps[child_pState].add(pState)
+            else:
+                # If value is found reprocess dependant nodes.
+                storage[pState] = best
 
-                else:
-                    # If value is found reprocess dependant nodes.
-                    self.storage[pState] = best
+                for i in deps.get(pState, []):
+                    states[i].result(not maximizer, deps=deps, states=states, storage=storage, **kwargs)
 
-                    for i in deps.get(pState, []):
-                        states[i].result(not maximizer, deps=deps, states=states)
+                deps.pop(pState, None)
 
-                    deps.pop(pState, None)
-
-        return self.storage[pState]
+        return storage[pState]
 
 #---------------------------------------------------
 #   Monty Carlo / Not currently Instance subclass  -
