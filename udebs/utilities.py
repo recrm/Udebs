@@ -28,7 +28,7 @@ class Timer:
     def __str__(self):
         return str(self.total)
 
-def _norecurse(f):
+def norecurse(f):
     """Wrapper function that forces a function to return True if it recurses."""
     def func(*args, **kwargs):
         for i in traceback.extract_stack():

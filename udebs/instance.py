@@ -7,7 +7,7 @@ from collections import deque
 from .interpret import Script, UdebsStr, _getEnv
 from .board import Board
 from .entity import Entity
-from .utilities import _norecurse
+from .utilities import norecurse
 from .errors import UndefinedSelectorError
 
 #---------------------------------------------------
@@ -72,7 +72,7 @@ class Instance(dict):
     def __repr__(self):
         return f"{self.__class__.__name__}(name='{self.name}')"
 
-    @_norecurse
+    @norecurse
     def __eq__(self, other):
         if not isinstance(other, Instance):
             return False
@@ -94,10 +94,14 @@ class Instance(dict):
         return not self == other
 
     def __copy__(self):
-        new = type(self)(True)
+        return self.copy()
+
+    def copy(self, new=None):
+        if new is None:
+            new = type(self)(True)
 
         for k, v in self.__dict__.items():
-            if k not in {"delay", "map", "_data", "state"}:
+            if k not in {"delay", "map", "state"}:
                 setattr(new, k, v)
 
         # Handle entities
@@ -339,7 +343,7 @@ class Instance(dict):
             info(f"effect added to delay for {time}")
         return True
 
-    @_norecurse
+    @norecurse
     def testFuture(self, caster, target, move, callback, time=0):
         """
         Experimental function. Checks if condition is true in the future.
