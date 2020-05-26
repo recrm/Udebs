@@ -168,11 +168,14 @@ def deserialize(node):
 if __name__ == "__main__":
     # Create state analysis engine
     game = udebs.battleStart(game_config, field=TicTacToe())
+
+    storage = {}
+
     with udebs.Timer():
-        final = game.result()
+        final = game.result(storage=storage)
 
     print("final", final.value, final.turns)
-    print("states checked", len(game.storage))
+    print("states checked", len(storage))
 
     tree = deserialize(game.tree())
 
