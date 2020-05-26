@@ -1,9 +1,10 @@
 import copy
 import functools
 import math
+import time
 from .instance import Instance
 
-def countrecursion(f=None, verbose=False):
+def countrecursion(f=None, verbose=True):
     """Function decorator, prints how many times a function calls itself."""
     time = 0
     def count(f):
@@ -111,14 +112,17 @@ class State(Instance):
 #---------------------------------------------------
 class BruteForce(State):
     @countrecursion
-    @leafreturn
     @udebs_cache
     def result(self, maximizer=True):
+        value = self.endState()
+        if value is not None:
+            return Result(value, 0)
+
         options = []
         for child, _ in self.substates():
             options.append(child.result(not maximizer))
 
-        result = (max if mximizer else min)(options)
+        result = (max if maximizer else min)(options)
         return Result(result.value, result.turns + 1)
 
 class MarkovChain(State):
@@ -156,128 +160,25 @@ class AlphaBeta(State):
                 break
 
         if abs(value) == float("inf"):
-            raise Exception("Node has no children or value:", pState)
+            raise Exception("Tried to return infinite value. Either alpha > beta or node has no children:", pState)
 
         return value
 
-class BruteLoop(State):
-    @leafreturn
-    def result(self, maximizer=True, deps=None, states=None, storage=None):
-        """Modified brute force solution for a situation where a game can loop in on itself.
-        example - chopsticks.
-        Note - This method is not guerenteed to work.
-        Note - Should be implemented as a special algorithm for chopsticks and not included release.
-        """
-        pState = self.pState()
-        if pState not in storage:
-            storage[pState] = None
-            substates, results = [], []
-            for child, entry in self.substates():
-                substates.append(child)
-                results.append(child.result(not maximizer, deps=deps, states=states, storage=storage))
-
-            best = (max if maximizer else min)(results, key=lambda x: 0 if x is None else x)
-
-            if best is None:
-                # If value is not found record dependencies and return None
-                states[pState] = self
-                for s, r in zip(substates, results):
-                    if r is None:
-                        child_pState = s.pState()
-                        if child_pState not in deps:
-                            deps[child_pState] = set()
-
-                        deps[child_pState].add(pState)
-
-            else:
-                # If value is found reprocess dependant nodes.
-                storage[pState] = best
-
-                for i in deps.get(pState, []):
-                    states[i].result(not maximizer, deps=deps, states=states, storage=storage)
-
-                deps.pop(pState, None)
-
-        return storage[pState]
-
 #---------------------------------------------------
-#   Monty Carlo / Not currently Instance subclass  -
+#                   Monty Carlo                    -
 #---------------------------------------------------
-class AlphaMontyCarlo():
-    def __init__(self, state, entry=None, prior=None):
-        self.state = state
-        self.children = None
-        self.v = 0
-        self.n = 0
-        self.prior = prior
-        self.entry = entry
-
-    def substates(self, state, time=1):
-        """Iterate over substates to a state."""
-        stateNew = None
-        for move in self.legalMoves(state):
-            if stateNew is None:
-                stateNew = copy.copy(state)
-
-            if stateNew.castMove(*move[:3]):
-                stateNew.controlTime(time)
-                yield stateNew, move
-                stateNew = None
-
-    def result(self, maximizer=True, **kwargs):
-        if self.children is None:
-            value, policy = self.simulate(maximizer, **kwargs)
-            self.children = []
-            for child, entry in self.substates(self.state):
-                node = self.__class__(child, entry=entry, prior=policy.get(entry[1], 0))
-                self.children.append(node)
-
-        else:
-            # selection
-            node = max(self.children, key=self.weight)
-            value = node.result(not maximizer, **kwargs)
-            value = 1 - value
-
-        self.v += value
-        self.n += 1
-        return self.v / self.n
-
-    def weight(self, child, c=1, p=0.5):
-        q = 1 - (child.v / child.n if child.n > 0 else p)
-        un = math.sqrt(self.n / (child.n + 1))
-        u = c * child.prior * un
-        return q + u
-
-    def simulate(self, maximizer=True):
-        raise NotImplementedError
-
-class MontyCarlo():
-    def __init__(self, state, entry=None, prior=None):
-        self.state = state
+class MontyCarlo(State):
+    def init(self, entry=None):
         self.children = None
         self.v = 0
         self.n = 0
         self.entry = entry
-
-    def substates(self, state, time=1):
-        """Iterate over substates to a state."""
-        stateNew = None
-        for move in self.legalMoves(state):
-            if stateNew is None:
-                stateNew = copy.copy(state)
-
-            if stateNew.castMove(*move[:3]):
-                stateNew.controlTime(time)
-                yield stateNew, move
-                stateNew = None
+        return self
 
     def result(self, maximizer=True, **kwargs):
         if self.children is None:
-            value = self.simulate(maximizer, **kwargs)
-            self.children = []
-            for child, entry in self.substates(self.state):
-                node = self.__class__(child, entry=entry)
-                self.children.append(node)
+            value, *args = self.simulate(maximizer, **kwargs)
+            self.children = [c.init(e, *args) for c, e in self.substates()]
 
         else:
             # selection
@@ -297,5 +198,32 @@ class MontyCarlo():
         un = math.sqrt(math.log(self.n) / child.n)
         return q + (c * un)
 
+    def think(self, think_time, verbose=True, **kwargs):
+        t_end = time.time() + think_time
+        iters = 0
+        while time.time() < t_end:
+            self.result(**kwargs)
+            iters +=1
+
+        if verbose:
+            print(f"processed {iters} new iterations")
+
+    def select(self, f=None):
+        if f is None:
+            f = (lambda x: x.n)
+
+        return max(self.children, key=f)
+
     def simulate(self, maximizer=True):
         raise NotImplementedError
+
+class AlphaMontyCarlo(MontyCarlo):
+    def init(self, entry=None, policy=None):
+        self.prior = None if policy is None else policy.get(entry[1], 0)
+        return super().init(entry)
+
+    def weight(self, child, c=1, p=0.5):
+        q = 1 - (child.v / child.n if child.n > 0 else p)
+        un = math.sqrt(self.n / (child.n + 1))
+        u = c * child.prior * un
+        return q + u
