@@ -3,46 +3,31 @@ import functools
 import math
 from .instance import Instance
 
-class MutableInt:
-    def __init__(self):
-        self.value = 0
-
-    def inc(self):
-        self.value +=1
-
-    def __str__(self):
-        return str(self.value)
-
-def countrecursion(f):
+def countrecursion(f=None, verbose=False):
     """Function decorator, prints how many times a function calls itself."""
-    def wrapper(*args, times=None, **kwargs):
-        p = False
-        if times is None:
-            times = MutableInt()
-            p = True
-
-        times.inc()
-        r = f(*args, times=times, **kwargs)
-        if p:
-            print("nodes visited:", times)
-        return r
-
-    return wrapper
-
-def prefill(arguments):
-    def outer(f):
+    time = 0
+    def count(f):
         @functools.wraps(f)
         def wrapper(*args, **kwargs):
-            for i in arguments:
-                if kwargs.get(i) is None:
-                    kwargs[i] = {}
+            if "verbose" in kwargs:
+                nonlocal verbose
+                verbose = kwargs.pop("verbose")
 
-            return f(*args, **kwargs)
-
+            nonlocal time
+            p = (time == 0)
+            time +=1
+            r = f(*args, **kwargs)
+            if p and verbose:
+                print("nodes visited:", time)
+            return r
         return wrapper
-    return outer
+
+    if f is None:
+        return count
+    return count(f)
 
 def leafreturn(f):
+    """Function decorator, imediatly returns if self.endState or self.value is not None."""
     @functools.wraps(f)
     def wrapper(self, *args, **kwargs):
         value = self.endState()
@@ -50,6 +35,32 @@ def leafreturn(f):
             return value
         return f(self, *args, **kwargs)
     return wrapper
+
+def udebs_cache(f=None, maxsize=128, storage=None):
+    """Function decorator, lru_cache handling Instance objects as str(Instance)."""
+    if storage is None:
+        storage = {}
+
+    def cache(f):
+        @functools.wraps(f)
+        def wrapper(self, *args, **kwargs):
+            if "storage" in kwargs:
+                nonlocal storage
+                storage = kwargs.pop("storage")
+
+            key = (self.pState(), *args)
+
+            if key in storage:
+                return storage[key]
+
+            storage[key] = f(self, *args, **kwargs)
+            return storage[key]
+
+        return wrapper
+
+    if f is None:
+        return cache
+    return cache(f)
 
 @functools.total_ordering
 class Result:
@@ -82,12 +93,12 @@ class State(Instance):
                 stateNew = copy.copy(self)
 
             if stateNew.castMove(*move[:3]):
-                stateNew.controlTime(time)
+                stateNew.controlTime(self.increment)
                 yield stateNew, move
                 stateNew = None
 
     def pState(self):
-        raise NotImplementedError
+        return str(self)
 
     def legalMoves(self):
         raise NotImplementedError
@@ -99,71 +110,63 @@ class State(Instance):
 #             Various Tree Search Aglorithms       -
 #---------------------------------------------------
 class BruteForce(State):
-    @prefill(["storage"])
+    @countrecursion
     @leafreturn
-    def result(self, maximizer=True, storage=None, **kwargs):
-        pState = self.pState()
-        if pState not in storage:
-            gen = (c.result(not maximizer, storage=storage, **kwargs) for c, e in self.substates())
-            result = (max if maximizer else min)(gen)
-            storage[pState] = Result(result.value, result.turns + 1)
-        return storage[pState]
+    @udebs_cache
+    def result(self, maximizer=True):
+        options = []
+        for child, _ in self.substates():
+            options.append(child.result(not maximizer))
+
+        result = (max if mximizer else min)(options)
+        return Result(result.value, result.turns + 1)
 
 class MarkovChain(State):
-    @prefill(["storage"])
+    @countrecursion
     @leafreturn
-    def result(self, time=0, storage=None, **kwargs):
-        pState = self.pState()
-        if pState not in storage:
-            gen = (c.result(time, storage=storage, **kwargs) * p[3] for c, p in self.substates(time))
-            storage[pState] = sum(gen)
-        return storage[pState]
+    @udebs_cache
+    def result(self):
+        total = 0
+        for child, p in self.substates():
+            total += child.result() * p[3]
+
+        return total
 
 class AlphaBeta(State):
-    @prefill(["storage", "partial"])
+    @countrecursion
     @leafreturn
-    def result(self, maximizer=True, alpha=-1, beta=1, time=1, storage=None, partial=None, **kwargs):
-        pState = self.pState()
-        if pState not in storage:
+    @udebs_cache
+    def result(self, maximizer=True, alpha=-float("inf"), beta=float("inf")):
+        value = -float("inf") if maximizer else float("inf")
+        for child, e in self.substates():
+            result = child.result(not maximizer, alpha, beta)
 
-            label = beta if maximizer else alpha
-            if partial.get(pState, {}).get(label, None) is not None:
-                return partial[pState][label]
+            if maximizer:
+                if result > value:
+                    value = result
+                    if result > alpha:
+                        alpha = result
+            else:
+                if result < value:
+                    value = result
+                    if result < beta:
+                        beta = result
 
-            value = -float("inf") if maximizer else float("inf")
-            for child, e in self.substates(time=time):
-                result = child.result(not maximizer, alpha, beta, time, storage=storage, partial=partial, **kwargs)
+            if alpha >= beta:
+                break
 
-                if maximizer:
-                    if result > value:
-                        value = result
-                        if result > alpha:
-                            alpha = result
-                else:
-                    if result < value:
-                        value = result
-                        if result < beta:
-                            beta = result
+        if abs(value) == float("inf"):
+            raise Exception("Node has no children or value:", pState)
 
-                if alpha >= beta:
-                    if pState not in partial:
-                        partial[pState] = {}
-
-                    partial[pState][label] = value
-
-                    return value
-
-            storage[pState] = value
-
-        return storage[pState]
+        return value
 
 class BruteLoop(State):
-    @prefill(["deps", "states", "storage"])
     @leafreturn
-    def result(self, maximizer=True, deps=None, states=None, storage=None, **kwargs):
+    def result(self, maximizer=True, deps=None, states=None, storage=None):
         """Modified brute force solution for a situation where a game can loop in on itself.
         example - chopsticks.
         Note - This method is not guerenteed to work.
+        Note - Should be implemented as a special algorithm for chopsticks and not included release.
         """
         pState = self.pState()
         if pState not in storage:
@@ -171,7 +174,7 @@ class BruteLoop(State):
             substates, results = [], []
             for child, entry in self.substates():
                 substates.append(child)
-                results.append(child.result(not maximizer, deps=deps, states=states, storage=storage, **kwargs))
+                results.append(child.result(not maximizer, deps=deps, states=states, storage=storage))
 
             best = (max if maximizer else min)(results, key=lambda x: 0 if x is None else x)
 
@@ -191,7 +194,7 @@ class BruteLoop(State):
                 storage[pState] = best
 
                 for i in deps.get(pState, []):
-                    states[i].result(not maximizer, deps=deps, states=states, storage=storage, **kwargs)
+                    states[i].result(not maximizer, deps=deps, states=states, storage=storage)
 
                 deps.pop(pState, None)
 
