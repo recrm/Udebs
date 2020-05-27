@@ -3,6 +3,29 @@ import math
 import time
 from .instance import Instance
 
+def modifystate(state, entities={}, logging=True, revert=True):
+    clone = state.copy()
+    if logging:
+        clone.logging=True
+
+    if revert:
+        clone.revert = 0
+        clone.state = False
+
+    if entities is not None:
+        for key, value in entities.items():
+            new = state[key].copy(clone)
+
+            if "group" in value:
+                new.group = value["group"]
+
+            if "immutable" in value:
+                new.immutable = value["immutable"]
+
+            clone[key] = new
+
+    return clone
+
 def countrecursion(f=None, verbose=True):
     """Function decorator, prints how many times a function calls itself."""
     time = 0
@@ -19,6 +42,7 @@ def countrecursion(f=None, verbose=True):
             r = f(*args, **kwargs)
             if p and verbose:
                 print("nodes visited:", time)
+                time = 0
             return r
         return wrapper
 
@@ -26,17 +50,7 @@ def countrecursion(f=None, verbose=True):
         return count
     return count(f)
 
-def leafreturn(f):
-    """Function decorator, imediatly returns if self.endState or self.value is not None."""
-    @functools.wraps(f)
-    def wrapper(self, *args, **kwargs):
-        value = self.endState()
-        if value is not None:
-            return value
-        return f(self, *args, **kwargs)
-    return wrapper
-
-def udebs_cache(f=None, maxsize=128, storage=None):
+def cache(f=None, maxsize=128, storage=None):
     """Function decorator, lru_cache handling Instance objects as str(Instance)."""
     if storage is None:
         storage = {}
@@ -89,13 +103,16 @@ class State(Instance):
         """Iterate over substates to a state."""
         stateNew = None
         for move in self.legalMoves():
-            if stateNew is None:
-                stateNew = self.copy(revert=0, logging=False)
+            if isinstance(move, tuple):
+                if stateNew is None:
+                    stateNew = self.copy()
 
-            if stateNew.castMove(*move[:3]):
-                stateNew.controlTime(self.increment)
-                yield stateNew, move
-                stateNew = None
+                if stateNew.castMove(*move[:3]):
+                    stateNew.controlTime(self.increment)
+                    yield stateNew, move
+                    stateNew = None
+            else:
+                yield move, move
 
     def pState(self):
         return str(self)
@@ -111,17 +128,24 @@ class State(Instance):
 #---------------------------------------------------
 class NegaMax(State):
     @countrecursion
-    @udebs_cache
+    @cache
     def result(self):
         value = self.endState()
         if value is not None:
             return -1
 
-        return max(-c.result() for c, _ in self.substates())
+        results = []
+        for child, e in self.substates():
+            if child is e:
+                results.append(child)
+            else:
+                results.append(-child.result())
+
+        return max(results)
 
 class NegaAlphaBeta(State):
     @countrecursion
-    @udebs_cache
+    @cache
     def result(self, alpha=-float("inf"), beta=float("inf")):
         value = self.endState()
         if value is not None:
@@ -129,7 +153,10 @@ class NegaAlphaBeta(State):
 
         value = -float("inf")
         for child, e in self.substates():
-            result = -child.result(-beta, -alpha)
+            if child is e:
+                result = child
+            else:
+                result = -child.negamax(-beta, -alpha)
 
             if result > value:
                 value = result
@@ -146,7 +173,7 @@ class NegaAlphaBeta(State):
 
 class BruteForce(State):
     @countrecursion
-    @udebs_cache
+    @cache
     def result(self, maximizer=True):
         value = self.endState()
         if value is not None:
@@ -161,9 +188,12 @@ class BruteForce(State):
 
 class MarkovChain(State):
     @countrecursion
-    @leafreturn
-    @udebs_cache
+    @cache
     def result(self):
+        value = self.endState()
+        if value is not None:
+            return value
+
         total = 0
         for child, p in self.substates():
             total += child.result() * p[3]
@@ -172,9 +202,12 @@ class MarkovChain(State):
 
 class AlphaBeta(State):
     @countrecursion
-    @leafreturn
-    @udebs_cache
+    @cache
     def result(self, maximizer=True, alpha=-float("inf"), beta=float("inf")):
+        value = self.endState()
+        if value is not None:
+            return value
+
         value = -float("inf") if maximizer else float("inf")
         for child, e in self.substates():
             result = child.result(not maximizer, alpha, beta)
