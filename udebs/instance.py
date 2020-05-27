@@ -96,7 +96,7 @@ class Instance(dict):
     def __copy__(self):
         return self.copy()
 
-    def copy(self, new=None, logging=None, revert=None):
+    def copy(self, new=None):
         if new is None:
             new = type(self)(True)
 
@@ -129,16 +129,7 @@ class Instance(dict):
                 "script": delay["script"],
             })
 
-        if logging is not None:
-            new.logging = logging
-
-        if revert is not None:
-            new.revert = revert
-
-        if new.revert:
-            new.state = copy(self.state)
-        else:
-            new.state = False
+        new.state = copy(self.state)
 
         return new
 
