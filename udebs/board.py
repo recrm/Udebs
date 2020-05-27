@@ -78,6 +78,9 @@ class Board(MutableMapping):
         return "<board: "+self.name+">"
 
     def __copy__(self):
+        return self.copy()
+
+    def copy(self):
         return Board(name=self.name, empty=self.empty, type=self.type, dim=[i[:] for i in self.map])
 
     @property
