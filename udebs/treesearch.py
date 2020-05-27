@@ -1,4 +1,3 @@
-import copy
 import functools
 import math
 import time
@@ -86,12 +85,12 @@ class Result:
         return self.value
 
 class State(Instance):
-    def substates(self, time=1):
+    def substates(self):
         """Iterate over substates to a state."""
         stateNew = None
         for move in self.legalMoves():
             if stateNew is None:
-                stateNew = copy.copy(self)
+                stateNew = self.copy(revert=0, logging=False)
 
             if stateNew.castMove(*move[:3]):
                 stateNew.controlTime(self.increment)
@@ -110,6 +109,41 @@ class State(Instance):
 #---------------------------------------------------
 #             Various Tree Search Aglorithms       -
 #---------------------------------------------------
+class NegaMax(State):
+    @countrecursion
+    @udebs_cache
+    def result(self):
+        value = self.endState()
+        if value is not None:
+            return -1
+
+        return max(-c.result() for c, _ in self.substates())
+
+class NegaAlphaBeta(State):
+    @countrecursion
+    @udebs_cache
+    def result(self, alpha=-float("inf"), beta=float("inf")):
+        value = self.endState()
+        if value is not None:
+            return -1
+
+        value = -float("inf")
+        for child, e in self.substates():
+            result = -child.result(-beta, -alpha)
+
+            if result > value:
+                value = result
+                if result > alpha:
+                    alpha = result
+
+            if alpha >= beta:
+                break
+
+        if value == -float("inf"):
+            raise Exception("Tried to return infinite value. Either alpha > beta or node has no children:", pState)
+
+        return value
+
 class BruteForce(State):
     @countrecursion
     @udebs_cache
