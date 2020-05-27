@@ -1,8 +1,8 @@
 from random import Random
-from copy import copy
 from itertools import product, chain
 from logging import info
 from collections import deque
+from copy import copy
 
 from .interpret import Script, UdebsStr, _getEnv
 from .board import Board
@@ -96,7 +96,7 @@ class Instance(dict):
     def __copy__(self):
         return self.copy()
 
-    def copy(self, new=None):
+    def copy(self, new=None, logging=None, revert=None):
         if new is None:
             new = type(self)(True)
 
@@ -114,7 +114,7 @@ class Instance(dict):
         # Handle maps
         new.map = {}
         for name, map_ in self.map.items():
-            new.map[name] = copy(map_)
+            new.map[name] = map_.copy()
 
         # Handle delays
         new.delay = []
@@ -129,7 +129,16 @@ class Instance(dict):
                 "script": delay["script"],
             })
 
-        new.state = copy(self.state)
+        if logging is not None:
+            new.logging = logging
+
+        if revert is not None:
+            new.revert = revert
+
+        if new.revert:
+            new.state = copy(self.state)
+        else:
+            new.state = False
 
         return new
 
@@ -292,7 +301,7 @@ class Instance(dict):
 
             #Append new version to state.
             if self.state:
-                self.state.append(copy(self))
+                self.state.append(self.copy())
 
         return self.cont
 
@@ -307,7 +316,7 @@ class Instance(dict):
             main_map.getRevert(5)
         """
 
-        new_states = copy(self.state)
+        new_states = self.state.copy()
         if self.state:
             for i in range(time + 1):
                 try:
@@ -316,7 +325,7 @@ class Instance(dict):
                     return False
 
             new.state = new_states
-            new.state.append(copy(new))
+            new.state.append(new.copy())
             return new
 
     def controlDelay(self, callback, time, storage):
@@ -358,7 +367,7 @@ class Instance(dict):
         move = self.getEntity(move)
 
         #create test instance
-        clone = copy(self)
+        clone = self.copy()
         clone.revert = 0
         clone.logging=False
 
@@ -999,4 +1008,4 @@ class Instance(dict):
 
         if self.state:
             self.state.clear()
-            self.state.append(copy(self))
+            self.state.append(self.copy())
