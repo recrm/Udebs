@@ -46,12 +46,8 @@ game_config = f"""
 
     <player />
 
-    <w>
-        <STONE>o</STONE>
-    </w>
-    <b>
-        <STONE>*</STONE>
-    </b>
+    <w><STONE>o</STONE></w>
+    <b><STONE>*</STONE></b>
 
     <white immutable="False">
         <STONE>w</STONE>
@@ -85,37 +81,45 @@ game_config = f"""
         </effect>
     </init>
 
-    <tick>
-        <effect>ALL.player ACT += 1</effect>
-    </tick>
-
-    <same>
-        <require>$target.NAME == $caster.NAME</require>
-    </same>
+    <turn>
+        <require>$caster.STAT.ACT &gt;= 2</require>
+        <effect>
+            <i>$caster ACT -= 2</i>
+            <i>ALL.player ACT += 1</i>
+        </effect>
+    </turn>
 
     <checkwin>
-        <require>PATH same</require>
+        <effect>CAST $target win</effect>
+    </checkwin>
+
+    <win>
+        <require>PATH `($target.NAME == $caster.NAME) $caster.STAT.walla $caster.STAT.wallb</require>
         <effect>
             <i>print game over</i>
             <i>EXIT $caster.NAME</i>
         </effect>
-    </checkwin>
+    </win>
+
+    <place>
+        <require>$target.NAME == empty</require>
+        <effect>$caster.STAT.STONE MOVE $target</effect>
+    </place>
 
     <placement>
-        <require>
-            <i>$target.NAME == empty</i>
-            <i>$caster.STAT.ACT &gt;= 2</i>
-        </require>
-        <effect>
-            <i>$caster.STAT.STONE MOVE $target</i>
-            <i>$caster ACT -= 2</i>
-        </effect>
+        <group>
+            <i>place</i>
+            <i>turn</i>
+            <i>checkwin</i>
+        </group>
     </placement>
 
-    <safeplacement>
-        <group>placement</group>
-        <effect>DELAY `($caster.STAT.walla CAST $caster.STAT.wallb checkwin) 0</effect>
-    </safeplacement>
+    <ai>
+        <require>
+            <i>loc = (Cplayer)</i>
+            <i>CAST $loc placement</i>
+        </require>
+    </ai>
 
 </entities>
 
@@ -167,18 +171,16 @@ class Hex(AlphaMontyCarlo):
         return wrapped
 
     def legalMoves(self):
-        _map = self.getMap()
-        player = "white" if self.getStat("white", "ACT") == 2 else "black"
-        for i,v in _map.items():
+        player = "white" if self.time % 2 == 0 else "black"
+        for i,v in self.getMap().items():
             if v == "empty":
                 if 0 not in i:
                     if hexes - 1 not in i:
-                        yield player, i, "placement"
+                        yield player, i, "place"
 
     #---------------------------------------------------
     #                    Solvers                       -
     #---------------------------------------------------
-    @leafreturn
     def simulate(self, white=True, iters=100):
         clone = self.copy()
         _map = clone.getMap()
@@ -189,36 +191,33 @@ class Hex(AlphaMontyCarlo):
         half = len(choices) / 2
 
         policy = Counter()
-        games = 0
-        bwins = 0
-        wwins = 0
-        for i in range(iters):
+        wins = 0
+        for games in range(1, iters + 1):
+            # Play out a random game
             clone.rand.shuffle(choices)
             for i, loc in enumerate(choices):
                 _map[loc] = "w" if i <= half else "b"
 
-            games +=1
+            # detect who won and record winning path
             path = _map.getPath(self.wwalla, self.wwallb, sort=wshuffle)
             if not path:
                 path = _map.getPath(self.bwalla, self.bwallb, sort=bshuffle)
-                bwins +=1
+                if not white:
+                    wins +=1
             else:
-                wwins +=1
+                if white:
+                    wins +=1
 
             policy.update(path)
 
-        wins = wwins if white else bwins
-
         total = sum(policy.values())
-
         return wins / games, {i: v / total for i,v in policy.items()}
 
 class Cplayer():
-    def __init__(self, *args, iters=100, think_time=30, **kwargs):
+    def __init__(self, iters=100, think_time=30):
         self.tree = None
         self.iters = iters
         self.think_time = think_time
-        super().__init__(*args, **kwargs)
 
     def __call__(self, state):
         # Check for reusable portions of previous trees.
@@ -235,13 +234,14 @@ class Cplayer():
         selector = (lambda x: (x.n, x.prior))
 
         # Print out some useful data
+        print("loc", "n_searches", "prior", "weight")
         test = sorted(self.tree.children, key=selector, reverse=True)
         for i in test[:10]:
             if i.n > 0:
-                print(i.entry[1], i.prior, i.n, 1 - (i.v / i.n))
+                print(i.entry[1], i.n, round(i.prior, 3), round(1 - (i.v / i.n), 3))
 
         # select a node
-        self.tree = self.tree.select(lambda x: (x.n, x.prior))
+        self.tree = self.tree.select(selector)
 
         # return location
         return self.tree.entry[1]
@@ -272,7 +272,7 @@ if __name__ == "__main__":
 
     #Setup udebs
     comp = Cplayer(iters=100, think_time=think_time)
-    udebs.register(comp, ["self"], name="HEX")
+    udebs.register(comp, ["self"], name="Cplayer")
     main_map = udebs.battleStart(game_config)
 
     #game loop
@@ -294,14 +294,14 @@ if __name__ == "__main__":
                         break
 
         if player == "computer":
-            print("computer is moving")
-            if main_map.castMove("black", comp(main_map), "safeplacement"):
+            print("computer is thinking")
+            if main_map.castAction("black", "ai"):
                 main_map.controlTime()
                 eventUpdate(main_map, mainSurface, mainFont)
                 player = "human"
 
         elif player == "human" and loc:
-            if main_map.castMove("white", (x,y), 'safeplacement'):
+            if main_map.castMove("white", (x,y), 'placement'):
                 main_map.controlTime()
                 eventUpdate(main_map, mainSurface, mainFont)
                 player = "computer"

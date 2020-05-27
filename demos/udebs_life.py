@@ -146,7 +146,7 @@ if __name__ == "__main__":
     mainClock = pygame.time.Clock()
 
     #game loop
-    for main_map in field.gameLoop(1):
+    for main_map in field.gameLoop():
         redrawBoard(surface, ts)
         mainClock.tick(10)
 
