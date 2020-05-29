@@ -2,6 +2,7 @@ import functools
 import math
 import time
 from .instance import Instance
+from collections import OrderedDict
 
 def modifystate(state, entities={}, logging=True, revert=True):
     clone = state.copy()
@@ -50,12 +51,13 @@ def countrecursion(f=None, verbose=True):
         return count
     return count(f)
 
-def cache(f=None, maxsize=128, storage=None):
+def cache(f=None, maxsize=None, storage=None):
     """Function decorator, lru_cache handling Instance objects as str(Instance)."""
-    if storage is None:
-        storage = {}
+    if maxsize is None:
+        maxsize = float("inf")
 
-    cache_get = storage.get
+    if storage is None:
+        storage = OrderedDict()
 
     def cache(f):
         @functools.wraps(f)
@@ -63,13 +65,17 @@ def cache(f=None, maxsize=128, storage=None):
             if "storage" in kwargs:
                 nonlocal storage, cache_get
                 storage = kwargs.pop("storage")
-                cache_get = storage.get
 
-            key = (self.pState(), *args)
-            value = cache_get(key, None)
+            key = hash((self.pState(), *args))
+            value = storage.get(key, None)
             if value is None:
                 value = f(self, *args, **kwargs)
                 storage[key] = value
+            else:
+                storage.move_to_end(key)
+
+            while (storage.__len__() > maxsize):
+                storage.popitem(False)
 
             return value
 
