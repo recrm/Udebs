@@ -63,7 +63,7 @@ def cache(f=None, maxsize=None, storage=None):
         @functools.wraps(f)
         def wrapper(self, *args, **kwargs):
             if "storage" in kwargs:
-                nonlocal storage, cache_get
+                nonlocal storage
                 storage = kwargs.pop("storage")
 
             key = hash((self.pState(), *args))
