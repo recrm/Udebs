@@ -14,7 +14,7 @@ def modifystate(state, entities={}, logging=True, revert=True):
 
     if entities is not None:
         for key, value in entities.items():
-            new = state[key].copy(clone)
+            new = state[key].copy()
 
             if "group" in value:
                 new.group = value["group"]
@@ -55,20 +55,23 @@ def cache(f=None, maxsize=128, storage=None):
     if storage is None:
         storage = {}
 
+    cache_get = storage.get
+
     def cache(f):
         @functools.wraps(f)
         def wrapper(self, *args, **kwargs):
             if "storage" in kwargs:
-                nonlocal storage
+                nonlocal storage, cache_get
                 storage = kwargs.pop("storage")
+                cache_get = storage.get
 
             key = (self.pState(), *args)
+            value = cache_get(key, None)
+            if value is None:
+                value = f(self, *args, **kwargs)
+                storage[key] = value
 
-            if key in storage:
-                return storage[key]
-
-            storage[key] = f(self, *args, **kwargs)
-            return storage[key]
+            return value
 
         return wrapper
 
@@ -99,10 +102,14 @@ class Result:
         return self.value
 
 class State(Instance):
-    def substates(self):
+    def substates(self, override=None):
         """Iterate over substates to a state."""
         stateNew = None
-        for move in self.legalMoves():
+        moves = override
+        if moves is None:
+            moves = self.legalMoves()
+
+        for move in moves:
             if isinstance(move, tuple):
                 if stateNew is None:
                     stateNew = self.copy()
@@ -126,7 +133,7 @@ class State(Instance):
 #---------------------------------------------------
 #             Various Tree Search Aglorithms       -
 #---------------------------------------------------
-class NegaMax(State):
+class BruteForce(State):
     @countrecursion
     @cache
     def result(self):
@@ -143,7 +150,7 @@ class NegaMax(State):
 
         return max(results)
 
-class NegaAlphaBeta(State):
+class AlphaBeta(State):
     @countrecursion
     @cache
     def result(self, alpha=-float("inf"), beta=float("inf")):
@@ -171,21 +178,6 @@ class NegaAlphaBeta(State):
 
         return value
 
-class BruteForce(State):
-    @countrecursion
-    @cache
-    def result(self, maximizer=True):
-        value = self.endState()
-        if value is not None:
-            return Result(value, 0)
-
-        options = []
-        for child, _ in self.substates():
-            options.append(child.result(not maximizer))
-
-        result = (max if maximizer else min)(options)
-        return Result(result.value, result.turns + 1)
-
 class MarkovChain(State):
     @countrecursion
     @cache
@@ -199,37 +191,6 @@ class MarkovChain(State):
             total += child.result() * p[3]
 
         return total
-
-class AlphaBeta(State):
-    @countrecursion
-    @cache
-    def result(self, maximizer=True, alpha=-float("inf"), beta=float("inf")):
-        value = self.endState()
-        if value is not None:
-            return value
-
-        value = -float("inf") if maximizer else float("inf")
-        for child, e in self.substates():
-            result = child.result(not maximizer, alpha, beta)
-
-            if maximizer:
-                if result > value:
-                    value = result
-                    if result > alpha:
-                        alpha = result
-            else:
-                if result < value:
-                    value = result
-                    if result < beta:
-                        beta = result
-
-            if alpha >= beta:
-                break
-
-        if abs(value) == float("inf"):
-            raise Exception("Tried to return infinite value. Either alpha > beta or node has no children:", pState)
-
-        return value
 
 #---------------------------------------------------
 #                   Monty Carlo                    -
