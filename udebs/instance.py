@@ -109,7 +109,7 @@ class Instance(dict):
             if entity.immutable:
                 new[name] = entity
             else:
-                new[name] = entity.copy(new)
+                new[name] = entity.copy()
 
         # Handle maps
         new.map = {}
@@ -216,7 +216,7 @@ class Instance(dict):
         if not unit.loc:
             if len(target) < 3:
                 target = (*target, map_.name)
-            unit = unit.copy(self, loc=target)
+            unit = unit.copy(loc=target)
 
         return unit
 

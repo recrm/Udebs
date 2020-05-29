@@ -59,7 +59,7 @@ class Entity():
     #---------------------------------------------------
     #                Clone Functions                   -
     #---------------------------------------------------
-    def copy(self, field, **kwargs):
+    def copy(self, **kwargs):
         """The dependency on field prevents me from doing this as __copy__"""
 
         for k, v in self.__dict__.items():
@@ -68,7 +68,7 @@ class Entity():
                     v = v[:]
                 kwargs[k] = v
 
-        return Entity(field, _data=kwargs)
+        return Entity(None, _data=kwargs)
 
     def controlClone(self, instance):
         """Returns a clone of self."""
