@@ -27,29 +27,20 @@ def modifystate(state, entities={}, logging=True, revert=True):
 
     return clone
 
-def countrecursion(f=None, verbose=True):
+def countrecursion(f):
     """Function decorator, prints how many times a function calls itself."""
     time = 0
-    def count(f):
-        @functools.wraps(f)
-        def wrapper(*args, **kwargs):
-            if "verbose" in kwargs:
-                nonlocal verbose
-                verbose = kwargs.pop("verbose")
-
-            nonlocal time
-            p = (time == 0)
-            time +=1
-            r = f(*args, **kwargs)
-            if p and verbose:
-                print("nodes visited:", time)
-                time = 0
-            return r
-        return wrapper
-
-    if f is None:
-        return count
-    return count(f)
+    @functools.wraps(f)
+    def wrapper(*args, **kwargs):
+        nonlocal time
+        p = (time == 0)
+        time +=1
+        r = f(*args, **kwargs)
+        if p:
+            print("nodes visited:", time)
+            time = 0
+        return r
+    return wrapper
 
 def cache(f=None, maxsize=None, storage=None):
     """Function decorator, lru_cache handling Instance objects as str(Instance)."""
@@ -66,7 +57,7 @@ def cache(f=None, maxsize=None, storage=None):
                 nonlocal storage
                 storage = kwargs.pop("storage")
 
-            key = hash((self.pState(), *args))
+            key = (hash(self), *args)
             value = storage.get(key, None)
             if value is None:
                 value = f(self, *args, **kwargs)
@@ -127,8 +118,11 @@ class State(Instance):
             else:
                 yield move, move
 
-    def pState(self):
-        return str(self)
+    def __hash__(self):
+        raise NotImplementedError
+
+    def __str__(self):
+        raise NotImplementedError
 
     def legalMoves(self):
         raise NotImplementedError
@@ -145,7 +139,7 @@ class BruteForce(State):
     def result(self):
         value = self.endState()
         if value is not None:
-            return -1
+            return -abs(value)
 
         results = []
         for child, e in self.substates():
@@ -162,7 +156,7 @@ class AlphaBeta(State):
     def result(self, alpha=-float("inf"), beta=float("inf")):
         value = self.endState()
         if value is not None:
-            return -1
+            return -abs(value)
 
         value = -float("inf")
         for child, e in self.substates():
@@ -180,7 +174,7 @@ class AlphaBeta(State):
                 break
 
         if value == -float("inf"):
-            raise Exception("Tried to return infinite value. Either alpha > beta or node has no children:", pState)
+            raise Exception("Tried to return infinite value. Either alpha > beta or node has no children:", str(self))
 
         return value
 
