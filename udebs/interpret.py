@@ -542,12 +542,7 @@ class Script:
         return self.raw
 
     def __call__(self, env):
-        try:
-            return eval(self.code, env)
-        except UdebsError:
-            raise
-        except Exception:
-            raise UdebsExecutionError(self)
+        return eval(self.code, env)
 
     def __eq__(self, other):
         if not isinstance(other, Script):
