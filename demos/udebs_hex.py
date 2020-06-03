@@ -5,7 +5,7 @@ import itertools
 from collections import Counter
 
 import udebs
-from udebs.treesearch import AlphaMontyCarlo, leafreturn
+from udebs.treesearch import AlphaMontyCarlo
 
 try:
     import pygame

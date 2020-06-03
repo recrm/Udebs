@@ -107,58 +107,77 @@ class TicTacToe(BruteForce):
             if value == "empty":
                 yield player, loc, "placement"
 
-    def pState(self):
+    def hash(self):
         """Return an immutable representation of a game map."""
-        def rotate(matrix):
-            return tuple(zip(*matrix[::-1]))
+        mappings = {
+            "empty": "0",
+            "x": "1",
+            "o": "2"
+        }
 
-        def flip(matrix):
-            return tuple(reversed(matrix))
+        map_ = self.map["map"]
+        row = []
+        for x in range(map_.x):
+            buf = ''
+            for y in range(map_.y):
+                buf += mappings[map_[(x,y)]]
+            row.append(buf)
 
-        value = self.map["map"].map
+        sym_y = lambda x: list(reversed(x))
+        sym_90 = lambda x: ["".join(reversed(x)) for x in zip(*x)]
 
-        symetries = [tuple(tuple(i) for i in value)]
-        symetries.append(flip(symetries[0]))
+        syms = [row]
+        for i in range(3):
+            syms.append(sym_90(syms[-1]))
 
-        for i in range(6):
-            symetries.append(rotate(symetries[-2]))
+        syms.append(sym_y(syms[0]))
+        for i in range(3):
+            syms.append(sym_90(syms[-1]))
 
-        return frozenset(symetries)
+        return min(int("".join(i), 3) for i in syms)
 
-    def tree(self, debug=True):
+    @udebs.cache
+    @udebs.countrecursion
+    def result(self, maximizer=True):
+        value = self.endState()
+        if value is not None:
+            return udebs.Result(value, 0)
+
+        f = max if maximizer else min
+        result = f(c.result(not maximizer) for c, e in self.substates())
+        value, turns = result.value, result.turns + 1
+        return udebs.Result(value, turns)
+
+    def tree(self, maximizer=True):
         """Compile all results into a tree."""
         # If node is solvable return solution
-        if int(self.result()) != 0:
-            return self.result()
+        value = self.result(maximizer)
+        if int(value) != 0:
+            return value
 
         # Collect all possible outputs
         completed = set()
         storage = {}
         for substate, entry in self.substates():
-            if substate.pState() not in completed:
-                completed.add(substate.pState())
-                subresult = substate.tree(debug=False)
+            child_hash = substate.hash()
+            if child_hash not in completed:
+                completed.add(child_hash)
+                subresult = substate.tree(not maximizer)
 
                 # Remove any options that don't block oponents autowin.
                 if not isinstance(subresult, dict):
                     if subresult.turns == 1:
                         continue
 
-                storage[entryName(entry)] = subresult
+                name = f"{entry[0][0]}_{entry[1][0]}_{entry[1][1]}"
+                storage[name] = subresult
 
         # Flatten inevitable ties
         for k, v in storage.items():
             if isinstance(v, dict) or int(v) != 0:
                 return storage
         else:
-            return self.result()
-
-def entryName(entry):
-    if entry is not None:
-        player, (x, y, _), _ = entry
-        return player[0] + "_" + str(x) + "_" + str(y)
-
-    return "root"
+            return value
 
 def deserialize(node):
     if isinstance(node, dict):
@@ -169,16 +188,9 @@ if __name__ == "__main__":
     # Create state analysis engine
     game = udebs.battleStart(game_config, field=TicTacToe())
 
-    storage = {}
-
     with udebs.Timer():
-        final = game.result(storage=storage)
-
-    print("final", final.value, final.turns)
-    print("states checked", len(storage))
-
-    tree = deserialize(game.tree())
+        tree = game.tree()
 
     # Save tree
     with open("tictactoe.json", "w+") as f:
-        json.dump(tree, f)
+        json.dump(deserialize(tree), f)
