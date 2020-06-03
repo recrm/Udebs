@@ -70,11 +70,11 @@ class Entity():
 
         return Entity(None, _data=kwargs)
 
-    def controlClone(self, instance):
+    def clone(self):
         """Returns a clone of self."""
         #Set name of new
         self.increment +=1
         name = self.name + str(self.increment)
 
         #Create new
-        return self.copy(instance, name=name, increment=0)
+        return self.copy(name=name, increment=0)

@@ -5,6 +5,7 @@ from .instance import Instance
 from collections import OrderedDict
 
 def modifystate(state, entities={}, logging=True, revert=True):
+    """Experimental: Creates a copy of an Instance object with modifications designed for improved treesearch."""
     clone = state.copy()
     if logging:
         clone.logging=True
@@ -53,11 +54,7 @@ def cache(f=None, maxsize=None, storage=None):
     def cache(f):
         @functools.wraps(f)
         def wrapper(self, *args, **kwargs):
-            if "storage" in kwargs:
-                nonlocal storage
-                storage = kwargs.pop("storage")
-
-            key = (hash(self), *args)
+            key = (self.hash(), *args)
             value = storage.get(key, None)
             if value is None:
                 value = f(self, *args, **kwargs)
@@ -78,6 +75,7 @@ def cache(f=None, maxsize=None, storage=None):
 
 @functools.total_ordering
 class Result:
+    """Experimental: Object for handling gt and lt relationships when counting turns to victory."""
     def __init__(self, value, turns):
         self.value = value
         self.turns = turns
@@ -99,8 +97,13 @@ class Result:
         return self.value
 
 class State(Instance):
+    """Base class for all tree search algorithms."""
     def substates(self, override=None):
-        """Iterate over substates to a state."""
+        """Iterate over substates to a state.
+
+        yields a tuple, (child instance, action tuple)
+        if the legalMoves iterator yielded something other than a tuple. This method will yield just that object for both values.
+        """
         stateNew = None
         moves = override
         if moves is None:
@@ -118,23 +121,26 @@ class State(Instance):
             else:
                 yield move, move
 
-    def __hash__(self):
+    def hash(self):
+        """Implement this function if you plan on using treesearch.cache"""
         raise NotImplementedError
 
     def __str__(self):
         raise NotImplementedError
 
     def legalMoves(self):
+        """This function must be implemented. Iterate over all (caster, target, move) tuples that are valid children of current node."""
         raise NotImplementedError
 
     def endState(self):
+        """Example implementations use this function to fetch a states leaf value."""
         return self.value
 
 #---------------------------------------------------
 #             Various Tree Search Aglorithms       -
 #---------------------------------------------------
 class BruteForce(State):
-    @countrecursion
+    """Example implementation of a brute force minimax solver."""
     @cache
     def result(self):
         value = self.endState()
@@ -143,43 +149,37 @@ class BruteForce(State):
 
         results = []
         for child, e in self.substates():
-            if child is e:
-                results.append(child)
-            else:
-                results.append(-child.result())
+            if child is not e:
+                child = child.result()
+
+            results.append(-child)
 
         return max(results)
 
 class AlphaBeta(State):
-    @countrecursion
+    """Example implementation of an alphabeta minimax solver."""
     @cache
     def result(self, alpha=-float("inf"), beta=float("inf")):
         value = self.endState()
         if value is not None:
             return -abs(value)
 
-        value = -float("inf")
         for child, e in self.substates():
-            if child is e:
-                result = child
-            else:
-                result = -child.negamax(-beta, -alpha)
+            if child is not e:
+                child = child.result(-beta, -alpha)
 
-            if result > value:
-                value = result
-                if result > alpha:
-                    alpha = result
+            result = -child
+
+            if result > alpha:
+                alpha = result
 
             if alpha >= beta:
                 break
 
-        if value == -float("inf"):
-            raise Exception("Tried to return infinite value. Either alpha > beta or node has no children:", str(self))
-
-        return value
+        return alpha
 
 class MarkovChain(State):
-    @countrecursion
+    """Example implementation of a markov chain calculator."""
     @cache
     def result(self):
         value = self.endState()
@@ -196,6 +196,7 @@ class MarkovChain(State):
 #                   Monty Carlo                    -
 #---------------------------------------------------
 class MontyCarlo(State):
+    """Experimental: Example implementation of a Monty Carlo treesearch algorithm."""
     def init(self, entry=None):
         self.children = None
         self.v = 0
@@ -246,6 +247,7 @@ class MontyCarlo(State):
         raise NotImplementedError
 
 class AlphaMontyCarlo(MontyCarlo):
+    """Experimental: Alpha Zero inspired variant of MontyCarlo treesearch."""
     def init(self, entry=None, policy=None):
         self.prior = None if policy is None else policy.get(entry[1], 0)
         return super().init(entry)

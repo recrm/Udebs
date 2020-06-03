@@ -730,7 +730,7 @@ class Instance(dict):
         new = target
         for position in positions if isinstance(positions, list) else [positions]:
             if not target.immutable:
-                new = target.controlClone(self)
+                new = target.clone()
                 self[new.name] = new
                 if self.logging:
                     info(f"{new} has been recruited")
