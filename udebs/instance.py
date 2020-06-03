@@ -968,7 +968,7 @@ class Instance(dict):
             <i>EXIT</i>
         """
         if self.logging:
-            info("Exit requested")
+            info("Exit requested with value of: {}".format(value))
         self.cont = False
         self.value = value
 
