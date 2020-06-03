@@ -117,9 +117,9 @@ class TicTacToe(BruteForce):
 
         map_ = self.map["map"]
         row = []
-        for x in range(map_.x):
+        for y in range(map_.y):
             buf = ''
-            for y in range(map_.y):
+            for x in range(map_.x):
                 buf += mappings[map_[(x,y)]]
             row.append(buf)
 
