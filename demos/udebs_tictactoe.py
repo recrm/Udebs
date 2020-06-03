@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 import udebs
 import json
-from udebs.treesearch import BruteForce
+from udebs.treesearch import State
 
 game_config = """
 <udebs>
@@ -99,7 +99,7 @@ def ENDSTATE(state):
     if tie:
         return 0
 
-class TicTacToe(BruteForce):
+class TicTacToe(State):
     def legalMoves(self):
         """Create a list of legal moves in current state space."""
         player = "xPlayer" if self.getStat("xPlayer", "ACT") == 2 else "oPlayer"
