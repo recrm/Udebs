@@ -30,8 +30,8 @@ class Board(MutableMapping):
         dim = options.get("dim", (1,1))
         if isinstance(dim, tuple):
             self.map = []
-            for e in range(dim[0]):
-                self.map.append([self.empty for i in range(dim[1])])
+            for e in range(dim[1]):
+                self.map.append([self.empty for i in range(dim[0])])
 
         elif isinstance(dim, list):
             self.map = dim
@@ -47,22 +47,25 @@ class Board(MutableMapping):
         return False
 
     def __getitem__(self, key):
-        if key[0] >= 0:
-            if key[1] >= 0:
-                 return self.map[key[0]][key[1]]
+        x, y = key[0], key[1]
+        if x >= 0:
+            if y >= 0:
+                 return self.map[y][x]
         raise IndexError
 
     def __setitem__(self, key, value):
-        if key[0] >= 0:
-            if key[1] >= 0:
-                self.map[key[0]][key[1]] = value
+        x, y = key[0], key[1]
+        if x >= 0:
+            if y >= 0:
+                self.map[y][x] = value
                 return
         raise IndexError
 
     def __delitem__(self, key):
-        if key[0] >= 0:
-            if key[1] >= 0:
-                self.map[key[0]][key[1]] = self.empty
+        x, y = key[0], key[1]
+        if x >= 0:
+            if y >= 0:
+                self.map[y][x] = self.empty
                 return
         raise IndexError
 
@@ -70,8 +73,8 @@ class Board(MutableMapping):
         return self.x * self.y
 
     def __iter__(self):
-        for x in range(self.x):
-            for y in range(self.y):
+        for y in range(self.y):
+            for x in range(self.x):
                 yield (x, y, self.name)
 
     def __repr__(self):
@@ -84,37 +87,38 @@ class Board(MutableMapping):
         return Board(name=self.name, empty=self.empty, type=self.type, dim=[i[:] for i in self.map])
 
     @property
-    def x(self):
+    def y(self):
         return len(self.map)
 
     @property
-    def y(self):
-        if not hasattr(self, "_y"):
-            self._y = max([len(x) for x in self.map])
-        return self._y
+    def x(self):
+        if not hasattr(self, "_x"):
+            self._x = max([len(y) for y in self.map])
+        return self._x
 
     #---------------------------------------------------
     #                    Methods                       -
     #---------------------------------------------------
     def show(self):
         """Pretty prints a map."""
-        maxi = 0
-        for name in self.values():
-            if name != self.empty and len(str(name)) > maxi:
-                maxi = len(str(name))
+        try:
+            maxi = max(len(i) for i in self.values() if i != self.empty)
+        except ValueError:
+            maxi = 1
 
-        for y in range(self.y):
-            if self.type == "hex":
-                print(" " * y * maxi, end="")
+        row = 0
+        for (x,y,_), value in self.items():
+            if y != row:
+                row = y
+                print()
+                if self.type == "hex":
+                    print(" " * y * maxi, end="")
 
-            for x in range(self.x):
-                value = self[x,y]
-                if value == self.empty:
-                    value = "_"
+            if value == self.empty:
+                value = "_"
+            print(str(value).ljust(maxi), end=" ")
 
-                print(str(value).ljust(maxi), end=" ")
-
-            print()
+        print()
 
     def getDistance(self, one, two, method, **kwargs):
         """Returns distance between two locations.

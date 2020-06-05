@@ -32,7 +32,7 @@ def countrecursion(f):
     """Function decorator, prints how many times a function calls itself."""
     time = 0
     @functools.wraps(f)
-    def wrapper(*args, **kwargs):
+    def countrecursion_wrapper(*args, **kwargs):
         nonlocal time
         p = (time == 0)
         time +=1
@@ -41,7 +41,7 @@ def countrecursion(f):
             print("nodes visited:", time)
             time = 0
         return r
-    return wrapper
+    return countrecursion_wrapper
 
 def cache(f=None, maxsize=None, storage=None):
     """Function decorator, lru_cache handling Instance objects as str(Instance)."""
@@ -53,7 +53,7 @@ def cache(f=None, maxsize=None, storage=None):
 
     def cache(f):
         @functools.wraps(f)
-        def wrapper(self, *args, **kwargs):
+        def cache_wrapper(self, *args, **kwargs):
             key = (self.hash(), *args)
             value = storage.get(key, None)
             if value is None:
@@ -67,7 +67,7 @@ def cache(f=None, maxsize=None, storage=None):
 
             return value
 
-        return wrapper
+        return cache_wrapper
 
     if f is None:
         return cache
