@@ -172,9 +172,8 @@ class Instance(dict):
             while target[0] == "(":
                 target = target[1:-1]
 
-            buf = ''
             bracket = 0
-
+            buf = []
             for char in target:
                 if char == "(":
                     bracket +=1
@@ -183,13 +182,13 @@ class Instance(dict):
                     bracket -=1
 
                 if not bracket and char == ",":
-                    scripts.append(Script(UdebsStr(buf), self.version))
-                    buf = ''
+                    scripts.append(Script(UdebsStr("".join(buf)), self.version))
+                    buf = []
                     continue
 
-                buf += char
+                buf.append(char)
 
-            raw = UdebsStr(buf)
+            raw = UdebsStr("".join(buf))
             scripts.append(Script(raw, self.version))
 
         else:
