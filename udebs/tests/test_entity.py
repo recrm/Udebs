@@ -1,7 +1,6 @@
 from udebs.entity import Entity
 import udebs
 import os
-import copy
 
 class TestEntityClass():
     def setup(self):
@@ -16,7 +15,7 @@ class TestEntityClass():
 
     def test_copy(self):
         unit = self.env["unit1"]
-        assert unit == unit.copy(self.env)
+        assert unit == unit.copy()
 
     def test_len(self):
         assert len(self.env["unit1"]) == 1
@@ -24,7 +23,7 @@ class TestEntityClass():
 
     def test_clone(self):
         unit = self.env["unit1"]
-        unit1 = unit.controlClone(self.env)
+        unit1 = unit.clone()
 
         assert unit.increment == 1
         assert unit1.increment == 0

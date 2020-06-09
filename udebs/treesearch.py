@@ -1,9 +1,81 @@
-import copy
 import functools
 import math
+import time
+from .instance import Instance
+from collections import OrderedDict
+
+def modifystate(state, entities={}, logging=True, revert=True):
+    """Experimental: Creates a copy of an Instance object with modifications designed for improved treesearch."""
+    clone = state.copy()
+    if logging:
+        clone.logging=True
+
+    if revert:
+        clone.revert = 0
+        clone.state = False
+
+    if entities is not None:
+        for key, value in entities.items():
+            new = state[key].copy()
+
+            if "group" in value:
+                new.group = value["group"]
+
+            if "immutable" in value:
+                new.immutable = value["immutable"]
+
+            clone[key] = new
+
+    return clone
+
+def countrecursion(f):
+    """Function decorator, prints how many times a function calls itself."""
+    time = 0
+    @functools.wraps(f)
+    def countrecursion_wrapper(*args, **kwargs):
+        nonlocal time
+        p = (time == 0)
+        time +=1
+        r = f(*args, **kwargs)
+        if p:
+            print("nodes visited:", time)
+            time = 0
+        return r
+    return countrecursion_wrapper
+
+def cache(f=None, maxsize=None, storage=None):
+    """Function decorator, lru_cache handling Instance objects as str(Instance)."""
+    if maxsize is None:
+        maxsize = float("inf")
+
+    if storage is None:
+        storage = OrderedDict()
+
+    def cache(f):
+        @functools.wraps(f)
+        def cache_wrapper(self, *args, **kwargs):
+            key = (self.hash(), *args)
+            value = storage.get(key, None)
+            if value is None:
+                value = f(self, *args, **kwargs)
+                storage[key] = value
+            else:
+                storage.move_to_end(key)
+
+            while (storage.__len__() > maxsize):
+                storage.popitem(False)
+
+            return value
+
+        return cache_wrapper
+
+    if f is None:
+        return cache
+    return cache(f)
 
 @functools.total_ordering
 class Result:
+    """Experimental: Object for handling gt and lt relationships when counting turns to victory."""
     def __init__(self, value, turns):
         self.value = value
         self.turns = turns
@@ -24,154 +96,118 @@ class Result:
     def __int__(self):
         return self.value
 
-class State:
-    def __init__(self, storage=None):
-        self.storage = storage if storage is not None else {}
+class State(Instance):
+    """Base class for all tree search algorithms."""
+    def substates(self, override=None):
+        """Iterate over substates to a state.
 
-    def substates(self, state, time=1):
-        """Iterate over substates to a state."""
+        yields a tuple, (child instance, action tuple)
+        if the legalMoves iterator yielded something other than a tuple. This method will yield just that object for both values.
+        """
         stateNew = None
-        for move in self.legalMoves(state):
-            if stateNew is None:
-                stateNew = copy.copy(state)
+        moves = override
+        if moves is None:
+            moves = self.legalMoves()
 
-            if stateNew.castMove(*move[:3]):
-                stateNew.controlTime(time)
-                yield stateNew, move
-                stateNew = None
+        for move in moves:
+            if isinstance(move, tuple):
+                if stateNew is None:
+                    stateNew = self.copy()
 
-    #---------------------------------------------------
-    #                    Game Defined functions        -
-    #---------------------------------------------------
-    def pState(self, state):
-        """Return an immutable representation of a game map."""
-        def rotate(matrix):
-            return tuple(zip(*matrix[::-1]))
+                if stateNew.castMove(*move[:3]):
+                    stateNew.controlTime(self.increment)
+                    yield stateNew, move
+                    stateNew = None
+            else:
+                yield move, move
 
-        def flip(matrix):
-            return tuple(reversed(matrix))
-
-        value = state.map["map"].map
-
-        symetries = [tuple(tuple(i) for i in value)]
-        symetries.append(flip(symetries[0]))
-
-        for i in range(6):
-            symetries.append(rotate(symetries[-2]))
-
-        return frozenset(symetries)
-
-    def legalMoves(self, state):
+    def hash(self):
+        """Implement this function if you plan on using treesearch.cache"""
         raise NotImplementedError
 
-    def endState(self, state):
+    def __str__(self):
         raise NotImplementedError
+
+    def legalMoves(self):
+        """This function must be implemented. Iterate over all (caster, target, move) tuples that are valid children of current node."""
+        raise NotImplementedError
+
+    def endState(self):
+        """Example implementations use this function to fetch a states leaf value."""
+        return self.value
 
 #---------------------------------------------------
 #             Various Tree Search Aglorithms       -
 #---------------------------------------------------
 class BruteForce(State):
-    def result(self, state, maximizer=True):
-        pState = self.pState(state)
-        if pState not in self.storage:
-            value, turns = self.endState(state), 0
-            if value is None:
-                result = (max if maximizer else min)(self.result(c, not maximizer) for c, e in self.substates(state))
-                value, turns = result.value, result.turns + 1
+    """Example implementation of a brute force minimax solver."""
+    @cache
+    def result(self):
+        value = self.endState()
+        if value is not None:
+            return -abs(value)
 
-            self.storage[pState] = Result(value, turns)
-        return self.storage[pState]
+        results = []
+        for child, e in self.substates():
+            if child is not e:
+                child = child.result()
 
-class MarkovChain(State):
-    def result(self, state, time=0):
-        pState = self.pState(state)
-        if pState not in self.storage:
-            ev = self.endState(state)
-            if ev is None:
-                ev = sum(self.result(c, time) * p[3] for c, p in self.substates(state, time))
+            results.append(-child)
 
-            self.storage[pState] = ev
-        return self.storage[pState]
+        return max(results)
 
 class AlphaBeta(State):
-    def result(self, state, maximizer=True, alpha=-1, beta=1):
-        pState = self.pState(state)
-        if pState not in self.storage:
-            value = self.endState(state)
-            if value is None:
-                value = -float("inf") if maximizer else float("inf")
-                for child, entry in self.substates(state):
-                    result = self.result(child, not maximizer, alpha, beta)
-                    if maximizer:
-                        if result > value:
-                            value = result
-                            if result > alpha:
-                                alpha = result
+    """Example implementation of an alphabeta minimax solver."""
+    @cache
+    def result(self, alpha=-float("inf"), beta=float("inf")):
+        value = self.endState()
+        if value is not None:
+            return -abs(value)
 
-                    else:
-                        if result < value:
-                            value = result
-                            if result < beta:
-                                beta = result
+        for child, e in self.substates():
+            if child is not e:
+                child = child.result(-beta, -alpha)
 
-                    if alpha >= beta:
-                        return value
+            result = -child
 
-            self.storage[pState] = value
+            if result > alpha:
+                alpha = result
 
-        return self.storage[pState]
+            if alpha >= beta:
+                break
 
-class AlphaMontyCarlo(State):
-    def __init__(self, state, entry=None, prior=None):
-        self.state = state
-        self.children = None
-        self.v = 0
-        self.n = 0
-        self.prior = prior
-        self.entry = entry
+        return alpha
 
-    def result(self, maximizer=True, **kwargs):
-        if self.children is None:
-            value, policy = self.simulate(maximizer, **kwargs)
-            self.children = []
-            for child, entry in self.substates(self.state):
-                node = self.__class__(child, entry=entry, prior=policy.get(entry[1], 0))
-                self.children.append(node)
+class MarkovChain(State):
+    """Example implementation of a markov chain calculator."""
+    @cache
+    def result(self):
+        value = self.endState()
+        if value is not None:
+            return value
 
-        else:
-            # selection
-            node = max(self.children, key=self.weight)
-            value = node.result(not maximizer, **kwargs)
-            value = 1 - value
+        total = 0
+        for child, p in self.substates():
+            total += child.result() * p[3]
 
-        self.v += value
-        self.n += 1
-        return self.v / self.n
+        return total
 
-    def weight(self, child, c=1, p=0.5):
-        q = 1 - (child.v / child.n if child.n > 0 else p)
-        un = math.sqrt(self.n / (child.n + 1))
-        u = c * child.prior * un
-        return q + u
-
-    def simulate(self, maximizer=True):
-        raise NotImplementedError
-
+#---------------------------------------------------
+#                   Monty Carlo                    -
+#---------------------------------------------------
 class MontyCarlo(State):
-    def __init__(self, state, entry=None, prior=None):
-        self.state = state
+    """Experimental: Example implementation of a Monty Carlo treesearch algorithm."""
+    def init(self, entry=None):
         self.children = None
         self.v = 0
         self.n = 0
         self.entry = entry
+        return self
 
     def result(self, maximizer=True, **kwargs):
         if self.children is None:
-            value = self.simulate(maximizer, **kwargs)
-            self.children = []
-            for child, entry in self.substates(self.state):
-                node = self.__class__(child, entry=entry)
-                self.children.append(node)
+            value, *args = self.simulate(maximizer, **kwargs)
+            self.children = [c.init(e, *args) for c, e in self.substates()]
 
         else:
             # selection
@@ -191,52 +227,33 @@ class MontyCarlo(State):
         un = math.sqrt(math.log(self.n) / child.n)
         return q + (c * un)
 
+    def think(self, think_time, verbose=True, **kwargs):
+        t_end = time.time() + think_time
+        iters = 0
+        while time.time() < t_end:
+            self.result(**kwargs)
+            iters +=1
+
+        if verbose:
+            print(f"processed {iters} new iterations")
+
+    def select(self, f=None):
+        if f is None:
+            f = (lambda x: x.n)
+
+        return max(self.children, key=f)
+
     def simulate(self, maximizer=True):
         raise NotImplementedError
 
-class BruteLoop(State):
-    def result(self, state, maximizer=True, deps=None, states=None, **kwargs):
-        """Modified brute force solution for a situation where a game can loop in on itself.
-        example - chopsticks.
-        Note - This method is not guerenteed to work.
-        Also - This method cannot count turns to victory.
-        """
-        if deps is None:
-            deps = {}
+class AlphaMontyCarlo(MontyCarlo):
+    """Experimental: Alpha Zero inspired variant of MontyCarlo treesearch."""
+    def init(self, entry=None, policy=None):
+        self.prior = None if policy is None else policy.get(entry[1], 0)
+        return super().init(entry)
 
-        if states is None:
-            states = {}
-
-        pState = self.pState(state)
-        if pState not in self.storage:
-            self.storage[pState] = self.endState(state)
-            if self.storage[pState] is None:
-
-                substates, results = [], []
-                for child, entry in self.substates(state):
-                    substates.append(child)
-                    results.append(self.result(child, not maximizer, deps, states))
-
-                best = (max if maximizer else min)(results, key=lambda x: 0 if x is None else x)
-
-                if best is None:
-                    # If value is not found record dependencies and return None
-                    states[pState] = state
-                    for s, r in zip(substates, results):
-                        if r is None:
-                            child_pState = self.pState(s)
-                            if child_pState not in deps:
-                                deps[child_pState] = set()
-
-                            deps[child_pState].add(pState)
-
-                else:
-                    # If value is found reprocess dependant nodes.
-                    self.storage[pState] = best
-
-                    for i in deps.get(pState, []):
-                        self.result(states[i], not maximizer, deps=deps, states=states)
-
-                    deps.pop(pState, None)
-
-        return self.storage[pState]
+    def weight(self, child, c=1, p=0.5):
+        q = 1 - (child.v / child.n if child.n > 0 else p)
+        un = math.sqrt(self.n / (child.n + 1))
+        u = c * child.prior * un
+        return q + u

@@ -17,6 +17,11 @@ class Board(MutableMapping):
     """This is a test."""
 
     def __init__(self, **options):
+        if "_data" in options:
+            # second path for copy operation only
+            self.__dict__ = options["_data"]
+            return
+
         self.name = options.get("name", "map")
         self.empty = options.get("empty", "empty")
         self.type = options.get("type", False)
@@ -36,6 +41,9 @@ class Board(MutableMapping):
         elif isinstance(dim, list):
             self.map = dim
 
+        self.x = len(self.map)
+        self.y = max([len(x) for x in self.map])
+
     def __eq__(self, other):
         if not isinstance(other, Board):
             return False
@@ -47,22 +55,25 @@ class Board(MutableMapping):
         return False
 
     def __getitem__(self, key):
-        if key[0] >= 0:
-            if key[1] >= 0:
-                 return self.map[key[0]][key[1]]
+        x, y = key[0], key[1]
+        if x >= 0:
+            if y >= 0:
+                 return self.map[x][y]
         raise IndexError
 
     def __setitem__(self, key, value):
-        if key[0] >= 0:
-            if key[1] >= 0:
-                self.map[key[0]][key[1]] = value
+        x, y = key[0], key[1]
+        if x >= 0:
+            if y >= 0:
+                self.map[x][y] = value
                 return
         raise IndexError
 
     def __delitem__(self, key):
-        if key[0] >= 0:
-            if key[1] >= 0:
-                self.map[key[0]][key[1]] = self.empty
+        x, y = key[0], key[1]
+        if x >= 0:
+            if y >= 0:
+                self.map[x][y] = self.empty
                 return
         raise IndexError
 
@@ -78,17 +89,16 @@ class Board(MutableMapping):
         return "<board: "+self.name+">"
 
     def __copy__(self):
-        return Board(name=self.name, empty=self.empty, type=self.type, dim=[i[:] for i in self.map])
+        return self.copy()
 
-    @property
-    def x(self):
-        return len(self.map)
+    def copy(self):
+        options = {}
+        for k, v in self.__dict__.items():
+            if k == "map":
+                v = [i[:] for i in self.map]
+            options[k] = v
 
-    @property
-    def y(self):
-        if not hasattr(self, "_y"):
-            self._y = max([len(x) for x in self.map])
-        return self._y
+        return Board(_data=options)
 
     #---------------------------------------------------
     #                    Methods                       -

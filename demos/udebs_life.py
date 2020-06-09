@@ -114,6 +114,7 @@ def redrawBoard(surface, ts):
 
     pygame.display.update()
 
+@udebs.register(["$1"])
 def dedup(lst):
     return list(set(lst))
 
@@ -134,13 +135,6 @@ if __name__ == "__main__":
     except IndexError:
         seed = None
 
-    # Setup Udebs
-    module = {"dedup": {
-        "f": "dedup",
-        "args": ["$1"],
-    }}
-    udebs.importModule(module, {"dedup": dedup})
-
      # State variables
     ts = 10
     field = udebs.battleStart(game_config, seed=seed)
@@ -152,7 +146,7 @@ if __name__ == "__main__":
     mainClock = pygame.time.Clock()
 
     #game loop
-    for main_map in field.gameLoop(1):
+    for main_map in field.gameLoop():
         redrawBoard(surface, ts)
         mainClock.tick(10)
 

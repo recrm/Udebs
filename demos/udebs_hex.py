@@ -1,13 +1,12 @@
 #!/usr/bin/env python3
 import sys
 import math
+import itertools
+from collections import Counter
+
 import udebs
 from udebs.treesearch import AlphaMontyCarlo
-import itertools
-import copy
-from collections import Counter
-import time
-import random
+
 try:
     import pygame
 except ImportError:
@@ -31,7 +30,6 @@ game_config = f"""
     </stats>
     <strings>
         <STONE />
-        <WIN />
         <walla />
         <wallb />
     </strings>
@@ -48,12 +46,8 @@ game_config = f"""
 
     <player />
 
-    <w>
-        <STONE>o</STONE>
-    </w>
-    <b>
-        <STONE>*</STONE>
-    </b>
+    <w><STONE>o</STONE></w>
+    <b><STONE>*</STONE></b>
 
     <white immutable="False">
         <STONE>w</STONE>
@@ -87,38 +81,45 @@ game_config = f"""
         </effect>
     </init>
 
-    <tick immutable="False">
-        <effect>ALL.player ACT += 1</effect>
-    </tick>
-
-    <same>
-        <require>$target.NAME == $caster.NAME</require>
-    </same>
+    <turn>
+        <require>$caster.STAT.ACT &gt;= 2</require>
+        <effect>
+            <i>$caster ACT -= 2</i>
+            <i>ALL.player ACT += 1</i>
+        </effect>
+    </turn>
 
     <checkwin>
-        <require>PATH same</require>
-        <effect>
-            <i>print game over</i>
-            <i>tick WIN REPLACE $caster.NAME</i>
-            <i>EXIT</i>
-        </effect>
+        <effect>CAST $target win</effect>
     </checkwin>
 
-    <placement>
-        <require>
-            <i>$target.NAME == empty</i>
-            <i>$caster.STAT.ACT &gt;= 2</i>
-        </require>
+    <win>
+        <require>PATH `($target.NAME == $caster.NAME) $caster.STAT.walla $caster.STAT.wallb</require>
         <effect>
-            <i>$caster.STAT.STONE MOVE $target</i>
-            <i>$caster ACT -= 2</i>
+            <i>print game over</i>
+            <i>EXIT $caster.NAME</i>
         </effect>
+    </win>
+
+    <place>
+        <require>$target.NAME == empty</require>
+        <effect>$caster.STAT.STONE MOVE $target</effect>
+    </place>
+
+    <placement>
+        <group>
+            <i>place</i>
+            <i>turn</i>
+            <i>checkwin</i>
+        </group>
     </placement>
 
-    <safeplacement>
-        <group>placement</group>
-        <effect>DELAY `($caster.STAT.walla CAST $caster.STAT.wallb checkwin) 0</effect>
-    </safeplacement>
+    <ai>
+        <require>
+            <i>loc = (Cplayer)</i>
+            <i>CAST $loc placement</i>
+        </require>
+    </ai>
 
 </entities>
 
@@ -128,7 +129,7 @@ game_config = f"""
 class hexagon:
     def __init__(self, a, b, ts):
         rad = math.cos(math.pi / 6)
-        self.center = (ts*(2*a+b+1.5), ts*(1.5*b/rad+1.5))
+        self.center = (int(ts*(2*a+b+1.5)), int(ts*(1.5*b/rad+1.5)))
         self.points = []
 
         length = ts / rad
@@ -136,9 +137,9 @@ class hexagon:
             angle = i * math.pi / 3
             x = self.center[0] + length*math.sin(angle)
             y = self.center[1] + length*math.cos(angle)
-            self.points.append((x, y))
+            self.points.append((int(x), int(y)))
 
-        self.square = pygame.Rect(0, 0, ts*1.5, ts*1.5)
+        self.square = pygame.Rect(0, 0, int(ts*1.5), int(ts*1.5))
         self.square.center = self.center
 
 def eventUpdate(main_map, mainSurface, mainFont):
@@ -165,102 +166,84 @@ class Hex(AlphaMontyCarlo):
     def shuffle(self, map_, stone):
         def wrapped(value):
             new = [i for i in value if map_[i] == stone]
-            self.state.rand.shuffle(new)
+            self.rand.shuffle(new)
             return new
         return wrapped
 
-    def legalMoves(self, state):
-        _map = state.getMap()
-        player = "white" if state.getStat("white", "ACT") == 2 else "black"
-        for i,v in _map.items():
+    def legalMoves(self):
+        player = "white" if self.time % 2 == 0 else "black"
+        for i,v in self.getMap().items():
             if v == "empty":
                 if 0 not in i:
                     if hexes - 1 not in i:
-                        yield player, i, "placement"
-
-    def endState(self, state):
-        if state.cont:
-            return None
-
-        win = state.getStat("tick", "WIN")
-        if win == "w":
-            return 1
-        else:
-            return -1
+                        yield player, i, "place"
 
     #---------------------------------------------------
     #                    Solvers                       -
     #---------------------------------------------------
     def simulate(self, white=True, iters=100):
-        clone = copy.copy(self.state)
+        clone = self.copy()
         _map = clone.getMap()
-        wshuffle = self.shuffle(_map, "w")
-        bshuffle = self.shuffle(_map, "b")
+        wshuffle = clone.shuffle(_map, "w")
+        bshuffle = clone.shuffle(_map, "b")
 
-        choices = list(i[1] for i in self.legalMoves(clone))
+        choices = list(i[1] for i in clone.legalMoves())
         half = len(choices) / 2
 
         policy = Counter()
-        games = 0
-        bwins = 0
-        wwins = 0
-        for i in range(iters):
-            self.state.rand.shuffle(choices)
+        wins = 0
+        for games in range(1, iters + 1):
+            # Play out a random game
+            clone.rand.shuffle(choices)
             for i, loc in enumerate(choices):
                 _map[loc] = "w" if i <= half else "b"
 
-            games +=1
+            # detect who won and record winning path
             path = _map.getPath(self.wwalla, self.wwallb, sort=wshuffle)
             if not path:
                 path = _map.getPath(self.bwalla, self.bwallb, sort=bshuffle)
-                bwins +=1
+                if not white:
+                    wins +=1
             else:
-                wwins +=1
+                if white:
+                    wins +=1
 
             policy.update(path)
 
-        wins = wwins if white else bwins
-
         total = sum(policy.values())
-
         return wins / games, {i: v / total for i,v in policy.items()}
 
-class Cplayer(udebs.Player):
-    def __init__(self, *args, iters=100, think_time=30, **kwargs):
+class Cplayer():
+    def __init__(self, iters=100, think_time=30):
         self.tree = None
         self.iters = iters
         self.think_time = think_time
-        super().__init__(*args, **kwargs)
 
     def __call__(self, state):
-        if self.tree is None or self.tree.children is None:
-            self.tree = Hex(state)
+        # Check for reusable portions of previous trees.
+        if self.tree is None:
+            self.tree = state.copy(Hex())
+            self.tree.init()
         else:
             map_ = state.getMap()
-            for child in self.tree.children:
-                if map_[child.entry[1]] != "empty":
-                    self.tree = child
-                    print("reused iters", self.tree.n)
-                    break
-            else:
-                self.tree = Hex(state)
+            self.tree = self.tree.select(lambda x: map_[x.entry[1]] != "empty")
 
         # Run monty carlo search algorithm several times.
-        t_end = time.time() + self.think_time
-        iters = 0
-        while time.time() < t_end:
-            self.tree.result(maximizer=False, iters=self.iters)
-            iters += 1
+        self.tree.think(self.think_time)
 
-        # Print out decision options.
-        print("number of new iterations", iters)
+        selector = (lambda x: (x.n, x.prior))
 
-        test = sorted(self.tree.children, key=lambda x: (x.n, x.prior), reverse=True)
+        # Print out some useful data
+        print("loc", "n_searches", "prior", "weight")
+        test = sorted(self.tree.children, key=selector, reverse=True)
         for i in test[:10]:
             if i.n > 0:
-                print(i.entry[1], i.prior, i.n, 1 - (i.v / i.n))
+                print(i.entry[1], i.n, round(i.prior, 3), round(1 - (i.v / i.n), 3))
 
-        self.tree = max(self.tree.children, key=lambda x: (x.n, x.prior))
+        # select a node
+        self.tree = self.tree.select(selector)
+
+        # return location
         return self.tree.entry[1]
 
 if __name__ == "__main__":
@@ -288,7 +271,8 @@ if __name__ == "__main__":
     mainClock = pygame.time.Clock()
 
     #Setup udebs
-    comp = Cplayer("HEX", iters=100, think_time=think_time)
+    comp = Cplayer(iters=100, think_time=think_time)
+    udebs.register(comp, ["self"], name="Cplayer")
     main_map = udebs.battleStart(game_config)
 
     #game loop
@@ -310,14 +294,14 @@ if __name__ == "__main__":
                         break
 
         if player == "computer":
-            print("computer is moving")
-            if main_map.castMove("black", comp(main_map), "safeplacement"):
+            print("computer is thinking")
+            if main_map.castAction("black", "ai"):
                 main_map.controlTime()
                 eventUpdate(main_map, mainSurface, mainFont)
                 player = "human"
 
         elif player == "human" and loc:
-            if main_map.castMove("white", (x,y), 'safeplacement'):
+            if main_map.castMove("white", (x,y), 'placement'):
                 main_map.controlTime()
                 eventUpdate(main_map, mainSurface, mainFont)
                 player = "computer"

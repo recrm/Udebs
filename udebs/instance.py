@@ -1,13 +1,14 @@
 from random import Random
-from copy import copy
 from itertools import product, chain
 from logging import info
 from collections import deque
+from copy import copy
 
-from udebs.interpret import Script, UdebsStr, _getEnv
-from udebs.board import Board
-from udebs.entity import Entity
-from udebs.utilities import norecurse
+from .interpret import Script, UdebsStr, _getEnv
+from .board import Board
+from .entity import Entity
+from .utilities import norecurse
+from .errors import UndefinedSelectorError
 
 #---------------------------------------------------
 #                 Main Class                       -
@@ -52,6 +53,7 @@ class Instance(dict):
         self.increment = 1 # how much time passes between gameloop iterations. Useful for pausing.
         self.cont = True # Flag to determine if gameloop should continue
         self.next = None # The next state a gameloop will return. Useful for resets and reverts in gameloop
+        self.value = None # Value of the game.
 
         #internal
         self.map = {}
@@ -86,10 +88,14 @@ class Instance(dict):
         return not self == other
 
     def __copy__(self):
-        new = type(self)(True)
+        return self.copy()
+
+    def copy(self, new=None):
+        if new is None:
+            new = type(self)(True)
 
         for k, v in self.__dict__.items():
-            if k not in {"delay", "map", "_data", "state"}:
+            if k not in {"delay", "map", "state"}:
                 setattr(new, k, v)
 
         # Handle entities
@@ -97,12 +103,12 @@ class Instance(dict):
             if entity.immutable:
                 new[name] = entity
             else:
-                new[name] = entity.copy(new)
+                new[name] = entity.copy()
 
         # Handle maps
         new.map = {}
         for name, map_ in self.map.items():
-            new.map[name] = copy(map_)
+            new.map[name] = map_.copy()
 
         # Handle delays
         new.delay = []
@@ -127,10 +133,18 @@ class Instance(dict):
 
     def getEntity(self, target, multi=False):
         """
-        Returns entity object based on given selector.
+        Fetches the udebs entity object given a selector.
 
-        target - Any entity selector.
-        multi - Boolean, allows lists of targets.
+        Udebs selectors can take all of the following forms.
+
+        * string - The name of the object we are looking for.
+        * tuple - A tuple of the form (x, y, mapname) representing a location on a map.
+        * list - A list containing other selectors.
+        * False - Returns the default empty selector.
+
+        .. code-block:: python
+
+            main_map.getEntity("empty")
 
         """
         if isinstance(target, Entity):
@@ -158,9 +172,8 @@ class Instance(dict):
             while target[0] == "(":
                 target = target[1:-1]
 
-            buf = ''
             bracket = 0
-
+            buf = []
             for char in target:
                 if char == "(":
                     bracket +=1
@@ -169,13 +182,13 @@ class Instance(dict):
                     bracket -=1
 
                 if not bracket and char == ",":
-                    scripts.append(Script(UdebsStr(buf), self.version))
-                    buf = ''
+                    scripts.append(Script(UdebsStr("".join(buf)), self.version))
+                    buf = []
                     continue
 
-                buf += char
+                buf.append(char)
 
-            raw = UdebsStr(buf)
+            raw = UdebsStr("".join(buf))
             scripts.append(Script(raw, self.version))
 
         else:
@@ -185,16 +198,10 @@ class Instance(dict):
         return self[target]
 
     def _getEntityTuple(self, target):
-        #If tuple, this is a location.
-        try:
-            map_ = self.getMap(target)
-        except KeyError:
-            raise UndefinedSelectorError(target, "entity")
-
-        # entity stored in the map
+        map_ = self.getMap(target)
         try:
             name = map_[target]
-        except IndexError:
+        except (IndexError, TypeError):
             raise UndefinedSelectorError(target, "entity")
 
         unit = self[name]
@@ -202,7 +209,7 @@ class Instance(dict):
         if not unit.loc:
             if len(target) < 3:
                 target = (*target, map_.name)
-            unit = unit.copy(self, loc=target)
+            unit = unit.copy(loc=target)
 
         return unit
 
@@ -214,16 +221,16 @@ class Instance(dict):
 
             <i>caster [$caster] MAP</i>
         """
+        if isinstance(target, tuple):
+            target = target[2] if len(target) == 3 else "map"
         if not target:
             return False
         elif isinstance(target, str) and target in self.map:
-                return self.map[target]
+            return self.map[target]
         elif isinstance(target, Board):
             return target
         elif isinstance(target, Entity):
-            return self.map[target.loc[2] if len(target.loc) == 3 else "map"]
-        elif isinstance(target, tuple):
-            return self.map[target[2] if len(target) == 3 else "map"]
+            return self.map[target.loc[2]]
         else:
             raise UndefinedSelectorError(target, "map")
 
@@ -278,7 +285,7 @@ class Instance(dict):
 
             #Append new version to state.
             if self.state:
-                self.state.append(copy(self))
+                self.state.append(self.copy())
 
         return self.cont
 
@@ -293,7 +300,7 @@ class Instance(dict):
             main_map.getRevert(5)
         """
 
-        new_states = copy(self.state)
+        new_states = self.state.copy()
         if self.state:
             for i in range(time + 1):
                 try:
@@ -302,7 +309,7 @@ class Instance(dict):
                     return False
 
             new.state = new_states
-            new.state.append(copy(new))
+            new.state.append(new.copy())
             return new
 
     def controlDelay(self, callback, time, storage):
@@ -344,7 +351,7 @@ class Instance(dict):
         move = self.getEntity(move)
 
         #create test instance
-        clone = copy(self)
+        clone = self.copy()
         clone.revert = 0
         clone.logging=False
 
@@ -495,7 +502,7 @@ class Instance(dict):
         }
         return _getEnv(var_local, {"self": self})
 
-    def controlMove(self, casters, targets, moves):
+    def _controlMove(self, casters, targets, moves):
         """
         Function to trigger an event. Returns True if an action triggers succesfully.
 
@@ -572,7 +579,7 @@ class Instance(dict):
 
             <i>caster [$caster] CAST target move</i>
         """
-        value = self.controlMove(caster, target, move)
+        value = self._controlMove(caster, target, move)
         if value:
             self._checkDelay()
 
@@ -716,7 +723,7 @@ class Instance(dict):
         new = target
         for position in positions if isinstance(positions, list) else [positions]:
             if not target.immutable:
-                new = target.controlClone(self)
+                new = target.clone()
                 self[new.name] = new
                 if self.logging:
                     info(f"{new} has been recruited")
@@ -952,7 +959,7 @@ class Instance(dict):
         if self.logging:
             info(f"EXITING {self.name}\n")
 
-    def exit(self):
+    def exit(self, value=1):
         """Requests the end of the game by setting Instance.cont to False, and exiting out of the gameloop.
 
         .. code-block:: xml
@@ -960,8 +967,9 @@ class Instance(dict):
             <i>EXIT</i>
         """
         if self.logging:
-            info("Exit requested")
+            info("Exit requested with value of: {}".format(value))
         self.cont = False
+        self.value = value
 
     def resetState(self, script="reset"):
         """Resets the game metadata to default.
@@ -971,6 +979,7 @@ class Instance(dict):
             main_map.resetState()
         """
         self.cont = True
+        self.value = None
         self.time = 0
         self.delay.clear()
         if self.logging:
@@ -983,15 +992,4 @@ class Instance(dict):
 
         if self.state:
             self.state.clear()
-            self.state.append(copy(self))
-
-#---------------------------------------------------
-#                     Errors                       -
-#---------------------------------------------------
-class UndefinedSelectorError(Exception):
-    """Is raised when udebs encounters an invalid reference to a udebs object."""
-    def __init__(self, target, _type):
-        self.selector = target
-        self.type = _type
-    def __str__(self):
-        return "{} is not a valid {} selector.".format(repr(self.selector), self.type)
+            self.state.append(self.copy())

@@ -16,7 +16,7 @@ Instance
 
 .. autoclass:: udebs.instance.Instance
    :members:
-   :exclude-members: getEntity, controlMove, testFuture
+   :exclude-members: testFuture
 
 Standard
 --------
@@ -24,22 +24,22 @@ Standard
 .. autoclass:: udebs.interpret.standard
     :members:
 
-Utilities
----------
+Xml
+---
 
 .. automodule:: udebs.loadxml
     :members:
 
+Utilities
+---------
+
 .. automodule:: udebs.utilities
     :members:
-    :exclude-members: norecurse
+    :exclude-members: Player, lookup, placeholder
 
-.. automodule:: udebs.interpret
-    :members: importModule, importFunction
 
 Errors
 ------
 
-.. autoexception:: udebs.instance.UndefinedSelectorError
-.. autoexception:: udebs.interpret.UdebsExecutionError
-.. autoexception:: udebs.interpret.UdebsSyntaxError
+.. automodule:: udebs.errors
+    :members:
