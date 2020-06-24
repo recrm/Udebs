@@ -89,9 +89,9 @@ game_config = f"""
         </effect>
     </turn>
 
-    <checkwin>
+    <check_win>
         <effect>CAST $target win</effect>
-    </checkwin>
+    </check_win>
 
     <win>
         <require>PATH `($target.NAME == $caster.NAME) $caster.STAT.walla $caster.STAT.wallb</require>
@@ -110,7 +110,7 @@ game_config = f"""
         <group>
             <i>place</i>
             <i>turn</i>
-            <i>checkwin</i>
+            <i>check_win</i>
         </group>
     </placement>
 
@@ -126,36 +126,39 @@ game_config = f"""
 </udebs>
 """
 
-class hexagon:
-    def __init__(self, a, b, ts):
+
+class Hexagon:
+    def __init__(self, a, b, ts2):
         rad = math.cos(math.pi / 6)
-        self.center = (int(ts*(2*a+b+1.5)), int(ts*(1.5*b/rad+1.5)))
+        self.center = (int(ts2 * (2 * a + b + 1.5)), int(ts2 * (1.5 * b / rad + 1.5)))
         self.points = []
 
-        length = ts / rad
+        length = ts2 / rad
         for i in range(6):
             angle = i * math.pi / 3
-            x = self.center[0] + length*math.sin(angle)
-            y = self.center[1] + length*math.cos(angle)
-            self.points.append((int(x), int(y)))
+            x2 = self.center[0] + length * math.sin(angle)
+            y2 = self.center[1] + length * math.cos(angle)
+            self.points.append((int(x2), int(y2)))
 
-        self.square = pygame.Rect(0, 0, int(ts*1.5), int(ts*1.5))
+        self.square = pygame.Rect(0, 0, int(ts2 * 1.5), int(ts2 * 1.5))
         self.square.center = self.center
 
-def eventUpdate(main_map, mainSurface, mainFont):
-    #redraw the board
-    mainSurface.fill((0, 0, 0))
-    for x, y in itertools.product(range(hexes), range(hexes)):
-        hexa = hexagon(x, y, ts)
-        pygame.draw.polygon(mainSurface, (255, 255, 255), hexa.points, 0)
-        pygame.draw.polygon(mainSurface, (0, 0, 0), hexa.points, 1)
 
-        unit = main_map.getName((x,y,'map'))
+def event_update(main_map2, main_surface2, main_font2):
+    # redraw the board
+    main_surface2.fill((0, 0, 0))
+    for x2, y2 in itertools.product(range(hexes), range(hexes)):
+        hexagon = Hexagon(x2, y2, ts)
+        pygame.draw.polygon(main_surface2, (255, 255, 255), hexagon.points, 0)
+        pygame.draw.polygon(main_surface2, (0, 0, 0), hexagon.points, 1)
+
+        unit = main_map2.getName((x2, y2, 'map'))
         if unit != 'empty':
-            char = main_map.getStat(unit, "STONE")
-            mainSurface.blit(mainFont.render(char, True, (0, 0, 0)), hexa.square)
+            char = main_map2.getStat(unit, "STONE")
+            main_surface2.blit(main_font2.render(char, True, (0, 0, 0)), hexagon.square)
 
     pygame.display.update()
+
 
 class Hex(AlphaMontyCarlo):
     wwalla = {(i, 0, "map") for i in range(hexes)}
@@ -168,20 +171,21 @@ class Hex(AlphaMontyCarlo):
             new = [i for i in value if map_[i] == stone]
             self.rand.shuffle(new)
             return new
+
         return wrapped
 
     def legalMoves(self):
-        player = "white" if self.time % 2 == 0 else "black"
-        for i,v in self.getMap().items():
+        player2 = "white" if self.time % 2 == 0 else "black"
+        for i, v in self.getMap().items():
             if v == "empty":
                 if 0 not in i:
                     if hexes - 1 not in i:
-                        yield player, i, "place"
+                        yield player2, i, "place"
 
-    #---------------------------------------------------
+    # ---------------------------------------------------
     #                    Solvers                       -
-    #---------------------------------------------------
-    def simulate(self, white=True, iters=100):
+    # ---------------------------------------------------
+    def simulate(self, white=True, iterations=100):
         clone = self.copy()
         _map = clone.getMap()
         wshuffle = clone.shuffle(_map, "w")
@@ -192,32 +196,33 @@ class Hex(AlphaMontyCarlo):
 
         policy = Counter()
         wins = 0
-        for games in range(1, iters + 1):
+        for games in range(1, iterations + 1):
             # Play out a random game
             clone.rand.shuffle(choices)
-            for i, loc in enumerate(choices):
-                _map[loc] = "w" if i <= half else "b"
+            for i, loc2 in enumerate(choices):
+                _map[loc2] = "w" if i <= half else "b"
 
             # detect who won and record winning path
             path = _map.getPath(self.wwalla, self.wwallb, sort=wshuffle)
             if not path:
                 path = _map.getPath(self.bwalla, self.bwallb, sort=bshuffle)
                 if not white:
-                    wins +=1
+                    wins += 1
             else:
                 if white:
-                    wins +=1
+                    wins += 1
 
             policy.update(path)
 
         total = sum(policy.values())
-        return wins / games, {i: v / total for i,v in policy.items()}
+        return wins / games, {i: v / total for i, v in policy.items()}
 
-class Cplayer():
-    def __init__(self, iters=100, think_time=30):
+
+class Cplayer:
+    def __init__(self, iterations=100, think_time2=30):
         self.tree = None
-        self.iters = iters
-        self.think_time = think_time
+        self.iterations = iterations
+        self.think_time = think_time2
 
     def __call__(self, state):
         # Check for reusable portions of previous trees.
@@ -226,12 +231,13 @@ class Cplayer():
             self.tree.init()
         else:
             map_ = state.getMap()
-            self.tree = self.tree.select(lambda x: map_[x.entry[1]] != "empty")
+            self.tree = self.tree.select(lambda x2: map_[x2.entry[1]] != "empty")
 
         # Run monty carlo search algorithm several times.
         self.tree.think(self.think_time)
 
-        selector = (lambda x: (x.n, x.prior))
+        def selector(x2):
+            return x2.n / x2.prior if x2.prior > 0 else 0
 
         # Print out some useful data
         print("loc", "n_searches", "prior", "weight")
@@ -245,6 +251,7 @@ class Cplayer():
 
         # return location
         return self.tree.entry[1]
+
 
 if __name__ == "__main__":
     print("""Welcome to Hex: a simple Hex ai build with udebs!
@@ -260,23 +267,23 @@ if __name__ == "__main__":
     except IndexError:
         think_time = 10
 
-    #definitions
+    # definitions
     ts = 15
 
-    #Setup pygame
+    # Setup pygame
     pygame.init()
-    mainFont = pygame.font.SysFont(None, 40)
-    mainSurface = pygame.display.set_mode((ts * hexes * 3, ts * hexes * 2), 0, 32)
+    main_font = pygame.font.SysFont(None, 40)
+    main_surface = pygame.display.set_mode((ts * hexes * 3, ts * hexes * 2), 0, 32)
     pygame.display.set_caption('A simple hex AI')
     mainClock = pygame.time.Clock()
 
-    #Setup udebs
-    comp = Cplayer(iters=100, think_time=think_time)
+    # Setup udebs
+    comp = Cplayer(iterations=100, think_time2=think_time)
     udebs.register(comp, ["self"], name="Cplayer")
     main_map = udebs.battleStart(game_config)
 
-    #game loop
-    eventUpdate(main_map, mainSurface, mainFont)
+    # game loop
+    event_update(main_map, main_surface, main_font)
 
     player = "human"
     while main_map:
@@ -289,7 +296,7 @@ if __name__ == "__main__":
             elif event.type == pygame.MOUSEBUTTONDOWN:
                 mouse = pygame.mouse.get_pos()
                 for x, y in itertools.product(range(1, hexes - 1), range(1, hexes - 1)):
-                    if hexagon(x, y, ts).square.collidepoint(mouse):
+                    if Hexagon(x, y, ts).square.collidepoint(*mouse):
                         loc = (x, y)
                         break
 
@@ -297,17 +304,16 @@ if __name__ == "__main__":
             print("computer is thinking")
             if main_map.castAction("black", "ai"):
                 main_map.controlTime()
-                eventUpdate(main_map, mainSurface, mainFont)
+                event_update(main_map, main_surface, main_font)
                 player = "human"
 
         elif player == "human" and loc:
-            if main_map.castMove("white", (x,y), 'placement'):
+            if main_map.castMove("white", (loc[0], loc[1]), 'placement'):
                 main_map.controlTime()
-                eventUpdate(main_map, mainSurface, mainFont)
+                event_update(main_map, main_surface, main_font)
                 player = "computer"
 
         mainClock.tick(15)
-
 
     input("press button to quit")
     pygame.quit()

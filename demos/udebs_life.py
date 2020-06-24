@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 import sys
 import udebs
+
 try:
     import pygame
 except ImportError:
@@ -60,16 +61,16 @@ game_config = """
         </effect>
     </life>
 
-    <autolife>
+    <auto_life>
         <group>life</group>
         <require>$target.STAT.NBR == 3</require>
-    </autolife>
+    </auto_life>
 
-    <randomlife>
+    <random_life>
         <group>life</group>
         <require>DICE.4 == 0</require>
         <effect>tick save GETS $target.LOC</effect>
-    </randomlife>
+    </random_life>
 
     <!-- Death -->
     <death>
@@ -89,7 +90,7 @@ game_config = """
         <effect>
             <i>all = (FILL (1 1) empty)</i>
             <i>cell RECRUIT $all</i>
-            <i>CAST $all randomlife</i>
+            <i>CAST $all random_life</i>
         </effect>
     </init>
 
@@ -97,7 +98,7 @@ game_config = """
         <effect>
             <i>all = (dedup $move.STAT.save)</i>
             <i>CAST $all death</i>
-            <i>CAST $all autolife</i>
+            <i>CAST $all auto_life</i>
             <i>tick CLEAR save</i>
         </effect>
     </tick>
@@ -105,18 +106,21 @@ game_config = """
 </udebs>
 """
 
-def redrawBoard(surface, ts):
-    surface.fill((0,0,0))
+
+def redraw_board(surface2, ts2):
+    surface2.fill((0, 0, 0))
     for target in main_map.mapIter():
         if main_map.getStat(target, "LIFE"):
-            rect = pygame.Rect(target.loc[0]*(ts), target.loc[1]*(ts), ts, ts)
-            pygame.draw.rect(surface, (100,200,100, 127), rect)
+            rect = pygame.Rect(target.loc[0] * ts2, target.loc[1] * ts2, ts2, ts2)
+            pygame.draw.rect(surface2, (100, 200, 100, 127), rect)
 
     pygame.display.update()
+
 
 @udebs.register(["$1"])
 def dedup(lst):
     return list(set(lst))
+
 
 if __name__ == "__main__":
     print("""Welcome to Conway's game of life!!
@@ -124,7 +128,7 @@ if __name__ == "__main__":
 
     Run this program with an integer argument to change the seed of the initial state.
 
-    - spacebar - Pauses and upauses the game.
+    - spacebar - Pauses and unpause the game.
     - delete - Resets the game to it's starting state.
     - arrow right - While paused moves simulation ahead one generation.
     - arrow left - While paused moves simulation back one generation.
@@ -135,19 +139,19 @@ if __name__ == "__main__":
     except IndexError:
         seed = None
 
-     # State variables
+    # State variables
     ts = 10
     field = udebs.battleStart(game_config, seed=seed)
 
-    #Setup pygame
+    # Setup pygame
     pygame.init()
     pygame.display.set_caption("Conway's game of life.")
-    surface = pygame.display.set_mode((ts*field.getMap().x, ts*field.getMap().y), 0, 32)
+    surface = pygame.display.set_mode((ts * field.getMap().x, ts * field.getMap().y), 0, 32)
     mainClock = pygame.time.Clock()
 
-    #game loop
+    # game loop
     for main_map in field.gameLoop():
-        redrawBoard(surface, ts)
+        redraw_board(surface, ts)
         mainClock.tick(10)
 
         for event in pygame.event.get():

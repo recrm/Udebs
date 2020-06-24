@@ -70,19 +70,20 @@ game_config = """
 </udebs>
 """
 
+
 # Setup Udebs
 @udebs.register(["self"])
 def ENDSTATE(state):
-    def rows(gameMap):
+    def rows(game_map):
         """Iterate over possible win conditions in game map."""
-        size = len(gameMap)
+        size = len(game_map)
 
-        for i in range(size):
-            yield gameMap[i]
-            yield [j[i] for j in gameMap]
+        for i_ in range(size):
+            yield game_map[i_]
+            yield [j[i_] for j in game_map]
 
-        yield [gameMap[i][i] for i in range(size)]
-        yield [gameMap[size - 1 - i][i] for i in range(size)]
+        yield [game_map[i_][i_] for i_ in range(size)]
+        yield [game_map[size - 1 - i_][i_] for i_ in range(size)]
 
     # Check for a win
     tie = True
@@ -98,6 +99,7 @@ def ENDSTATE(state):
 
     if tie:
         return 0
+
 
 class TicTacToe(State):
     def legalMoves(self):
@@ -120,11 +122,14 @@ class TicTacToe(State):
         for y in range(map_.y):
             buf = ''
             for x in range(map_.x):
-                buf += mappings[map_[(x,y)]]
+                buf += mappings[map_[(x, y)]]
             row.append(buf)
 
-        sym_y = lambda x: list(reversed(x))
-        sym_90 = lambda x: ["".join(reversed(x)) for x in zip(*x)]
+        def sym_y(x_):
+            return list(reversed(x_))
+
+        def sym_90(x_):
+            return ["".join(reversed(i_)) for i_ in zip(*x_)]
 
         syms = [row]
         for i in range(3):
@@ -137,14 +142,14 @@ class TicTacToe(State):
         return min(int("".join(i), 3) for i in syms)
 
     @udebs.cache
-    @udebs.countrecursion
+    @udebs.count_recursion
     def result(self, maximizer=True):
         value = self.endState()
         if value is not None:
             return udebs.Result(value, 0)
 
-        f = max if maximizer else min
-        result = f(c.result(not maximizer) for c, e in self.substates())
+        f_ = max if maximizer else min
+        result = f_(c.result(not maximizer) for c, e in self.substates())
         value, turns = result.value, result.turns + 1
         return udebs.Result(value, turns)
 
@@ -162,15 +167,15 @@ class TicTacToe(State):
             child_hash = substate.hash()
             if child_hash not in completed:
                 completed.add(child_hash)
-                subresult = substate.tree(not maximizer)
+                sub_result = substate.tree(not maximizer)
 
-                # Remove any options that don't block oponents autowin.
-                if not isinstance(subresult, dict):
-                    if subresult.turns == 1:
+                # Remove any options that don't block opponents auto win.
+                if not isinstance(sub_result, dict):
+                    if sub_result.turns == 1:
                         continue
 
                 name = f"{entry[0][0]}_{entry[1][0]}_{entry[1][1]}"
-                storage[name] = subresult
+                storage[name] = sub_result
 
         # Flatten inevitable ties
         for k, v in storage.items():
@@ -179,10 +184,12 @@ class TicTacToe(State):
         else:
             return value
 
+
 def deserialize(node):
     if isinstance(node, dict):
-        return {k:deserialize(v) for k,v in node.items()}
+        return {k: deserialize(v) for k, v in node.items()}
     return int(node)
+
 
 if __name__ == "__main__":
     # Create state analysis engine

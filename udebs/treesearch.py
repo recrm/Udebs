@@ -4,28 +4,7 @@ import time
 from .instance import Instance
 from .utilities import cache
 
-@functools.total_ordering
-class Result:
-    """Experimental: Object for handling gt and lt relationships when counting turns to victory."""
-    def __init__(self, value, turns):
-        self.value = value
-        self.turns = turns
 
-    def __eq__(self, other):
-        return (self.value, self.turns) == (other.value, other.turns)
-
-    def __lt__(self, other):
-        if self.value != other.value:
-            return self.value < other.value
-        elif self.value < 0:
-            return self.turns < other.turns
-        return self.turns > other.turns
-
-    def __repr__(self):
-        return str((self.value, self.turns))
-
-    def __int__(self):
-        return self.value
 
 class State(Instance):
     """Base class for all tree search algorithms."""

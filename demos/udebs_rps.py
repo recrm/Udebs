@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 import udebs
 import random
-import sys
 
 xml = """
 <udebs>
@@ -28,7 +27,7 @@ xml = """
         </options>
         <effect>
             <i>INIT rps</i>
-            <i>INIT gameover</i>
+            <i>INIT game_over</i>
         </effect>
     </tick>
 
@@ -46,14 +45,14 @@ xml = """
         </effect>
     </rps>
 
-    <gameover>
+    <game_over>
         <require>(user.STAT.lives * computer.STAT.lives) &lt;= 0</require>
         <effect>
             <i>print "You have" user.STAT.lives lives</i>
             <i>print "Your opponent has" computer.STAT.lives lives</i><i>print The game is over</i>
             <i>EXIT</i>
         </effect>
-    </gameover>
+    </game_over>
 
     <!-- Players -->
     <user>
@@ -69,9 +68,11 @@ xml = """
 </udebs>
 """
 
+
 @udebs.register([])
 def RANDOM():
     return random.choice(["rock", "paper", "scissors"])
+
 
 @udebs.register([])
 def HUMAN():
@@ -81,6 +82,7 @@ def HUMAN():
 
     return x
 
+
 @udebs.register(["$1", "$2"])
 def LOOKUP(one, two):
     data = {
@@ -89,6 +91,7 @@ def LOOKUP(one, two):
         "scissors": {"rock": -1},
     }
     return data.get(one, {}).get(two, 0)
+
 
 if __name__ == "__main__":
     print("""Welcome to rock paper scissors

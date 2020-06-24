@@ -2,7 +2,7 @@ import traceback
 import itertools
 import time
 import inspect
-from functools import partial, wraps
+import functools
 from collections import OrderedDict
 
 from .interpret import importModule
@@ -21,7 +21,7 @@ def cache(f=None, maxsize=None, storage=None):
         storage = OrderedDict()
 
     def cache_inside(f2):
-        @wraps(f2)
+        @functools.wraps(f2)
         def cache_wrapper(self, *args, **kwargs):
             key = (self.hash(), *args)
             value = storage.get(key, None)
@@ -67,6 +67,30 @@ def modify_state(state, entities=None, logging=True, revert=True):
     return clone
 
 
+@functools.total_ordering
+class Result:
+    """Experimental: Object for handling gt and lt relationships when counting turns to victory."""
+    def __init__(self, value, turns):
+        self.value = value
+        self.turns = turns
+
+    def __eq__(self, other):
+        return (self.value, self.turns) == (other.value, other.turns)
+
+    def __lt__(self, other):
+        if self.value != other.value:
+            return self.value < other.value
+        elif self.value < 0:
+            return self.turns < other.turns
+        return self.turns > other.turns
+
+    def __repr__(self):
+        return str((self.value, self.turns))
+
+    def __int__(self):
+        return self.value
+
+
 class Timer:
     """Basic Timing context manager. Prints out the time it takes it's context to close."""
 
@@ -91,7 +115,7 @@ def count_recursion(f):
     """Function decorator, prints how many times a function calls itself."""
     start_time = 0
 
-    @wraps(f)
+    @functools.wraps(f)
     def count_recursion_wrapper(*args, **kwargs):
         nonlocal start_time
         p = (start_time == 0)
@@ -175,7 +199,7 @@ def register(f, args=None, name=None):
         return f2
 
     if args is None:
-        return partial(wrapper, f)
+        return functools.partial(wrapper, f)
 
     return wrapper(args, f)
 
