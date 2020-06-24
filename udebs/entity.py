@@ -1,4 +1,4 @@
-class Entity():
+class Entity:
     def __init__(self, field, **options):
         if "_data" in options:
             # second path for copy operation only
@@ -34,9 +34,9 @@ class Entity():
     def __str__(self):
         return self.name
 
-    #---------------------------------------------------
-    #                 Call Functions                   -
-    #---------------------------------------------------
+    # ---------------------------------------------------
+    #                 Call Functions                    -
+    # ---------------------------------------------------
     def controlEffect(self, env):
         for effect in env["self"].getStat(self, 'effect'):
             effect(env)
@@ -52,13 +52,13 @@ class Entity():
 
     def __call__(self, env):
         value = self.testRequire(env)
-        if value == True:
+        if value is True:
             return self.controlEffect(env)
         return value
 
-    #---------------------------------------------------
+    # ---------------------------------------------------
     #                Clone Functions                   -
-    #---------------------------------------------------
+    # ---------------------------------------------------
     def copy(self, **kwargs):
         """The dependency on field prevents me from doing this as __copy__"""
 
@@ -72,9 +72,9 @@ class Entity():
 
     def clone(self):
         """Returns a clone of self."""
-        #Set name of new
-        self.increment +=1
+        # Set name of new
+        self.increment += 1
         name = self.name + str(self.increment)
 
-        #Create new
+        # Create new
         return self.copy(name=name, increment=0)

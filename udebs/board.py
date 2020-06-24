@@ -13,6 +13,7 @@ sides = [
     (-1, -1),
 ]
 
+
 class Board(MutableMapping):
     """This is a test."""
 
@@ -29,10 +30,10 @@ class Board(MutableMapping):
         if self.type:
             self.count += 2
             if self.type == "diag":
-                self.count +=2
+                self.count += 2
 
-        #Set up maps.
-        dim = options.get("dim", (1,1))
+        # Set up maps.
+        dim = options.get("dim", (1, 1))
         if isinstance(dim, tuple):
             self.map = []
             for e in range(dim[0]):
@@ -58,7 +59,7 @@ class Board(MutableMapping):
         x, y = key[0], key[1]
         if x >= 0:
             if y >= 0:
-                 return self.map[x][y]
+                return self.map[x][y]
         raise IndexError
 
     def __setitem__(self, key, value):
@@ -83,10 +84,10 @@ class Board(MutableMapping):
     def __iter__(self):
         for x in range(self.x):
             for y in range(self.y):
-                yield (x, y, self.name)
+                yield x, y, self.name
 
     def __repr__(self):
-        return "<board: "+self.name+">"
+        return "<board: " + self.name + ">"
 
     def __copy__(self):
         return self.copy()
@@ -100,9 +101,9 @@ class Board(MutableMapping):
 
         return Board(_data=options)
 
-    #---------------------------------------------------
+    # ---------------------------------------------------
     #                    Methods                       -
-    #---------------------------------------------------
+    # ---------------------------------------------------
     def show(self):
         """Pretty prints a map."""
         maxi = 0
@@ -115,7 +116,7 @@ class Board(MutableMapping):
                 print(" " * y * maxi, end="")
 
             for x in range(self.x):
-                value = self[x,y]
+                value = self[x, y]
                 if value == self.empty:
                     value = "_"
 
@@ -136,7 +137,7 @@ class Board(MutableMapping):
             for i in self.getAdjacent(one, callback=method, **kwargs):
                 if two in i:
                     return count
-                count +=1
+                count += 1
             return float("inf")
         elif method == 'y':
             return int(abs(one[1] - two[1]))
@@ -145,7 +146,7 @@ class Board(MutableMapping):
         elif method == 'z':
             return int(abs(two[0] + two[1]) - (one[0] + one[1]))
         elif method == 'hex':
-            return int((abs(one[0] - two[0]) + abs(one[1] - two[1]) + abs((two[0] + two[1]) - (one[0] + one[1])))/2)
+            return int((abs(one[0] - two[0]) + abs(one[1] - two[1]) + abs((two[0] + two[1]) - (one[0] + one[1]))) / 2)
         elif method == "p1":
             return int(abs(one[0] - two[0]) + abs(one[1] - two[1]))
         elif method == "p2":
@@ -212,7 +213,7 @@ class Board(MutableMapping):
 
         pointer = {i: None for i in start}
 
-        #Populate pointer.
+        # Populate pointer.
         for i in self.getAdjacent(start, pointer=pointer, **kwargs):
             final = finish.intersection(i)
             if len(final) > 0:
@@ -247,7 +248,7 @@ class Board(MutableMapping):
             found.update(i)
             if count >= distance:
                 break
-            count +=1
+            count += 1
 
         if not include_center:
             found -= center

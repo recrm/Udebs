@@ -18,9 +18,9 @@ class TestInterpret():
         importModule(test, {'self': None})
 
     def test_setup(self):
-        assert "solitary" in variables.keywords()
-        assert "testing" in variables.keywords()
-        assert "self" in variables.env
+        assert "solitary" in Variables.keywords()
+        assert "testing" in Variables.keywords()
+        assert "self" in Variables.env
 
     def test_list(self):
         assert interpret("one two three") == "('one','two','three')"

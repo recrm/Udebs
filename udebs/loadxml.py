@@ -6,24 +6,26 @@ from . import board, entity, instance, interpret
 from xml.etree import ElementTree
 from collections import deque
 
-#This is a pretty printing algorithm I stole from the internet.
+
+# This is a pretty printing algorithm I stole from the internet.
 def _indent(elem, level=0):
     """A simple pretty print function for xml."""
-    i = "\n" + level*"  "
+    i = "\n" + level * "  "
     if len(elem):
         if not elem.text or not elem.text.strip():
             elem.text = i + "  "
         if not elem.tail or not elem.tail.strip():
             elem.tail = i
         for elem in elem:
-            _indent(elem, level+1)
+            _indent(elem, level + 1)
         if not elem.tail or not elem.tail.strip():
             elem.tail = i
     else:
         if level and (not elem.tail or not elem.tail.strip()):
             elem.tail = i
 
-#creates an xml file from instance object.
+
+# creates an xml file from instance object.
 def battleWrite(env, location, pretty=False):
     """
     Writes an instance object to file.
@@ -34,7 +36,7 @@ def battleWrite(env, location, pretty=False):
     e = ElementTree
     root = e.Element('udebs')
 
-    def addleaf(root, node, value):
+    def add_leaf(root, node, value):
         new = e.SubElement(root, node)
         new.text = value
 
@@ -49,33 +51,33 @@ def battleWrite(env, location, pretty=False):
             if item in env.rlist:
                 final.attrib['rlist'] = ''
 
-    #Config variables.
+    # Config variables.
     config = e.SubElement(root, 'config')
     if env.name != 'Unknown':
-        addleaf(config, "name", env.name)
+        add_leaf(config, "name", env.name)
     if env.logging != True:
-        addleaf(config, "logging", str(env.logging))
+        add_leaf(config, "logging", str(env.logging))
     if env.revert != 0:
-        addleaf(config, "revert", str(env.revert))
+        add_leaf(config, "revert", str(env.revert))
     if env.version != 1:
-        addleaf(config, "version", str(env.version))
+        add_leaf(config, "version", str(env.version))
     if env.seed != None:
-        addleaf(config, "seed", str(env.seed))
+        add_leaf(config, "seed", str(env.seed))
     if env.immutable != True:
-        addleaf(config, "immutable", str(env.immutable))
+        add_leaf(config, "immutable", str(env.immutable))
 
     # Time variables
     var = e.SubElement(root, 'var')
     if env.time != 0:
-        addleaf(var, "time", str(env.time))
+        add_leaf(var, "time", str(env.time))
     if env.increment != 1:
-        addleaf(var, "increment", str(env.increment))
+        add_leaf(var, "increment", str(env.increment))
     if env.cont != True:
-        addleaf(var, "cont", str(env.cont))
+        add_leaf(var, "cont", str(env.cont))
     if env.value != None:
-        addleaf(var, "value", str(env.value))
+        add_leaf(var, "value", str(env.value))
 
-    #map
+    # map
     maps = e.SubElement(root, 'maps')
     for map_ in env.map.values():
         node = e.SubElement(maps, map_.name)
@@ -86,27 +88,27 @@ def battleWrite(env, location, pretty=False):
         if map_.type != False:
             node.attrib['type'] = map_.type
         for row in (list(i) for i in zip(*map_.map)):
-            addleaf(node, "row", ", ".join(row))
+            add_leaf(node, "row", ", ".join(row))
 
-    #entities
+    # entities
     stats = env.stats.union(env.strings, env.lists)
     entities = e.SubElement(root, 'entities')
     special = e.SubElement(root, 'special')
-    for entity in env.values():
-        if entity.name == 'empty':
+    for item in env.values():
+        if item.name == 'empty':
             continue
 
-        elif isinstance(entity.name, interpret.UdebsStr):
-            addleaf(special, "i", str(entity.name))
+        elif isinstance(item.name, interpret.UdebsStr):
+            add_leaf(special, "i", str(item.name))
             continue
 
-        entity_node = e.SubElement(entities, entity.name)
+        entity_node = e.SubElement(entities, item.name)
 
-        if entity.immutable:
+        if item.immutable:
             entity_node.attrib['immutable'] = ''
 
         for stat in stats:
-            value = getattr(entity, stat)
+            value = getattr(item, stat)
 
             if value in [0, '', []]:
                 continue
@@ -117,23 +119,23 @@ def battleWrite(env, location, pretty=False):
             elif len(value) == 1:
                 stat_node.text = str(value[0])
             else:
-                for item in value:
-                    addleaf(stat_node, "i", str(item))
+                for elem in value:
+                    add_leaf(stat_node, "i", str(elem))
 
     # Delay
     delay = e.SubElement(root, "delays")
     if delay is not None:
         for ent in env.delay:
             d = e.SubElement(delay, "delay")
-            addleaf(d, "ticks", str(ent["ticks"]))
-            addleaf(d, "script", str(ent["script"]))
+            add_leaf(d, "ticks", str(ent["ticks"]))
+            add_leaf(d, "script", str(ent["script"]))
 
             storage = e.SubElement(d, "storage")
             for key, value in ent["env"]["storage"].items():
-                addleaf(storage, key, str(value))
+                add_leaf(storage, key, str(value))
 
-    #rand
-    addleaf(root, "random", str(env.rand.getstate()))
+    # rand
+    add_leaf(root, "random", str(env.rand.getstate()))
 
     # Final Cleanup
     if pretty:
@@ -146,10 +148,12 @@ def battleWrite(env, location, pretty=False):
     e.ElementTree(root).write(location)
     return True
 
-#Creates and instance object from xml file.
-def battleStart(xml_file=None, debug=False, script="init", name=None, revert=None, log=None, version=None, seed=None, immutable=None, field=None):
+
+# Creates and instance object from xml file.
+def battleStart(xml_file=None, debug=False, script="init", name=None, revert=None, log=None, version=None, seed=None,
+                immutable=None, field=None):
     """
-    Creates an instanance object from given xml file.
+    Creates an instance object from given xml file.
 
     xml_file - String representing file to look in.
     debug - Boolean that gets passed to the interpret.interpret function.
@@ -163,11 +167,11 @@ def battleStart(xml_file=None, debug=False, script="init", name=None, revert=Non
     except IOError:
         root = ElementTree.fromstring(xml_file)
 
-    #ENV
+    # ENV
     if field is None:
         field = instance.Instance()
 
-    #Definition
+    # Definition
     defs = root.find("definitions")
     if defs is not None:
         for i in ("stats", "strings"):
@@ -183,7 +187,7 @@ def battleStart(xml_file=None, debug=False, script="init", name=None, revert=Non
                 if stat.get('rlist') is not None:
                     field.rlist.append(stat.tag)
 
-    def fillsimple(root, stat, f, overwrite=None):
+    def fill_simple(root, stat, f, overwrite=None):
         if overwrite is not None:
             setattr(field, stat, overwrite)
         else:
@@ -194,35 +198,35 @@ def battleStart(xml_file=None, debug=False, script="init", name=None, revert=Non
 
                 setattr(field, stat, tmp)
 
-    #Config
+    # Config
     config = root.find("config")
     if config is not None:
-        fillsimple(config, "name", None, name)
-        fillsimple(config, "revert", int, revert)
-        fillsimple(config, "logging", eval, log)
-        fillsimple(config, "version", int, version)
-        fillsimple(config, "seed", int, seed)
-        fillsimple(config, "immutable", eval, immutable)
+        fill_simple(config, "name", None, name)
+        fill_simple(config, "revert", int, revert)
+        fill_simple(config, "logging", eval, log)
+        fill_simple(config, "version", int, version)
+        fill_simple(config, "seed", int, seed)
+        fill_simple(config, "immutable", eval, immutable)
 
     # Time variables
     time = root.find("var")
     if time is not None:
-        fillsimple(time, "time", int)
-        fillsimple(time, "increment", int)
-        fillsimple(time, "cont", eval)
-        fillsimple(time, "next", eval)
-        fillsimple(time, "value", eval)
+        fill_simple(time, "time", int)
+        fill_simple(time, "increment", int)
+        fill_simple(time, "cont", eval)
+        fill_simple(time, "next", eval)
+        fill_simple(time, "value", eval)
 
-    #Maps
+    # Maps
     def addMap(field_map):
         options = {"name": field_map.tag}
 
-        #Attributes
+        # Attributes
         for att in ("empty", "rmap", "type"):
             if field_map.get(att) is not None:
                 options[att] = field_map.get(att)
 
-        #dimensions.
+        # dimensions.
         dim_map = field_map.find("dim")
         if dim_map is not None:
             options['dim'] = (
@@ -236,7 +240,7 @@ def battleStart(xml_file=None, debug=False, script="init", name=None, revert=Non
                 dim.append(re.split(r"\W*,\W*", row.text))
             options['dim'] = [list(i) for i in zip(*dim)]
 
-        #Add to field
+        # Add to field
         field.map[options["name"]] = board.Board(**options)
         if "rmap" in options:
             field.rmap.append(options["name"])
@@ -249,10 +253,10 @@ def battleStart(xml_file=None, debug=False, script="init", name=None, revert=Non
     if field_map is not None:
         addMap(field_map)
 
-    #Entities
+    # Entities
     field["empty"] = entity.Entity(field, name="empty", immutable=True)
 
-    #Create all entity type objects.
+    # Create all entity type objects.
     entities = root.find("entities")
     if entities is not None:
         for item in entities:
@@ -298,7 +302,7 @@ def battleStart(xml_file=None, debug=False, script="init", name=None, revert=Non
 
             field[options["name"]] = entity.Entity(field, **options)
 
-    #Special
+    # Special
     special = root.find("special")
     if special is not None:
         for i in special:
@@ -320,7 +324,7 @@ def battleStart(xml_file=None, debug=False, script="init", name=None, revert=Non
     elif field.seed:
         field.rand.seed(field.seed)
 
-    #Final cleanup
+    # Final cleanup
     logging.basicConfig(**{
         "stream": sys.stdout,
         "level": logging.INFO if field.logging else logging.WARNING,

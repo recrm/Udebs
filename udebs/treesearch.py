@@ -2,76 +2,7 @@ import functools
 import math
 import time
 from .instance import Instance
-from collections import OrderedDict
-
-def modifystate(state, entities={}, logging=True, revert=True):
-    """Experimental: Creates a copy of an Instance object with modifications designed for improved treesearch."""
-    clone = state.copy()
-    if logging:
-        clone.logging=True
-
-    if revert:
-        clone.revert = 0
-        clone.state = False
-
-    if entities is not None:
-        for key, value in entities.items():
-            new = state[key].copy()
-
-            if "group" in value:
-                new.group = value["group"]
-
-            if "immutable" in value:
-                new.immutable = value["immutable"]
-
-            clone[key] = new
-
-    return clone
-
-def countrecursion(f):
-    """Function decorator, prints how many times a function calls itself."""
-    time = 0
-    @functools.wraps(f)
-    def countrecursion_wrapper(*args, **kwargs):
-        nonlocal time
-        p = (time == 0)
-        time +=1
-        r = f(*args, **kwargs)
-        if p:
-            print("nodes visited:", time)
-            time = 0
-        return r
-    return countrecursion_wrapper
-
-def cache(f=None, maxsize=None, storage=None):
-    """Function decorator, lru_cache handling Instance objects as str(Instance)."""
-    if maxsize is None:
-        maxsize = float("inf")
-
-    if storage is None:
-        storage = OrderedDict()
-
-    def cache(f):
-        @functools.wraps(f)
-        def cache_wrapper(self, *args, **kwargs):
-            key = (self.hash(), *args)
-            value = storage.get(key, None)
-            if value is None:
-                value = f(self, *args, **kwargs)
-                storage[key] = value
-            else:
-                storage.move_to_end(key)
-
-            while (storage.__len__() > maxsize):
-                storage.popitem(False)
-
-            return value
-
-        return cache_wrapper
-
-    if f is None:
-        return cache
-    return cache(f)
+from .utilities import cache
 
 @functools.total_ordering
 class Result:
@@ -125,9 +56,6 @@ class State(Instance):
         """Implement this function if you plan on using treesearch.cache"""
         raise NotImplementedError
 
-    def __str__(self):
-        raise NotImplementedError
-
     def legalMoves(self):
         """This function must be implemented. Iterate over all (caster, target, move) tuples that are valid children of current node."""
         raise NotImplementedError
@@ -137,7 +65,7 @@ class State(Instance):
         return self.value
 
 #---------------------------------------------------
-#             Various Tree Search Aglorithms       -
+#             Various Tree Search Algorithms       -
 #---------------------------------------------------
 class BruteForce(State):
     """Example implementation of a brute force minimax solver."""

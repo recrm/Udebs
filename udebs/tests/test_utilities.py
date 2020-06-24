@@ -19,12 +19,12 @@ class TestBattleStart:
     def test_placeholder(self):
         """Not function is depricated"""
         udebs.placeholder("TEST")
-        assert "TEST" in interpret.variables.modules["other"]
+        assert "TEST" in interpret.Variables.modules["other"]
 
     def test_Player(self):
         """Not function is depricated"""
         udebs.Player("TEST")
-        assert "TEST" in interpret.variables.modules["other"]
+        assert "TEST" in interpret.Variables.modules["other"]
 
         path = os.path.dirname(__file__)
         env = udebs.battleStart(path + "/test.xml", log=True)
