@@ -3,7 +3,8 @@ import os
 from pytest import raises
 import copy
 
-class TestBoardClass():
+
+class TestBoardClass:
     def setup(self):
         path = os.path.dirname(__file__)
         self.test = udebs.battleStart(path + "/test.xml")
@@ -17,15 +18,15 @@ class TestBoardClass():
         assert len(self.map) == 30
 
     def test_get(self):
-        assert "unit1" == self.two[(0,0)]
+        assert "unit1" == self.two[(0, 0)]
 
     def test_get2(self):
         with raises(IndexError):
-            self.two[(3,3)]
+            self.two[(3, 3)]
         with raises(IndexError):
-            self.two[(3,3)] = "test"
+            self.two[(3, 3)] = "test"
         with raises(IndexError):
-            del self.two[(3,3)]
+            del self.two[(3, 3)]
 
     def test_get3(self):
         with raises(IndexError):
@@ -44,9 +45,9 @@ class TestBoardClass():
             del self.one[False]
 
     def test_insert(self):
-        self.one[(0,0)] = "unit1"
-        assert self.one[(0,0)] == "unit1"
-        assert self.one[(1,0)] == "empty"
+        self.one[(0, 0)] = "unit1"
+        assert self.one[(0, 0)] == "unit1"
+        assert self.one[(1, 0)] == "empty"
 
     def test_len(self):
         assert len(self.two) == 6
@@ -63,13 +64,13 @@ class TestBoardClass():
     def test_copy(self):
         three = copy.copy(self.two)
         assert three == self.two
-        self.two[(0,0)] = "empty"
+        self.two[(0, 0)] = "empty"
         assert three != self.two
 
     def test_del(self):
-        assert self.two[0,0] != "empty"
-        del self.two[0,0]
-        assert self.two[0,0] == "immune"
+        assert self.two[0, 0] != "empty"
+        del self.two[0, 0]
+        assert self.two[0, 0] == "immune"
 
     def test_eq(self):
         assert self.two != "two"
@@ -80,26 +81,26 @@ class TestBoardClass():
     def test_repr(self):
         assert repr(self.two) == "<board: two>"
 
-class TestPathing():
+
+class TestPathing:
     def setup(self):
         path = os.path.dirname(__file__)
         self.test = udebs.battleStart(path + "/test.xml")
-        self.test.controlTravel("unit1", (0,0))
-        self.test.controlTravel("unit2", (4,3))
-        self.test.controlTravel("immune", (2,2))
+        self.test.controlTravel("unit1", (0, 0))
+        self.test.controlTravel("unit2", (4, 3))
+        self.test.controlTravel("immune", (2, 2))
 
     def test_getPath(self):
         test = self.test.getPath("unit1", "unit2", "notempty")
         assert (0, 0, "map") in test
         assert (4, 3, "map") in test
         assert len(test) == 5
-        test = self.test.getPath((0,1), (0,1), "empty")
+        test = self.test.getPath((0, 1), (0, 1), "empty")
         assert len(test) == 1
-        self.test.controlTravel("unit1", (1,2,"two"))
-        assert self.test.getPath((0,0,"two"), (1,2,"two"), "notempty") == []
+        self.test.controlTravel("unit1", (1, 2, "two"))
+        assert self.test.getPath((0, 0, "two"), (1, 2, "two"), "notempty") == []
         assert len(self.test.getPath("empty", "empty", "empty")) == 0
         assert self.test.getPath("unit1", "empty", "empty") == []
-
 
     def test_distance(self):
         assert self.test.getDistance("empty", "unit1", "x") == float("inf")
@@ -115,22 +116,23 @@ class TestPathing():
         assert self.test.getDistance("unit1", "unit2", "notempty") == 4
 
         with raises(ValueError):
-            self.test.getDistance("unit1", "unit2", "dfdfdfdf")
+            self.test.getDistance("unit1", "unit2", "not a unit")
 
     def test_testBlock(self):
-        assert self.test.testBlock("empty", "unit1", "empty") == False
+        assert self.test.testBlock("empty", "unit1", "empty") is False
         assert self.test.testBlock("unit1", "unit2", "notempty")
-        assert self.test.testBlock("unit1", "empty", "notempty") == False
+        assert self.test.testBlock("unit1", "empty", "notempty") is False
 
     def test_getFill(self):
         test = self.test.getFill("unit1", callback="notempty")
-        assert (2,2,"map") not in test
+        assert (2, 2, "map") not in test
         test = self.test.getFill("unit2", callback="sideways")
         assert all([i[0] == 4 for i in test])
         assert len(self.test.getFill("empty", callback="empty")) == 0
-        test = self.test.getFill((0,0,"two"), callback="empty", distance=1)
+        test = self.test.getFill((0, 0, "two"), callback="empty", distance=1)
         assert len(test) == 3
         assert len(self.test.getFill(False, "empty")) == 0
+
 
 class TestDirectPathing:
     def setup(self):
@@ -141,18 +143,12 @@ class TestDirectPathing:
         self.map = self.test.map['map']
 
     def test_getAdjacent(self):
-        test = list(self.two.getAdjacent({(0,0, "two")}, callback=self.test["empty"], state=self.test))
+        test = list(self.two.getAdjacent({(0, 0, "two")}, callback=self.test["empty"], state=self.test))
         assert len(test) == 4
         assert len(test[0]) == 1
-        test2 = list(self.two.getAdjacent({(0,0,"two")}, callback=self.test["empty"], state=self.test))
+        test2 = list(self.two.getAdjacent({(0, 0, "two")}, callback=self.test["empty"], state=self.test))
         assert len(test2) == 4
-        assert test2[0] == {(0,0,"two")}
+        assert test2[0] == {(0, 0, "two")}
 
     def test_testLoc(self):
-        assert self.two.testLoc((0,0)) == False
-
-
-
-
-
-
+        assert self.two.testLoc((0, 0)) is False

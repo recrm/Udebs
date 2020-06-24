@@ -20,13 +20,13 @@ def cache(f=None, maxsize=None, storage=None):
     if storage is None:
         storage = OrderedDict()
 
-    def cache(f):
-        @wraps(f)
+    def cache_inside(f2):
+        @wraps(f2)
         def cache_wrapper(self, *args, **kwargs):
             key = (self.hash(), *args)
             value = storage.get(key, None)
             if value is None:
-                value = f(self, *args, **kwargs)
+                value = f2(self, *args, **kwargs)
                 storage[key] = value
             else:
                 storage.move_to_end(key)
@@ -39,8 +39,8 @@ def cache(f=None, maxsize=None, storage=None):
         return cache_wrapper
 
     if f is None:
-        return cache
-    return cache(f)
+        return cache_inside
+    return cache_inside(f)
 
 
 def modify_state(state, entities=None, logging=True, revert=True):
@@ -160,19 +160,19 @@ def register(f, args=None, name=None):
 
     """
 
-    def wrapper(args, f):
-        f_name = f.__name__ if name is None else name
+    def wrapper(args2, f2):
+        f_name = f2.__name__ if name is None else name
 
-        if isinstance(args, list):
-            args = {"args": args}
+        if isinstance(args2, list):
+            args2 = {"args": args2}
 
         importModule({
             f_name: {
                 "f": f_name,
-                **args,
+                **args2,
             }
-        }, {f_name: f() if inspect.isclass(f) else f})
-        return f
+        }, {f_name: f2() if inspect.isclass(f2) else f2})
+        return f2
 
     if args is None:
         return partial(wrapper, f)

@@ -2,7 +2,8 @@ from udebs.entity import Entity
 import udebs
 import os
 
-class TestEntityClass():
+
+class TestEntityClass:
     def setup(self):
         path = os.path.dirname(__file__)
         self.env = udebs.battleStart(path + "/test.xml")
@@ -32,7 +33,5 @@ class TestEntityClass():
 
     def test_eq(self):
         unit = self.env["unit1"]
-        assert (unit == "test") == False
+        assert (unit == "test") is False
         print(unit, repr(unit))
-
-

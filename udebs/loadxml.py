@@ -36,9 +36,9 @@ def battleWrite(env, location, pretty=False):
     e = ElementTree
     root = e.Element('udebs')
 
-    def add_leaf(root, node, value):
-        new = e.SubElement(root, node)
-        new.text = value
+    def add_leaf(root2, node2, value2):
+        new = e.SubElement(root2, node2)
+        new.text = value2
 
     # Definitions
     definitions = e.SubElement(root, 'definitions')
@@ -55,15 +55,15 @@ def battleWrite(env, location, pretty=False):
     config = e.SubElement(root, 'config')
     if env.name != 'Unknown':
         add_leaf(config, "name", env.name)
-    if env.logging != True:
+    if env.logging is not True:
         add_leaf(config, "logging", str(env.logging))
     if env.revert != 0:
         add_leaf(config, "revert", str(env.revert))
     if env.version != 1:
         add_leaf(config, "version", str(env.version))
-    if env.seed != None:
+    if env.seed is not None:
         add_leaf(config, "seed", str(env.seed))
-    if env.immutable != True:
+    if env.immutable is not True:
         add_leaf(config, "immutable", str(env.immutable))
 
     # Time variables
@@ -72,9 +72,9 @@ def battleWrite(env, location, pretty=False):
         add_leaf(var, "time", str(env.time))
     if env.increment != 1:
         add_leaf(var, "increment", str(env.increment))
-    if env.cont != True:
+    if env.cont is not True:
         add_leaf(var, "cont", str(env.cont))
-    if env.value != None:
+    if env.value is not None:
         add_leaf(var, "value", str(env.value))
 
     # map
@@ -85,7 +85,7 @@ def battleWrite(env, location, pretty=False):
             node.attrib['rmap'] = ''
         if map_.empty != 'empty':
             node.attrib['empty'] = map_.empty
-        if map_.type != False:
+        if map_.type is not False:
             node.attrib['type'] = map_.type
         for row in (list(i) for i in zip(*map_.map)):
             add_leaf(node, "row", ", ".join(row))
@@ -187,16 +187,16 @@ def battleStart(xml_file=None, debug=False, script="init", name=None, revert=Non
                 if stat.get('rlist') is not None:
                     field.rlist.append(stat.tag)
 
-    def fill_simple(root, stat, f, overwrite=None):
+    def fill_simple(root2, stat2, f, overwrite=None):
         if overwrite is not None:
-            setattr(field, stat, overwrite)
+            setattr(field, stat2, overwrite)
         else:
-            tmp = root.findtext(stat)
+            tmp = root2.findtext(stat2)
             if tmp is not None:
                 if f is not None:
                     tmp = f(tmp)
 
-                setattr(field, stat, tmp)
+                setattr(field, stat2, tmp)
 
     # Config
     config = root.find("config")
@@ -218,32 +218,32 @@ def battleStart(xml_file=None, debug=False, script="init", name=None, revert=Non
         fill_simple(time, "value", eval)
 
     # Maps
-    def addMap(field_map):
-        options = {"name": field_map.tag}
+    def addMap(field_map2):
+        options2 = {"name": field_map2.tag}
 
         # Attributes
         for att in ("empty", "rmap", "type"):
-            if field_map.get(att) is not None:
-                options[att] = field_map.get(att)
+            if field_map2.get(att) is not None:
+                options2[att] = field_map2.get(att)
 
         # dimensions.
-        dim_map = field_map.find("dim")
+        dim_map = field_map2.find("dim")
         if dim_map is not None:
-            options['dim'] = (
+            options2['dim'] = (
                 int(dim_map.find('x').text),
                 int(dim_map.find('y').text)
             )
 
         else:
             dim = []
-            for row in field_map:
+            for row in field_map2:
                 dim.append(re.split(r"\W*,\W*", row.text))
-            options['dim'] = [list(i) for i in zip(*dim)]
+            options2['dim'] = [list(j) for j in zip(*dim)]
 
         # Add to field
-        field.map[options["name"]] = board.Board(**options)
-        if "rmap" in options:
-            field.rmap.append(options["name"])
+        field.map[options2["name"]] = board.Board(**options2)
+        if "rmap" in options2:
+            field.rmap.append(options2["name"])
 
     field_maps = root.find("maps")
     if field_maps is not None:

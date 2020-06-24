@@ -37,7 +37,7 @@ class Board(MutableMapping):
         if isinstance(dim, tuple):
             self.map = []
             for e in range(dim[0]):
-                self.map.append([self.empty for i in range(dim[1])])
+                self.map.append([self.empty for _ in range(dim[1])])
 
         elif isinstance(dim, list):
             self.map = dim
@@ -186,8 +186,8 @@ class Board(MutableMapping):
                         searched.add(loc)
                         if self.testLoc(loc):
                             if callback:
-                                env = state._getEnv(start, loc, callback)
-                                if not callback.testRequire(env) == True:
+                                env = state.getEnv(start, loc, callback)
+                                if not callback.testRequire(env) is True:
                                     continue
                             next_.add(loc)
                             if pointer:
@@ -283,7 +283,7 @@ class Board(MutableMapping):
 
         """
         i = self.getAdjacent(finish)
-        final = next(i)
+        next(i)
         final = next(i)
         for i in self.getAdjacent(start, **kwargs):
             for q in i:

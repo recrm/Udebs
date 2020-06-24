@@ -35,7 +35,7 @@ class Instance(dict):
 
         # definitions
         self.lists = {'group', 'effect', 'require'}
-        self.stats = {'increment'}
+        self.stats = set()
         self.strings = set()
         # rlist and rmap are flags that indicate objects entities should inherit from.
         self.rlist = ['group']
@@ -62,7 +62,9 @@ class Instance(dict):
         self.rand = Random()
 
         # Do not copy
-        self.state = False
+        self.state = None
+
+        super().__init__()
 
     def __bool__(self):
         return self.cont
@@ -301,8 +303,8 @@ class Instance(dict):
             main_map.getRevert(5)
         """
 
-        new_states = self.state.copy()
         if self.state:
+            new_states = self.state.copy()
             for i in range(time + 1):
                 try:
                     new = new_states.pop()
@@ -318,7 +320,7 @@ class Instance(dict):
         Delays an effect a number of ticks.
 
         Note: A delay of 0 will delay an action until the end of the current action window.
-        Note: Notice the backtick.
+        Note: Notice the back tick.
 
         .. code-block:: xml
 
@@ -490,7 +492,7 @@ class Instance(dict):
     #                 Call wrappers                    -
     # ---------------------------------------------------
 
-    def _getEnv(self, caster, target, move):
+    def getEnv(self, caster, target, move):
         """Internal method for creating contexts for calls."""
 
         var_local = {
@@ -534,7 +536,7 @@ class Instance(dict):
                     info(f"{caster_name} uses {move} on {target_name}")
 
             # Cast the move
-            test = move(self._getEnv(caster, target, move))
+            test = move(self.getEnv(caster, target, move))
             if test is True:
                 value = True
             elif self.logging:
@@ -552,7 +554,7 @@ class Instance(dict):
 
         """
         move = self.getEntity(move)
-        env = self._getEnv(caster, target, move)
+        env = self.getEnv(caster, target, move)
         return move.testRequire(env) is True
 
     def castInit(self, moves):
@@ -926,7 +928,7 @@ class Instance(dict):
             if target.loc:
                 self.getMap(target.loc)[target.loc] = caster.name
                 if not target.immutable:
-                    target.loc = False
+                    target.loc = None
 
                 if self.logging:
                     info(f"{caster} has moved to {target.loc}")

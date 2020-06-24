@@ -3,6 +3,7 @@ import udebs
 from pytest import raises
 import os
 
+
 class TestBattleStart:
     def test_alternate(self):
         tests = [["one", "two"], "three", ["four", "five", "six"]]
@@ -17,14 +18,14 @@ class TestBattleStart:
         assert f.time > 0
 
     def test_placeholder(self):
-        """Not function is depricated"""
+        """Not function is deprecated"""
         udebs.placeholder("TEST")
-        assert "TEST" in interpret.Variables.modules["other"]
+        assert "TEST" in interpret.Variables.modules[-1]
 
     def test_Player(self):
-        """Not function is depricated"""
+        """Not function is deprecated"""
         udebs.Player("TEST")
-        assert "TEST" in interpret.Variables.modules["other"]
+        assert "TEST" in interpret.Variables.modules[-1]
 
         path = os.path.dirname(__file__)
         env = udebs.battleStart(path + "/test.xml", log=True)
@@ -66,6 +67,3 @@ class TestBattleStart:
         assert main_map.castSingle("ADDITION2 1 3") == 4
         assert main_map.castSingle("SUBTRACTION 4") == 3
         assert main_map.castSingle("sub1 4") == 3
-
-
-

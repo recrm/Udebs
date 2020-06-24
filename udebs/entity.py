@@ -1,13 +1,14 @@
 class Entity:
-    def __init__(self, field, **options):
+    def __init__(self, field=None, **options):
         if "_data" in options:
             # second path for copy operation only
             self.__dict__ = options["_data"]
             return
 
         self.name = options.get("name", "")
-        self.loc = options.get("loc", False)
+        self.loc = options.get("loc", None)
         self.immutable = options.get("immutable", False)
+        self.increment = options.get("increment", 0)
 
         for stat in field.stats:
             self.__dict__[stat] = options.get(stat, 0)
@@ -68,7 +69,7 @@ class Entity:
                     v = v[:]
                 kwargs[k] = v
 
-        return Entity(None, _data=kwargs)
+        return Entity(_data=kwargs)
 
     def clone(self):
         """Returns a clone of self."""

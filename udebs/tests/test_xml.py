@@ -2,19 +2,20 @@ import udebs
 import os
 from udebs.board import Board
 
-#Test battleStart
+
+# Test battleStart
 class TestBattleStart:
     def setup(self):
         path = os.path.dirname(__file__)
         self.test = udebs.battleStart(path + "/test.xml")
 
     def test_config(self):
-        assert self.test.logging == False
+        assert self.test.logging is False
         assert self.test.name == "testing"
         assert self.test.revert == 4
         assert self.test.version == 1
         assert self.test.seed == 690
-        assert self.test.immutable == False
+        assert self.test.immutable is False
 
     def test_definitions(self):
         assert "ACT" in self.test.stats
@@ -22,7 +23,7 @@ class TestBattleStart:
         assert "equipment" in self.test.lists
         assert "inventory" in self.test.rlist
         total = sum([len(i) for i in [self.test.lists, self.test.stats, self.test.strings]])
-        assert total == 8
+        assert total == 7
 
     def test_map(self):
         assert len(self.test.map) == 3
@@ -41,10 +42,10 @@ class TestBattleStart:
 
     def test_var(self):
         assert self.test.time == 4
-        #delay not tested yet.
+        # delay not tested yet.
 
     def test_entity(self):
-        #four defined plus one built in.
+        # four defined plus one built in.
         assert len(self.test) == 13
         assert len(self.test["unit1"].group) == 1
 
@@ -57,6 +58,7 @@ class TestBattleStart:
         test = udebs.battleStart("<udebs><config><logging>True</logging></config><map><x>6</x><y>6</y></map></udebs>")
         assert len(test) == 1
 
+
 class TestBattleWrite:
     def test_equal(self):
         path = os.path.dirname(__file__) + "/test.xml"
@@ -67,4 +69,3 @@ class TestBattleWrite:
         env2 = udebs.battleStart(path2, script=None)
         assert env1 == env2
         os.remove(path2)
-
