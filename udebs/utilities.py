@@ -129,6 +129,9 @@ def count_recursion(f):
     return count_recursion_wrapper
 
 
+countrecursion = count_recursion
+
+
 def no_recurse(f):
     """Wrapper function that forces a function to return True if it recurse."""
 
@@ -140,6 +143,9 @@ def no_recurse(f):
         return f(*args, **kwargs)
 
     return func
+
+
+norecurse = no_recurse
 
 
 def alternate(*args):
