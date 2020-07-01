@@ -1,6 +1,4 @@
 {
-    "#": "Control Functions",
-
     "TIME": {
         "f": "self.controlTime",
         "args": ["$1"]
@@ -55,9 +53,6 @@
         "args": ["-$1", "$1"],
         "default": {"-$1": "$caster"}
     },
-
-    "#": "Get moves.",
-
     "CLASS": {
         "f": "self.getListGroup",
         "args": ["$1", "group", "$2"]

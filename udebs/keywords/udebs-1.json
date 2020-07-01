@@ -1,5 +1,4 @@
 {
-    "#": "Entity actions.",
     "GETS": {
         "f": "self.controlListAdd",
         "args": ["-$2", "-$1", "$1"],
@@ -25,8 +24,6 @@
         "args": ["$1"],
         "default": {"$1": 1}
     },
-
-    "#": "CHANGE convinience wrappers.",
     "+=": {
         "f": "self.controlIncrement",
         "args": ["-$2", "-$1", "$1"]
@@ -55,8 +52,6 @@
         "args": ["-$1", "$1"],
         "default": {"-$1": "$caster"}
     },
-
-    "#": "Callback actions.",
     "CAST": {
         "f": "self._controlMove",
         "args": ["-$1", "$1", "$2"],
@@ -64,11 +59,11 @@
     },
     "INIT": {
         "f": "self._controlMove",
-        "args": ["empty", "empty", "$1"]
+        "args": ["#empty", "#empty", "$1"]
     },
     "ACTION": {
         "f": "self._controlMove",
-        "args": ["-$1", "empty", "$1"]
+        "args": ["-$1", "#empty", "$1"]
     },
     "DELAY": {
         "f": "self.controlDelay",
@@ -79,8 +74,6 @@
         "args": ["$1"],
         "default": {"$1": 0}
     },
-
-    "#": "Get from entity.",
     "STAT": {
         "f": "self.getStat",
         "args": ["-$1", "$1"],
@@ -121,14 +114,21 @@
         "args": ["-$1"],
         "default": {"-$1": "$caster"}
     },
+    "SHIFT": {
+        "f": "self.getShift",
+        "args": ["-$1", "$1", "$2", "$3"],
+        "default": {"-$1": "$caster", "$3": "None"}
+    },
     "NAME": {
         "f": "self.getName",
         "args": ["-$1"],
         "default": {"-$1": "$caster"}
     },
-
-    "#": "Get from environment.",
-
+    "#": {
+        "f": "self.getEntity",
+        "args": ["$1", "$2"],
+        "default": {"$2": false}
+    },
     "SHUFFLE": {
         "f": "self.controlShuffle",
         "args": ["-$1", "$1"]
@@ -148,7 +148,7 @@
     "FILL": {
         "f": "self.getFill",
         "args": ["$1", "$2", "$3", "$4"],
-        "default": {"$2": "empty", "$3": true, "$4": null}
+        "default": {"$2": "#empty", "$3": true, "$4": null}
     },
     "PATH": {
         "f": "self.getPath",
@@ -175,5 +175,4 @@
         "args": ["-$1"],
         "default": {"-$1": "$caster"}
     }
-
 }
