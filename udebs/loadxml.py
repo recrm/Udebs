@@ -65,6 +65,8 @@ def battleWrite(env, location, pretty=False):
         add_leaf(config, "seed", str(env.seed))
     if env.immutable is not True:
         add_leaf(config, "immutable", str(env.immutable))
+    if env.auto_entity is not True:
+        add_leaf(config, "auto_entity", str(env.auto_entity))
 
     # Time variables
     var = e.SubElement(root, 'var')
@@ -151,7 +153,7 @@ def battleWrite(env, location, pretty=False):
 
 # Creates and instance object from xml file.
 def battleStart(xml_file=None, debug=False, script="init", name=None, revert=None, log=None, version=None, seed=None,
-                immutable=None, field=None):
+                immutable=None, field=None, auto_entity=None):
     """
     Creates an instance object from given xml file.
 
@@ -207,6 +209,7 @@ def battleStart(xml_file=None, debug=False, script="init", name=None, revert=Non
         fill_simple(config, "version", int, version)
         fill_simple(config, "seed", int, seed)
         fill_simple(config, "immutable", eval, immutable)
+        fill_simple(config, "auto_entity", eval, auto_entity)
 
     # Time variables
     time = root.find("var")

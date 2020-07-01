@@ -48,6 +48,7 @@ class Instance(dict):
         self.version = 1  # What version of Udebs syntax is used.
         self.seed = None  # Random seed for processing.
         self.immutable = False  # Determines default setting for entities immutability.
+        self.auto_entity = True
 
         # time
         self.time = 0  # In game counter
@@ -93,7 +94,7 @@ class Instance(dict):
     def __copy__(self):
         return self.copy()
 
-    def copy(self, new=None):
+    def copy(self, new=None) -> "Instance":
         if new is None:
             new = type(self)(True)
 
@@ -126,7 +127,7 @@ class Instance(dict):
                 "script": delay["script"],
             })
 
-        new.state = copy(self.state)
+        new.state = None
 
         return new
 
@@ -143,16 +144,16 @@ class Instance(dict):
         * string - The name of the object we are looking for.
         * tuple - A tuple of the form (x, y, name) representing a location on a map.
         * list - A list containing other selectors.
-        * False - Returns the default empty selector.
+        * None - Returns the default empty selector.
 
-        .. code-block:: python
+        .. code-block:: xml
 
-            main_map.getEntity("empty")
+            <i># identifier</i>
 
         """
         if isinstance(target, Entity):
             return target
-        elif target is False or target == "bump":
+        elif target is False or target is None or target == "bump":
             return self['empty']
         elif isinstance(target, str) and target in self:
             return self[target]
@@ -201,20 +202,31 @@ class Instance(dict):
         return self[target]
 
     def _getEntityTuple(self, target):
-        map_ = self.getMap(target)
+        if len(target) < 3:
+            map_name = "map"
+        else:
+            map_name = target[2]
+
         try:
-            name = map_[target]
-        except (IndexError, TypeError):
+            name = self.map[map_name][target]
+        except (IndexError, TypeError, KeyError):
             raise UndefinedSelectorError(target, "entity")
 
         unit = self[name]
 
         if not unit.loc:
             if len(target) < 3:
-                target = (*target, map_.name)
+                target = (*target, map_name)
             unit = unit.copy(loc=target)
 
         return unit
+
+    def getLocObject(self, target):
+        if isinstance(target, tuple):
+            if len(target) < 3:
+                target = (*target, "map")
+            return target
+        return self.getEntity(target).loc
 
     def getMap(self, target="map"):
         """
@@ -227,7 +239,7 @@ class Instance(dict):
         if isinstance(target, tuple):
             target = target[2] if len(target) == 3 else "map"
         if not target:
-            return False
+            return None
         elif isinstance(target, str) and target in self.map:
             return self.map[target]
         elif isinstance(target, Board):
@@ -305,6 +317,7 @@ class Instance(dict):
 
         if self.state:
             new_states = self.state.copy()
+            new = self
             for i in range(time + 1):
                 try:
                     new = new_states.pop()
@@ -349,9 +362,10 @@ class Instance(dict):
         callback - Condition to check in the future.
         time - how much time to travel into the future.
         """
-        caster = self.getEntity(caster)
-        target = self.getEntity(target)
-        move = self.getEntity(move)
+        if self.auto_entity:
+            caster = self.getEntity(caster)
+            target = self.getEntity(target)
+            move = self.getEntity(move)
 
         # create test instance
         clone = self.copy()
@@ -364,7 +378,7 @@ class Instance(dict):
         move = clone.getEntity(move.name)
 
         # Send clone into the future.
-        env = clone._getEnv(caster, target, move)
+        env = clone.getEnv(caster, target, move)
         move.controlEffect(env)
         clone.controlTime(time)
 
@@ -387,21 +401,22 @@ class Instance(dict):
 
             <i>target [$caster] STAT stat</i>
         """
-        current = self.getEntity(target)
+        if self.auto_entity:
+            target = self.getEntity(target)
         if stat in {"increment", "group"}:
-            return getattr(current, stat)
+            return getattr(target, stat)
         elif stat == "envtime":
             return self.time
         elif stat not in self.lists.union(self.stats).union(self.strings):
             raise UndefinedSelectorError(stat, "stat")
 
-        values = self._getStatHelper(current, stat)
+        values = self._getStatHelper(target, stat)
 
         # rmap only apply to current object not rlist.
-        if current.loc:
+        if target.loc:
             for map_ in self.rmap:
-                if map_ != current.loc[2]:
-                    child = self.getEntity((current.loc[0], current.loc[1], map_))
+                if map_ != target.loc[2]:
+                    child = self[self.map[map_][target.loc]]
                     values = chain(values, self._getStatHelper(child, stat))
 
         if stat in self.stats:
@@ -423,17 +438,17 @@ class Instance(dict):
                     unit = self[unit]
                 yield from self._getStatHelper(unit, stat)
 
-    def getGroup(self, group):
+    def getGroup(self, group: str):
         """Return all objects belonging to group.
 
          .. code-block:: xml
 
             <i>ALL group</i>
         """
-        group_name = self.getEntity(group).name
-        values = [unit for unit in self if group_name in self[unit].group]
-        # sorted is required to force algorithm to be deterministic
-        return sorted(values)
+        if self.auto_entity < 3:
+            group = self.getEntity(group)
+
+        return [unit for unit in self.values() if group.name in unit.group]
 
     def getListStat(self, target, lst, stat):
         """
@@ -443,7 +458,6 @@ class Instance(dict):
 
             <i>target [$caster] lst LISTSTAT stat</i>
         """
-        target = self.getEntity(target)
         lst = self.getStat(target, lst)
 
         found = (self.getStat(element, stat) for element in lst)
@@ -464,7 +478,8 @@ class Instance(dict):
             <i>target [$caster] lst LISTGROUP group</i>
             <i>target [$caster] CLASS group</i>
         """
-        group = self.getEntity(group)
+        if self.auto_entity:
+            group = self.getEntity(group)
 
         start = self.getStat(target, lst)
         for item in start:
@@ -480,13 +495,13 @@ class Instance(dict):
 
             <i>SEARCH arg1 arg2 ...</i>
         """
-        found_iter = iter(args)
-        first = found_iter.__next__()
-        found = set(self.getGroup(first))
+        found = []
         for arg in args:
-            found = found.intersection(self.getGroup(arg))
-        # sorted is required to force algorithm to be deterministic
-        return sorted(list(found))
+            for new in self.getGroup(arg):
+                if new not in found:
+                    found.append(new)
+
+        return found
 
     # ---------------------------------------------------
     #                 Call wrappers                    -
@@ -511,9 +526,10 @@ class Instance(dict):
 
         Note: If a list of entity selectors is received for any argument, all actions in the product will trigger.
         """
-        casters = self.getEntity(casters, multi=True)
-        targets = self.getEntity(targets, multi=True)
-        moves = self.getEntity(moves, multi=True)
+        if self.auto_entity:
+            casters = self.getEntity(casters, multi=True)
+            targets = self.getEntity(targets, multi=True)
+            moves = self.getEntity(moves, multi=True)
 
         value = False
 
@@ -553,7 +569,8 @@ class Instance(dict):
             main_map.testMove(caster, target, move)
 
         """
-        move = self.getEntity(move)
+        if self.auto_entity:
+            move = self.getEntity(move)
         env = self.getEnv(caster, target, move)
         return move.testRequire(env) is True
 
@@ -582,6 +599,10 @@ class Instance(dict):
 
             <i>caster [$caster] CAST target move</i>
         """
+        caster = self.getEntity(caster, multi=True)
+        target = self.getEntity(target, multi=True)
+        move = self.getEntity(move, multi=True)
+
         value = self._controlMove(caster, target, move)
         if value:
             self._checkDelay()
@@ -611,16 +632,21 @@ class Instance(dict):
 
             <i>caster [$caster] lst GETS entries</i>
         """
+        if self.auto_entity:
+            targets = self.getEntity(targets, multi=True)
 
-        targets = self.getEntity(targets, multi=True)
         if not isinstance(entries, list):
             entries = [entries]
 
+        changed = False
         for target, entry in product(targets, entries):
             if not target.immutable:
                 getattr(target, lst).append(entry)
+                changed = True
                 if self.logging:
                     info(f"{entry} added to {target} {lst}")
+
+        return changed
 
     def controlListRemove(self, targets, lst, entries):
         """
@@ -630,18 +656,23 @@ class Instance(dict):
 
             <i>caster [$caster] lst LOSES entries</i>
         """
+        if self.auto_entity:
+            targets = self.getEntity(targets, multi=True)
 
-        targets = self.getEntity(targets, multi=True)
         if not isinstance(entries, list):
             entries = [entries]
 
+        changed = False
         for target, entry in product(targets, entries):
             if not target.immutable:
                 value = getattr(target, lst)
                 if entry in value:
+                    changed = True
                     value.remove(entry)
                     if self.logging:
                         info(f"{entry} removed from {target} {lst}")
+
+        return changed
 
     def controlClear(self, targets, lst):
         """
@@ -651,14 +682,20 @@ class Instance(dict):
 
             <i>target [$caster] CLEAR lst</i>
         """
+        if self.auto_entity:
+            targets = self.getEntity(targets, multi=True)
 
-        for target in self.getEntity(targets, multi=True):
+        changed = False
+        for target in targets:
             if not target.immutable:
                 getattr(target, lst).clear()
+                changed = True
                 if self.logging:
                     info(f"{target} {lst} has been cleared")
 
-    def controlShuffle(self, target, lst):
+        return changed
+
+    def controlShuffle(self, targets, lst):
         """
         Randomize order of a list.
 
@@ -666,12 +703,18 @@ class Instance(dict):
 
             <i>target SHUFFLE lst</i>
         """
+        if self.auto_entity:
+            targets = self.getEntity(targets, multi=True)
 
-        for target in self.getEntity(target, multi=True):
+        changed = False
+        for target in targets:
             if not target.immutable:
                 self.rand.shuffle(getattr(target, lst))
+                changed = True
                 if self.logging:
                     info(f"{target} {lst} has been shuffled")
+
+        return changed
 
     def controlIncrement(self, targets, stat, increment, multi=1):
         """
@@ -685,13 +728,19 @@ class Instance(dict):
             <i>target stat -= increment</i>
             <i>target [$caster] stat CHANGE increment</i>
         """
+        if self.auto_entity:
+            targets = self.getEntity(targets, multi=True)
 
+        changed = False
         total = int(increment * multi)
-        for target in self.getEntity(targets, multi=True):
+        for target in targets:
             if not target.immutable:
                 setattr(target, stat, getattr(target, stat) + total)
+                changed = True
                 if self.logging:
                     info(f"{target} {stat} changed by {total} is now {self.getStat(target, stat)}")
+
+        return changed
 
     def controlString(self, targets, stat, value):
         """
@@ -703,12 +752,18 @@ class Instance(dict):
 
             <i>caster [$caster] stat REPLACE value</i>
         """
+        if self.auto_entity:
+            targets = self.getEntity(targets, multi=True)
 
-        for target in self.getEntity(targets, multi=True):
+        changed = False
+        for target in targets:
             if not target.immutable:
                 setattr(target, stat, value)
+                changed = True
                 if self.logging:
                     info(f"{target} {stat} changed to {value}")
+
+        return changed
 
     def controlRecruit(self, target, positions):
         """
@@ -721,10 +776,14 @@ class Instance(dict):
 
             <i>caster [$caster] RECRUIT position</i>
         """
+        if self.auto_entity:
+            target = self.getEntity(target)
 
-        target = self.getEntity(target)
         new = target
-        for position in positions if isinstance(positions, list) else [positions]:
+        if not isinstance(positions, list):
+            positions = [positions]
+
+        for position in positions:
             if not target.immutable:
                 new = target.clone()
                 self[new.name] = new
@@ -742,12 +801,13 @@ class Instance(dict):
 
             <i>target DELETE</i>
         """
+        if self.auto_entity:
+            target = self.getEntity(target)
 
-        target = self.getEntity(target)
         if not target.immutable:
             del self[target.name]
             if target.loc:
-                del self.getMap(target)[target.loc]
+                del self.map[target.loc[2]][target.loc]
             if self.logging:
                 info(f"{target} has been deleted")
             return True
@@ -765,9 +825,8 @@ class Instance(dict):
 
             <i>target [$caster] XLOC</i>
         """
-
-        unit = self.getEntity(target)
-        return unit.loc[value] if unit.loc else False
+        loc = self.getLocObject(target)
+        return loc[value] if loc else False
 
     def getY(self, target):
         """
@@ -797,7 +856,7 @@ class Instance(dict):
 
             <i>target [$caster] LOC</i>
         """
-        return self.getEntity(target).loc
+        return self.getLocObject(target)
 
     def getName(self, target):
         """
@@ -807,7 +866,27 @@ class Instance(dict):
 
             <i>target [$caster] NAME</i>
         """
-        return self.getEntity(target).name
+        if self.auto_entity:
+            target = self.getEntity(target)
+
+        return target.name
+
+    def getShift(self, target, x, y, name=None):
+        """
+        Returns a new loc shifted x and y units from an old one
+
+        .. code-block:: xml
+
+            <i>target [$caster] SHIFT x y</i>
+        """
+        loc = self.getLocObject(target)
+        if loc is not None:
+            new_name = name if name else loc[2]
+            new_loc = loc[0] + x, loc[1] + y, new_name
+            if self.map[new_name].testLoc(new_loc):
+                return new_loc
+
+        return self['empty']
 
     # ---------------------------------------------------
     #                 Board get wrappers               -
@@ -815,9 +894,9 @@ class Instance(dict):
 
     def mapIter(self, name="map"):
         """Iterate over all cells in a map."""
-        map_ = self.getMap(name)
+        map_ = self.map[name]
         for loc in map_:
-            yield self.getEntity(loc)
+            yield self[map_[loc]]
 
     def getPath(self, caster, target, callback):
         """
@@ -827,13 +906,13 @@ class Instance(dict):
 
             <i>PATH callback caster [$caster] target [$target]</i>
         """
-        caster = self.getEntity(caster).loc
-        target = self.getEntity(target).loc
-        callback = self.getEntity(callback)
-
-        map_ = self.getMap(caster)
-        if map_ and map_.testLoc(target):
-            return map_.getPath(caster, target, callback=callback, state=self)
+        caster = self.getLocObject(caster)
+        if caster:
+            target = self.getLocObject(target)
+            callback = self.getEntity(callback)
+            map_ = self.map[caster[2]]
+            if map_.testLoc(target):
+                return map_.getPath(caster, target, callback=callback, state=self)
 
         return []
 
@@ -846,14 +925,15 @@ class Instance(dict):
             <i>PATH method caster [$caster] target [$target]</i>
         """
 
-        caster = self.getEntity(caster).loc
-        target = self.getEntity(target).loc
-        if method in self:
-            method = self.getEntity(method)
+        caster = self.getLocObject(caster)
+        if caster:
+            target = self.getLocObject(target)
+            if method in self:
+                method = self.getEntity(method)
 
-        map_ = self.getMap(caster)
-        if map_ and map_.testLoc(target):
-            return map_.getDistance(caster, target, method, state=self)
+            map_ = self.map[caster[2]]
+            if map_.testLoc(target):
+                return map_.getDistance(caster, target, method, state=self)
 
         return float("inf")
 
@@ -865,13 +945,14 @@ class Instance(dict):
 
             <i>BLOCK callback caster [$caster] target [$target]</i>
         """
-        caster = self.getEntity(caster).loc
-        target = self.getEntity(target).loc
-        callback = self.getEntity(callback)
+        caster = self.getLocObject(caster)
+        if caster:
+            target = self.getLocObject(target)
+            callback = self.getEntity(callback)
 
-        map_ = self.getMap(caster)
-        if map_ and map_.testLoc(target):
-            return map_.testBlock(caster, target, callback=callback, state=self)
+            map_ = self.map[caster[2]]
+            if map_.testLoc(target):
+                return map_.testBlock(caster, target, callback=callback, state=self)
 
         return False
 
@@ -886,10 +967,10 @@ class Instance(dict):
         if distance is None:
             distance = float("inf")
 
-        center = self.getEntity(center).loc
-        callback = self.getEntity(callback)
-        map_ = self.getMap(center)
-        if map_:
+        center = self.getLocObject(center)
+        if center:
+            callback = self.getEntity(callback)
+            map_ = self.map[center[2]]
             fill = sorted(map_.getFill(center, distance, include_center,
                                        callback=callback, state=self))
             self.rand.shuffle(fill)
@@ -899,21 +980,23 @@ class Instance(dict):
 
     def printMap(self, board="map"):
         """Print a map."""
-        self.getMap(board).show()
+        self.map[board].show()
 
     # ---------------------------------------------------
     #              Board control wrappers              -
     # ---------------------------------------------------
-    def controlTravel(self, caster, targets=False):
+    def controlTravel(self, caster, targets=None):
         """Move one object to a new location.
 
         .. code-block:: xml
 
             <i>caster [$caster] MOVE target</i>
         """
+        if self.auto_entity:
+            caster = self.getEntity(caster)
 
-        caster = self.getEntity(caster)
-        targets = self.getEntity(targets, multi=True)
+        if not isinstance(targets, list):
+            targets = [targets]
 
         if len(targets) > 1 and not caster.immutable:
             raise Exception("Non immutable entities cannot be moved to multiple locations.")
@@ -921,21 +1004,25 @@ class Instance(dict):
         for target in targets:
             # First remove caster from it's current location
             if not caster.immutable and caster.loc:
-                del self.getMap(caster.loc)[caster.loc]
+                del self.map[caster.loc[2]][caster.loc]
 
             # Then move caster to target location.
-            loc = target.loc
-            if target.loc:
-                self.getMap(target.loc)[target.loc] = caster.name
-                if not target.immutable:
-                    target.loc = None
+            target = self.getLocObject(target)
+            if target:
+                map_ = self.map[target[2]]
+                unit_name = map_[target]
+                unit_self = self[unit_name]
+
+                map_[target] = caster.name
+                if not unit_self.immutable:
+                    unit_self.loc = None
 
                 if self.logging:
-                    info(f"{caster} has moved to {target.loc}")
+                    info(f"{caster} has moved to {target}")
 
             # Update the entity itself.
             if not caster.immutable:
-                caster.loc = loc
+                caster.loc = target
 
     # ---------------------------------------------------
     #                 Game Loop Helpers                -
@@ -949,18 +1036,20 @@ class Instance(dict):
             for state in main_map.gameLoop():
                 state.castMove(caster, target, move)
         """
-        self.increment = time
-        while self.cont:
-            yield self
+        current = self
 
-            if self.next is not None:
-                yield self.next
-                self = self.next
+        current.increment = time
+        while current.cont:
+            yield current
 
-            self.controlTime(self.increment, script=script)
+            if current.next is not None:
+                yield current.next
+                current = current.next
 
-        if self.logging:
-            info(f"EXITING {self.name}\n")
+            current.controlTime(current.increment, script=script)
+
+        if current.logging:
+            info(f"EXITING {current.name}\n")
 
     def exit(self, value=1):
         """Requests the end of the game by setting Instance.cont to False, and exiting out of the game_loop.
