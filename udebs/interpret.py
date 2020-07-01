@@ -290,9 +290,8 @@ class Standard:
 
 
 class Variables:
+    versions = [0, 1]
     modules = {
-        0: {},
-        1: {},
         -1: {},
     }
     env = {
@@ -342,6 +341,9 @@ def importModule(dicts=None, globs=None, version=-1):
         globs = {}
     if dicts is None:
         dicts = {}
+    if version not in Variables.modules:
+        Variables.modules[version] = {}
+
     Variables.modules[version].update(dicts)
     Variables.env.update(globs)
 
@@ -350,9 +352,8 @@ def importSystemModule(name, globs=None):
     """Convenience script for import system keywords."""
     if globs is None:
         globs = {}
-    versions = [0, 1]
     path = os.path.dirname(__file__)
-    for version in versions:
+    for version in Variables.versions:
         filename = "{}/keywords/{}-{}.json".format(path, name, str(version))
         with open(filename) as fp:
             importModule(json.load(fp), globs, version)
