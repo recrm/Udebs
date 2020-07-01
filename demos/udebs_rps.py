@@ -8,48 +8,56 @@ xml = """
 <definitions>
     <stats>
         <lives />
+        <power />
     </stats>
-    <lists>
-        <options />
-    </lists>
+    <strings>
+        <choice />
+    </strings>
 </definitions>
 
 <config>
     <logging>False</logging>
+    <auto_entity>False</auto_entity>
 </config>
 
 <entities>
+    <rock>
+        <power>0</power>
+    </rock>
+    <paper>
+        <power>1</power>
+    </paper>
+    <scissors>
+        <power>2</power>
+    </scissors>
+    
     <tick>
-        <options>
-            <i>rock</i>
-            <i>paper</i>
-            <i>scissors</i>
-        </options>
         <effect>
-            <i>INIT rps</i>
-            <i>INIT game_over</i>
+            <i>print You have #user.STAT.lives lives</i>
+            <i>print Your opponent has #computer.STAT.lives lives</i>
+            <i>#user choice REPLACE #(HUMAN)</i>
+            <i>#computer choice REPLACE #(RANDOM)</i>
+            <i>print you played #user.STAT.choice</i>
+            <i>print your opponent played #computer.STAT.choice</i>
+            <i>#user CAST #computer #death</i>
+            <i>#computer CAST #user #death</i>
+            <i>print ""</i>
         </effect>
     </tick>
 
-    <rps>
+    <death>
+        <require>((($caster.STAT.choice STAT power) - ($target.STAT.choice STAT power)) % 3) == 1</require>
         <effect>
-            <i>print "You have" user.STAT.lives lives</i>
-            <i>print "Your opponent has" computer.STAT.lives lives</i>
-            <i>user = (HUMAN)</i>
-            <i>computer = (RANDOM)</i>
-            <i>print you played $user</i>
-            <i>print your opponent played $computer</i>
-            <i>user lives += LOOKUP.$user.$computer</i>
-            <i>computer lives += LOOKUP.$computer.$user</i>
-            <i>print ""</i>
+            <i>$target lives -= 1</i>
+            <i>print $target has lost a life</i>
+            <i>CAST $target #game_over</i>
         </effect>
-    </rps>
+    </death>
 
     <game_over>
-        <require>(user.STAT.lives * computer.STAT.lives) &lt;= 0</require>
+        <require>$target.STAT.lives &lt;= 0</require>
         <effect>
-            <i>print "You have" user.STAT.lives lives</i>
-            <i>print "Your opponent has" computer.STAT.lives lives</i><i>print The game is over</i>
+            <i>print $target has 0 lives and died</i>
             <i>EXIT</i>
         </effect>
     </game_over>
@@ -81,16 +89,6 @@ def HUMAN():
         x = input("Try again? ")
 
     return x
-
-
-@udebs.register(["$1", "$2"])
-def LOOKUP(one, two):
-    data = {
-        "rock": {"paper": -1},
-        "paper": {"scissors": -1},
-        "scissors": {"rock": -1},
-    }
-    return data.get(one, {}).get(two, 0)
 
 
 if __name__ == "__main__":
