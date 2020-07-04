@@ -826,7 +826,7 @@ class Instance(dict):
             <i>target [$caster] XLOC</i>
         """
         loc = self.getLocObject(target)
-        return loc[value] if loc else False
+        return loc[value] if loc else None
 
     def getY(self, target):
         """
@@ -869,7 +869,11 @@ class Instance(dict):
         if self.auto_entity:
             target = self.getEntity(target)
 
-        return target.name
+        names = []
+        for i in target:
+            names.append(i.name)
+
+        return names if len(names) > 1 else names[0]
 
     def getShift(self, target, x, y, name=None):
         """

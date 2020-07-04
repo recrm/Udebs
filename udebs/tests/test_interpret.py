@@ -51,16 +51,16 @@ class TestInterpret:
         assert interpret("one two one.two.three") == interpret("one two (one two three)")
 
     def test_prefix(self):
-        assert interpret("one two -three") == "('one','two',standard.minus(0,'three'))"
-        assert interpret("-one.two.three") == "(standard.minus(0,'one'),'two','three')"
-        assert interpret("-(one two three)") == "standard.minus(0,('one','two','three'))"
+        assert interpret("one two -three") == "('one','two',operator.sub(0,'three'))"
+        assert interpret("-one.two.three") == "(operator.sub(0,'one'),'two','three')"
+        assert interpret("-(one two three)") == "operator.sub(0,('one','two','three'))"
 
     def test_call(self):
         assert interpret(
             "negative testing one two") == "TEST('negative','one','two','three',none=50,test=10,value='empty')"
 
     def test_global(self):
-        assert interpret("one $target") == "('one',standard.getvar(storage,'target'))"
+        assert interpret("one $target") == "('one',storage.__getitem__('target'))"
 
     def test_specials(self):
         assert interpret("self") == "(self)"

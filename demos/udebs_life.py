@@ -17,6 +17,7 @@ game_config = """
     <seed>4643</seed>
     <name>life</name>
     <immutable>True</immutable>
+    <auto_entity>False</auto_entity>
 </config>
 
 <definitions>
@@ -26,7 +27,7 @@ game_config = """
     </stats>
 
     <lists>
-        <save />
+        <neighbors />
     </lists>
 </definitions>
 
@@ -45,10 +46,11 @@ game_config = """
     <cell immutable="False" />
 
     <change>
-        <effect>
-            <i>neighbors = FILL.$target.empty.false.1</i>
-            <i>DELAY `(tick save GETS $neighbors) 0</i>
-        </effect>
+        <require>
+            <i>neighbors_locs = $target.STAT.neighbors</i>
+            <i>neighbors = #.$neighbors_locs.true</i>
+        </require>
+        <effect>DELAY `(#cell neighbors GETS $neighbors_locs) 0</effect>
     </change>
 
     <!-- Life -->
@@ -69,7 +71,7 @@ game_config = """
     <random_life>
         <group>life</group>
         <require>DICE.4 == 0</require>
-        <effect>tick save GETS $target.LOC</effect>
+        <effect>#cell neighbors GETS $target.NAME</effect>
     </random_life>
 
     <!-- Death -->
@@ -86,20 +88,26 @@ game_config = """
     </death>
 
     <!-- Scripts -->
+    <populate_neighbors>
+        <effect>$target neighbors REPLACE FILL.$target.#empty.false.1</effect>
+    </populate_neighbors>
+
     <init>
         <effect>
-            <i>all = (FILL (1 1) empty)</i>
-            <i>cell RECRUIT $all</i>
-            <i>CAST $all random_life</i>
+            <i>all = (FILL (1 1) #empty)</i>
+            <i>#cell RECRUIT $all</i>
+            <i>cells = (# $all true)</i>
+            <i>CAST $cells #populate_neighbors</i>
+            <i>CAST $cells #random_life</i>
         </effect>
     </init>
 
-    <tick immutable="False">
+    <tick>
         <effect>
-            <i>all = (dedup $move.STAT.save)</i>
-            <i>CAST $all death</i>
-            <i>CAST $all auto_life</i>
-            <i>tick CLEAR save</i>
+            <i>all = (# (dedup #cell.STAT.neighbors) true)</i>
+            <i>CAST $all #death</i>
+            <i>CAST $all #auto_life</i>
+            <i>#cell CLEAR neighbors</i>
         </effect>
     </tick>
 </entities>
@@ -107,10 +115,10 @@ game_config = """
 """
 
 
-def redraw_board(surface2, ts2):
+def redraw_board(board, surface2, ts2):
     surface2.fill((0, 0, 0))
-    for target in main_map.mapIter():
-        if main_map.getStat(target, "LIFE"):
+    for target in board.mapIter():
+        if board.getStat(target, "LIFE"):
             rect = pygame.Rect(target.loc[0] * ts2, target.loc[1] * ts2, ts2, ts2)
             pygame.draw.rect(surface2, (100, 200, 100, 127), rect)
 
@@ -151,7 +159,7 @@ if __name__ == "__main__":
 
     # game loop
     for main_map in field.gameLoop():
-        redraw_board(surface, ts)
+        redraw_board(main_map, surface, ts)
         mainClock.tick(10)
 
         for event in pygame.event.get():

@@ -2,6 +2,7 @@ import copy
 import json
 import itertools
 import os
+import operator
 from .errors import *
 
 
@@ -295,8 +296,9 @@ class Variables:
         -1: {},
     }
     env = {
-        "__builtins__": {"abs": abs, "min": min, "max": max},
+        "__builtins__": {"abs": abs, "min": min, "max": max, "len": len},
         "standard": Standard,
+        "operator": operator,
         "storage": {},
     }
     default = {
