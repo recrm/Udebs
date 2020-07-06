@@ -47,10 +47,9 @@ game_config = """
 
     <change>
         <require>
-            <i>neighbors_locs = $target.STAT.neighbors</i>
-            <i>neighbors = #.$neighbors_locs.true</i>
+            <i>neighbors = $target.STAT.neighbors</i>
         </require>
-        <effect>DELAY `(#cell neighbors GETS $neighbors_locs) 0</effect>
+        <effect>DELAY `(#cell neighbors GETS $neighbors) 0</effect>
     </change>
 
     <!-- Life -->
@@ -59,7 +58,7 @@ game_config = """
         <require>$target.STAT.LIFE == 0</require>
         <effect>
             <i>$target LIFE REPLACE 1</i>
-            <i>DELAY `($neighbors NBR += 1) 0</i>
+            <i>DELAY `(#$neighbors NBR += 1) 0</i>
         </effect>
     </life>
 
@@ -83,20 +82,20 @@ game_config = """
         </require>
         <effect>
             <i>$target LIFE REPLACE 0</i>
-            <i>DELAY `($neighbors NBR -= 1) 0</i>
+            <i>DELAY `(#$neighbors NBR -= 1) 0</i>
         </effect>
     </death>
 
     <!-- Scripts -->
     <populate_neighbors>
-        <effect>$target neighbors REPLACE FILL.$target.#empty.false.1</effect>
+        <effect>$target neighbors REPLACE #(FILL $target #empty false 1).NAME</effect>
     </populate_neighbors>
 
     <init>
         <effect>
-            <i>all = (FILL (1 1) #empty)</i>
+            <i>all = FILL.(1 1).#empty</i>
             <i>#cell RECRUIT $all</i>
-            <i>cells = (# $all true)</i>
+            <i>cells = #$all</i>
             <i>CAST $cells #populate_neighbors</i>
             <i>CAST $cells #random_life</i>
         </effect>
@@ -104,7 +103,7 @@ game_config = """
 
     <tick>
         <effect>
-            <i>all = (# (dedup #cell.STAT.neighbors) true)</i>
+            <i>all = #(dedup #cell.STAT.neighbors)</i>
             <i>CAST $all #death</i>
             <i>CAST $all #auto_life</i>
             <i>#cell CLEAR neighbors</i>

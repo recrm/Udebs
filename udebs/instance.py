@@ -135,7 +135,7 @@ class Instance(dict):
     #               Selector Function                  -
     # ---------------------------------------------------
 
-    def getEntity(self, target, multi=False):
+    def getEntity(self, target):
         """
         Fetches the udebs entity object given a selector.
 
@@ -160,10 +160,7 @@ class Instance(dict):
         elif isinstance(target, tuple):
             return self._getEntityTuple(target)
         elif isinstance(target, list):
-            if multi:
-                return [self.getEntity(i) for i in target]
-            elif len(target) > 0:
-                return self.getEntity(target[0])
+            return [self.getEntity(i) for i in target]
         elif isinstance(target, UdebsStr):
             return self._getEntityUdebsStr(target)
 
@@ -527,9 +524,9 @@ class Instance(dict):
         Note: If a list of entity selectors is received for any argument, all actions in the product will trigger.
         """
         if self.auto_entity:
-            casters = self.getEntity(casters, multi=True)
-            targets = self.getEntity(targets, multi=True)
-            moves = self.getEntity(moves, multi=True)
+            casters = self.getEntity(casters)
+            targets = self.getEntity(targets)
+            moves = self.getEntity(moves)
 
         value = False
 
@@ -599,9 +596,9 @@ class Instance(dict):
 
             <i>caster [$caster] CAST target move</i>
         """
-        caster = self.getEntity(caster, multi=True)
-        target = self.getEntity(target, multi=True)
-        move = self.getEntity(move, multi=True)
+        caster = self.getEntity(caster)
+        target = self.getEntity(target)
+        move = self.getEntity(move)
 
         value = self._controlMove(caster, target, move)
         if value:
@@ -633,7 +630,7 @@ class Instance(dict):
             <i>caster [$caster] lst GETS entries</i>
         """
         if self.auto_entity:
-            targets = self.getEntity(targets, multi=True)
+            targets = self.getEntity(targets)
 
         if not isinstance(entries, list):
             entries = [entries]
@@ -657,7 +654,7 @@ class Instance(dict):
             <i>caster [$caster] lst LOSES entries</i>
         """
         if self.auto_entity:
-            targets = self.getEntity(targets, multi=True)
+            targets = self.getEntity(targets)
 
         if not isinstance(entries, list):
             entries = [entries]
@@ -683,7 +680,7 @@ class Instance(dict):
             <i>target [$caster] CLEAR lst</i>
         """
         if self.auto_entity:
-            targets = self.getEntity(targets, multi=True)
+            targets = self.getEntity(targets)
 
         changed = False
         for target in targets:
@@ -704,7 +701,7 @@ class Instance(dict):
             <i>target SHUFFLE lst</i>
         """
         if self.auto_entity:
-            targets = self.getEntity(targets, multi=True)
+            targets = self.getEntity(targets)
 
         changed = False
         for target in targets:
@@ -729,7 +726,7 @@ class Instance(dict):
             <i>target [$caster] stat CHANGE increment</i>
         """
         if self.auto_entity:
-            targets = self.getEntity(targets, multi=True)
+            targets = self.getEntity(targets)
 
         changed = False
         total = int(increment * multi)
@@ -753,7 +750,7 @@ class Instance(dict):
             <i>caster [$caster] stat REPLACE value</i>
         """
         if self.auto_entity:
-            targets = self.getEntity(targets, multi=True)
+            targets = self.getEntity(targets)
 
         changed = False
         for target in targets:

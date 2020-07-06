@@ -126,8 +126,7 @@
     },
     "#": {
         "f": "self.getEntity",
-        "args": ["$1", "$2"],
-        "default": {"$2": false}
+        "args": ["$1"]
     },
     "SHUFFLE": {
         "f": "self.controlShuffle",
