@@ -275,18 +275,27 @@ class Board(MutableMapping):
 
         return False
 
-    def testBlock(self, start, finish, **kwargs):
+    def testBlock(self, start, finish, max_dist=None, **kwargs):
         """
         Tests to see if there exists a path from start to finish.
 
         start, finish - Starting and finishing locations.
 
         """
+        if max_dist is None:
+            max_dist = float("inf")
+
+        if start == finish and max_dist > 0:
+            return True
+
         i = self.getAdjacent(finish)
         next(i)
         final = next(i)
-        for i in self.getAdjacent(start, **kwargs):
-            for q in i:
-                if q in final:
-                    return True
+        for dist, i in enumerate(self.getAdjacent(start, **kwargs)):
+            if i.intersection(final):
+                return True
+
+            if dist + 1 >= max_dist:
+                return False
+
         return False

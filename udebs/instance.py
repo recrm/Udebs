@@ -5,7 +5,7 @@ from random import Random
 
 from .board import Board
 from .entity import Entity
-from .errors import UndefinedSelectorError
+from .errors import UndefinedSelectorError, UdebsExecutionError
 from .interpret import Script, UdebsStr, _getEnv
 from .utilities import no_recurse
 
@@ -549,11 +549,23 @@ class Instance(dict):
                     info(f"{caster_name} uses {move} on {target_name}")
 
             # Cast the move
-            test = move(self.getEnv(caster, target, move))
-            if test is True:
+            env = self.getEnv(caster, target, move)
+            for require in self.getStat(move, 'require'):
+                try:
+                    if not eval(require.code, env):
+                        if self.logging:
+                            info(f"failed because {require}")
+                        break
+                except Exception:
+                    raise UdebsExecutionError(require)
+            else:
+                for effect in self.getStat(move, 'effect'):
+                    try:
+                        eval(effect.code, env)
+                    except Exception:
+                        raise UdebsExecutionError(effect)
+
                 value = True
-            elif self.logging:
-                info(f"failed because {test}")
 
         return value
 
@@ -571,14 +583,19 @@ class Instance(dict):
         env = self.getEnv(caster, target, move)
         return move.testRequire(env) is True
 
-    def castInit(self, moves):
+    def castInit(self, moves, times=1):
         """Cast an action without variables.
 
         .. code-block:: xml
 
             <i>INIT move</i>
         """
-        return self.castMove(self["empty"], self["empty"], moves)
+        for i in range(times):
+            if not self.castMove(self["empty"], self["empty"], moves):
+                return False
+
+        return True
+
 
     def castAction(self, caster, move):
         """Cast an action with only a caster.
@@ -938,7 +955,7 @@ class Instance(dict):
 
         return float("inf")
 
-    def testBlock(self, caster, target, callback):
+    def testBlock(self, caster, target, callback, max_dist=None):
         """
         Test to see if path exists between caster and target using callback as filter for valid space.
 
@@ -953,7 +970,7 @@ class Instance(dict):
 
             map_ = self.map[caster[2]]
             if map_.testLoc(target):
-                return map_.testBlock(caster, target, callback=callback, state=self)
+                return map_.testBlock(caster, target, callback=callback, state=self, max_dist=max_dist)
 
         return False
 

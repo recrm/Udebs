@@ -41,7 +41,7 @@
     "RECRUIT": {
         "f": "self.controlRecruit",
         "args": ["-$1", "$1"],
-        "default": {"-$1": "$caster"}
+        "default": {"-$1": "$caster", "$1": "#empty"}
     },
     "DELETE": {
         "f": "self.controlDelete",
@@ -162,7 +162,8 @@
     "BLOCK": {
         "f": "self.testBlock",
         "args": ["$2", "$3", "$1"],
-        "default": {"$2": "$caster", "$3": "$target"}
+        "default": {"$2": "$caster", "$3": "$target"},
+        "kwargs": {"max_dist": "-$1"}
     },
     "FUTURE": {
         "f": "self.testFuture",

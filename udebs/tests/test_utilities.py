@@ -22,17 +22,6 @@ class TestBattleStart:
         udebs.placeholder("TEST")
         assert "TEST" in interpret.Variables.modules[-1]
 
-    def test_Player(self):
-        """Not function is deprecated"""
-        udebs.Player("TEST")
-        assert "TEST" in interpret.Variables.modules[-1]
-
-        path = os.path.dirname(__file__)
-        env = udebs.battleStart(path + "/test.xml", log=True)
-
-        with raises(udebs.UdebsExecutionError):
-            env.castSingle("(TEST)")
-
     def test_lookup(self):
         udebs.lookup("LOOKUP", {"one": {"two": {"three": 4}}})
         path = os.path.dirname(__file__)

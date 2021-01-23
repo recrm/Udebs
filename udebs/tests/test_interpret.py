@@ -70,18 +70,7 @@ class TestInterpret:
     def test_debug(self):
         interpret("(one) two three", debug=True)
 
-    def test_Script(self):
-        udebs.placeholder("TEST")
-        test = Script("TEST")
-        print(test)
-        repr(test)
-
-        with raises(UdebsExecutionError) as e:
-            test({})
-
-        print(str(e._excinfo[1]))
-
-    def test_ErrorRepr(self):
+    def test_Error_repr(self):
         one = UdebsSyntaxError("test")
         print(one)
 

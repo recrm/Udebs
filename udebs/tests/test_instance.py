@@ -30,8 +30,7 @@ class TestInstanceGets:
 
         assert unit is self.env.getEntity("unit1")
         assert unit is self.env.getEntity((0, 0, "two"))
-        assert unit in self.env.getEntity(["unit1", (0, 0, "two")], multi=True)
-        assert unit is self.env.getEntity(["unit1", (0, 0, "two")], multi=False)
+        assert unit in self.env.getEntity(["unit1", (0, 0, "two")])
 
         assert self.env["empty"] == self.env.getEntity(False)
 

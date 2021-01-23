@@ -4,3 +4,5 @@
 results/*
 docs/_build/*
 dist/*
+venv
+.idea

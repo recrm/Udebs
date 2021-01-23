@@ -20,7 +20,7 @@ class UdebsExecutionError(UdebsError):
         self.script = script
 
     def __str__(self):
-        return "invalid '{}'".format(self.script.raw)
+        return "invalid '{}' {}".format(self.script.raw, self.script.interpret)
 
 
 class UndefinedSelectorError(UdebsError):

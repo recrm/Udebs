@@ -94,9 +94,10 @@ class Result:
 class Timer:
     """Basic Timing context manager. Prints out the time it takes it's context to close."""
 
-    def __init__(self, verbose=True):
+    def __init__(self, verbose=True, name=""):
         self.verbose = verbose
         self.total = None
+        self.name = name
 
     def __enter__(self, verbose=True):
         self.time = time.perf_counter()
@@ -105,7 +106,7 @@ class Timer:
     def __exit__(self, *args, **kwargs):
         self.total = time.perf_counter() - self.time
         if self.verbose:
-            print("total time:", self.total)
+            print("({})".format(self.name), "total time:", self.total)
 
     def __str__(self):
         return str(self.total)
