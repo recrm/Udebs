@@ -1,6 +1,6 @@
 # Udebs:
 
-Udebs is a descrete game engine for python3.
+Udebs is a discrete game engine for python3.
 
 ### Installing
 
