@@ -196,7 +196,7 @@ class Hex(AlphaMontyCarlo):
 
         policy = Counter()
         wins = 0
-        for games in range(1, iterations + 1):
+        for __ in range(iterations):
             # Play out a random game
             clone.rand.shuffle(choices)
             for i, loc2 in enumerate(choices):
@@ -215,7 +215,7 @@ class Hex(AlphaMontyCarlo):
             policy.update(path)
 
         total = sum(policy.values())
-        return wins / games, {i: v / total for i, v in policy.items()}
+        return wins / iterations, {i: v / total for i, v in policy.items()}
 
 
 class Cplayer:
