@@ -2,6 +2,7 @@
 import udebs
 import json
 from udebs.treesearch import State
+from udebs.treesearch.utilities import cache, count_recursion, Result
 
 game_config = """
 <udebs>
@@ -60,7 +61,7 @@ game_config = """
             <i>$target.NAME == empty</i>
         </require>
         <effect>
-            <i>$caster.STAT.token RECRUIT $target</i>
+            <i>#($caster.STAT.token) RECRUIT $target</i>
             <i>$caster ACT -= 2</i>
             <i>ALL.player ACT += 1</i>
         </effect>
@@ -104,7 +105,7 @@ def ENDSTATE(state):
 class TicTacToe(State):
     def legalMoves(self):
         """Create a list of legal moves in current state space."""
-        player = "xPlayer" if self.getStat("xPlayer", "ACT") == 2 else "oPlayer"
+        player = "xPlayer" if self.getStat(self["xPlayer"], "ACT") == 2 else "oPlayer"
         for loc, value in self.map["map"].items():
             if value == "empty":
                 yield player, loc, "placement"
@@ -141,17 +142,17 @@ class TicTacToe(State):
 
         return min(int("".join(i), 3) for i in syms)
 
-    @udebs.cache
-    @udebs.count_recursion
+    @cache
+    @count_recursion
     def result(self, maximizer=True):
         value = self.endState()
         if value is not None:
-            return udebs.Result(value, 0)
+            return Result(value, 0)
 
         f_ = max if maximizer else min
         result = f_(c.result(not maximizer) for c, e in self.substates())
         value, turns = result.value, result.turns + 1
-        return udebs.Result(value, turns)
+        return Result(value, turns)
 
     def tree(self, maximizer=True):
         """Compile all results into a tree."""
@@ -193,11 +194,11 @@ def deserialize(node):
 
 if __name__ == "__main__":
     # Create state analysis engine
-    game = udebs.battleStart(game_config, field=TicTacToe())
+    game = udebs.battleStart(game_config, field=TicTacToe)
 
     with udebs.Timer():
         tree = game.tree()
 
     # Save tree
-    with open("tictactoe.json", "w+") as f:
+    with open("../tictactoe.json", "w+") as f:
         json.dump(deserialize(tree), f)

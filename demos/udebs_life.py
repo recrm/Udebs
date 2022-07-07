@@ -78,7 +78,8 @@ game_config = """
         <group>change</group>
         <require>
             <i>$target.STAT.LIFE == 1</i>
-            <i>($target.STAT.NBR &lt; 2) or ($target.STAT.NBR &gt; 3)</i>
+            <i>nbr = $target.STAT.NBR</i>
+            <i>`($nbr &lt; 2) OR `($nbr &gt; 3)</i>
         </require>
         <effect>
             <i>$target LIFE REPLACE 0</i>

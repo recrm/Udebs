@@ -1,4 +1,7 @@
-{
+true = True
+false = False
+
+data = {
     "TIME": {
         "f": "self.controlTime",
         "args": ["$1"]

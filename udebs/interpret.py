@@ -1,15 +1,42 @@
-import copy
-import json
-import itertools
-import os
-import operator
-from .errors import *
+from udebs import errors
+
+class operator:
+    @staticmethod
+    def gt(one, two):
+        return one > two
+
+    @staticmethod
+    def lt(one, two):
+        return one < two
+
+    @staticmethod
+    def ge(one, two):
+        return one >= two
+
+    @staticmethod
+    def le(one, two):
+        return one <= two
+
+    @staticmethod
+    def mod(one, two):
+        return one % two
+
+    @staticmethod
+    def truediv(one, two):
+        return one / two
+
+    @staticmethod
+    def not_(one):
+        return not one
+
+    @staticmethod
+    def sub(one, two):
+        return one - two
 
 
 # ---------------------------------------------------
 #            Imports and Variables                  -
 # ---------------------------------------------------
-
 class Standard:
     """
     Basic functionality wrappers.
@@ -34,7 +61,8 @@ class Standard:
         """
         returns value if condition else other.
 
-        TODO: Other is executed even if value is true.
+        (Note, this function evaluates all conditions regardless of if condition.)
+        (Deprecated in version 1.1.0 in favor of AND, OR blocks.)
 
         .. code-block:: xml
 
@@ -73,7 +101,7 @@ class Standard:
 
         .. code-block:: xml
 
-            <i>value in obj</i>
+            <i>value not-in obj</i>
         """
         return not Standard.inside(*args, **kwargs)
 
@@ -173,26 +201,6 @@ class Standard:
         return i
 
     @staticmethod
-    def logicor(*args, storage=None, field=None):
-        """
-        returns true if even one of args is true.
-
-        Note: All arguments are processed unless extra arguments are quoted.
-
-        .. code-block:: xml
-
-            <i>arg1 or arg2</i>
-            <i>or arg1 arg2 ...</i>
-        """
-        env = _getEnv(storage, {"self": field})
-        for i in args:
-            if isinstance(i, UdebsStr):
-                i = field.getEntity(i).testRequire(env)
-            if i:
-                return True
-        return False
-
-    @staticmethod
     def mod(before, after):
         """Returns before mod after.
 
@@ -267,7 +275,10 @@ class Standard:
 
             <i>array sub i</i>
         """
-        return next(itertools.islice(array, int(i), None), 'empty')
+        try:
+            return array[i]
+        except IndexError:
+            return "empty"
 
     @staticmethod
     def length(list_):
@@ -279,16 +290,6 @@ class Standard:
         """
         return len(list(list_))
 
-    @staticmethod
-    def quote(string):
-        """Treats input as string literal and does not process commands.
-
-        .. code-block:: xml
-@staticmethod
-            <i>`(caster CAST target move)</i>
-        """
-        return UdebsStr(string)
-
 
 class Variables:
     versions = [0, 1]
@@ -299,7 +300,7 @@ class Variables:
         "__builtins__": {"abs": abs, "min": min, "max": max, "len": len},
         "standard": Standard,
         "operator": operator,
-        "storage": {},
+        "storage": None,
     }
     default = {
         "f": "",
@@ -350,24 +351,29 @@ def importModule(dicts=None, globs=None, version=-1):
     Variables.env.update(globs)
 
 
+"""This whole function needs to be rewritten"""
+
+
 def importSystemModule(name, globs=None):
     """Convenience script for import system keywords."""
     if globs is None:
         globs = {}
-    path = os.path.dirname(__file__)
+
+    from udebs import keywords
+
     for version in Variables.versions:
-        filename = "{}/keywords/{}-{}.json".format(path, name, str(version))
-        with open(filename) as fp:
-            importModule(json.load(fp), globs, version)
+        module_name = f"{name}_{str(version)}"
+        importModule(getattr(keywords, module_name).data, globs, version)
 
 
-def _getEnv(local, glob=None):
+def getEnv(local, glob=None):
     """Retrieves a copy of the base variables."""
-    value = copy.copy(Variables.env)
+    new_env = {}
+    new_env.update(Variables.env)
     if glob:
-        value.update(glob)
-    value["storage"] = local
-    return value
+        new_env.update(glob)
+    new_env["storage"] = local
+    return new_env
 
 
 # ---------------------------------------------------
@@ -408,21 +414,23 @@ def call(args, version):
 
     # Too many keywords is a syntax error.
     if len(keywords) > 1:
-        raise UdebsSyntaxError("CallList contains to many keywords '{}'".format(args))
+        raise errors.UdebsSyntaxError("CallList contains to many keywords '{}'".format(args))
 
-    # No keywords creates a tuple object.
+    # No keywords create a tuple object.
     elif len(keywords) == 0:
         return "(" + ",".join(formatS(i, version) for i in args) + ")"
 
     keyword = keywords[0]
 
     # Get and fix data for this keyword.
-    data = copy.copy(Variables.default)
+    data = {}
+    data.update(Variables.default)
     data.update(Variables.keywords(version)[keyword])
 
     # Create dict of values
     current = args.index(keyword)
-    nodes = copy.copy(data["default"])
+    nodes = {}
+    nodes.update(data["default"])
 
     for index in range(len(args)):
         value = "$" if index >= current else "-$"
@@ -432,7 +440,8 @@ def call(args, version):
 
     # Force strings into quoted arguments.
     for string in data["string"]:
-        nodes[string] = "'" + str(nodes[string]).replace("'", "\\'") + "'"
+        new = str(nodes[string]).replace("\\", "\\\\").replace("'", "\\'")
+        nodes[string] = f"'{new}'"
 
     # Claim keyword arguments.
     kwargs = {}
@@ -460,7 +469,7 @@ def call(args, version):
             del nodes[key]
 
     if len(nodes) > 0:
-        raise UdebsSyntaxError("Keyword contains unused arguments. '{}'".format(" ".join(args)))
+        raise errors.UdebsSyntaxError("Keyword contains unused arguments. '{}'".format(" ".join(args)))
 
     # Insert keyword arguments.
     for key in sorted(kwargs.keys()):
@@ -514,10 +523,10 @@ def split_callstring(raw, version):
     call_list.append(buf)
 
     if in_brackets:
-        raise UdebsSyntaxError("Brackets are mismatched. '{}'".format(raw))
+        raise errors.UdebsSyntaxError("Brackets are mismatched. '{}'".format(raw))
 
     if '' in call_list:
-        raise UdebsSyntaxError("Empty element in call_list. '{}'".format(raw))
+        raise errors.UdebsSyntaxError("Empty element in call_list. '{}'".format(raw))
 
     # Length one special cases.
     if len(call_list) == 1:
@@ -555,7 +564,7 @@ def interpret(string, version=1, debug=False):
             print("call:", _list)
             print("computed:", comp)
 
-        return UdebsStr(comp)
+        return comp
 
     except Exception:
         print(string)
@@ -565,19 +574,13 @@ def interpret(string, version=1, debug=False):
 # ---------------------------------------------------
 #                Script Main Class                 -
 # ---------------------------------------------------
-# An easy way to distinguish between interpreted strings.
-class UdebsStr(str):
-    pass
-
-
 class Script:
-    def __init__(self, effect, version=1, debug=False):
+    """Storage class for interpreted code ready for the eval function."""
+
+    def __init__(self, effect, version=1, debug=False, skip_interpret=False):
         # Raw text given to script.
         self.raw = effect
-        self.interpret = effect
-        if not isinstance(effect, UdebsStr):
-            self.interpret = interpret(effect, version, debug)
-
+        self.interpret = effect if skip_interpret else interpret(effect, version, debug)
         self.code = compile(self.interpret, '<string>', "eval")
 
     def __repr__(self):
@@ -585,9 +588,6 @@ class Script:
 
     def __str__(self):
         return self.raw
-
-    def __call__(self, env):
-        return eval(self.code, env)
 
     def __eq__(self, other):
         if not isinstance(other, Script):

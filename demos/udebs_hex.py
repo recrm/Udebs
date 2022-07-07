@@ -64,20 +64,20 @@ game_config = f"""
     <!-- scripts -->
     <init>
         <effect>
-            <i>white.STAT.STONE MOVE (FILL (0 0) `(DISTANCE.y == 0))</i>
-            <i>white.STAT.STONE MOVE (FILL (0 {hexes - 1}) `(DISTANCE.y == 0))</i>
-            <i>black.STAT.STONE MOVE (FILL (0 0) `(DISTANCE.x == 0))</i>
-            <i>black.STAT.STONE MOVE (FILL ({hexes - 1} 0) `(DISTANCE.x == 0))</i>
+            <i>#(#white.STAT.STONE) MOVE (FILL (0 0) `(DISTANCE.y == 0))</i>
+            <i>#(#white.STAT.STONE) MOVE (FILL (0 {hexes - 1}) `(DISTANCE.y == 0))</i>
+            <i>#(#black.STAT.STONE) MOVE (FILL (0 0) `(DISTANCE.x == 0))</i>
+            <i>#(#black.STAT.STONE) MOVE (FILL ({hexes - 1} 0) `(DISTANCE.x == 0))</i>
 
-            <i>empty MOVE (0 0)</i>
-            <i>empty MOVE (0 {hexes - 1})</i>
-            <i>empty MOVE ({hexes - 1} {hexes - 1})</i>
-            <i>empty MOVE ({hexes - 1} 0)</i>
+            <i>#empty MOVE (0 0)</i>
+            <i>#empty MOVE (0 {hexes - 1})</i>
+            <i>#empty MOVE ({hexes - 1} {hexes - 1})</i>
+            <i>#empty MOVE ({hexes - 1} 0)</i>
 
-            <i>white walla REPLACE ({int(hexes / 2)} 0 map)</i>
-            <i>white wallb REPLACE ({int(hexes / 2)} {hexes - 1} map)</i>
-            <i>black walla REPLACE (0 {int(hexes / 2)} map)</i>
-            <i>black wallb REPLACE ({hexes - 1} {int(hexes / 2)} map)</i>
+            <i>#white walla REPLACE ({int(hexes / 2)} 0 map)</i>
+            <i>#white wallb REPLACE ({int(hexes / 2)} {hexes - 1} map)</i>
+            <i>#black walla REPLACE (0 {int(hexes / 2)} map)</i>
+            <i>#black wallb REPLACE ({hexes - 1} {int(hexes / 2)} map)</i>
         </effect>
     </init>
 
@@ -90,7 +90,7 @@ game_config = f"""
     </turn>
 
     <check_win>
-        <effect>CAST $target win</effect>
+        <effect>CAST $target #win</effect>
     </check_win>
 
     <win>
@@ -103,7 +103,7 @@ game_config = f"""
 
     <place>
         <require>$target.NAME == empty</require>
-        <effect>$caster.STAT.STONE MOVE $target</effect>
+        <effect>#($caster.STAT.STONE) MOVE $target</effect>
     </place>
 
     <placement>
@@ -116,8 +116,8 @@ game_config = f"""
 
     <ai>
         <require>
-            <i>loc = (Cplayer)</i>
-            <i>CAST $loc placement</i>
+            <i>loc = #(Cplayer)</i>
+            <i>CAST $loc #placement</i>
         </require>
     </ai>
 
@@ -152,9 +152,9 @@ def event_update(main_map2, main_surface2, main_font2):
         pygame.draw.polygon(main_surface2, (255, 255, 255), hexagon.points, 0)
         pygame.draw.polygon(main_surface2, (0, 0, 0), hexagon.points, 1)
 
-        unit = main_map2.getName((x2, y2, 'map'))
+        unit = main_map2.getName(main_map.getEntity((x2, y2, 'map')))
         if unit != 'empty':
-            char = main_map2.getStat(unit, "STONE")
+            char = main_map2.getStat(main_map[unit], "STONE")
             main_surface2.blit(main_font2.render(char, True, (0, 0, 0)), hexagon.square)
 
     pygame.display.update()

@@ -1,4 +1,7 @@
-{
+true = True
+false = False
+
+data = {
     "GETS": {
         "f": "self.controlListAdd",
         "args": ["-$2", "-$1", "$1"],
@@ -65,6 +68,20 @@
         "f": "self._controlMove",
         "args": ["-$1", "#empty", "$1"]
     },
+    "OR": {
+        "f": "self.controlOr",
+        "kwargs": {"storage":  "storage"},
+        "all": true
+    },
+    "AND": {
+        "f": "self.controlAnd",
+        "kwargs": {"storage":  "storage"},
+        "all": true
+    },
+    "REPEAT": {
+        "f": "self.controlRepeat",
+        "args": ["$1", "$2", "storage"]
+    },
     "DELAY": {
         "f": "self.controlDelay",
         "args": ["$1", "$2", "storage"]
@@ -78,6 +95,10 @@
         "f": "self.getStat",
         "args": ["-$1", "$1"],
         "default": {"-$1": "$caster"}
+    },
+    "VAR": {
+        "f": "self.getVar",
+        "args": ["$1"]
     },
     "CLASS": {
         "f": "self.getListGroup",
@@ -95,22 +116,22 @@
         "default": {"-$1": "$caster"}
     },
     "XLOC": {
-        "f": "self.getX",
+        "f": "self.getLocData",
         "args": ["-$1"],
         "default": {"-$1": "$caster"}
     },
     "YLOC": {
-        "f": "self.getY",
-        "args": ["-$1"],
+        "f": "self.getLocData",
+        "args": ["-$1", 1],
         "default": {"-$1": "$caster"}
     },
     "MAPNAME": {
-        "f": "self.getMapName",
-        "args": ["-$1"],
+        "f": "self.getLocData",
+        "args": ["-$1", 2],
         "default": {"-$1": "$caster"}
     },
     "LOC": {
-        "f": "self.getLoc",
+        "f": "self.getLocObject",
         "args": ["-$1"],
         "default": {"-$1": "$caster"}
     },
@@ -138,7 +159,7 @@
     },
     "ALL": {
         "f": "self.getGroup",
-        "args": ["$1"]
+        "all": true
     },
     "SEARCH": {
         "f": "self.getSearch",
@@ -147,7 +168,7 @@
     "FILL": {
         "f": "self.getFill",
         "args": ["$1", "$2", "$3", "$4"],
-        "default": {"$2": "#empty", "$3": true, "$4": null}
+        "default": {"$2": "#empty", "$3": true, "$4": None}
     },
     "PATH": {
         "f": "self.getPath",
@@ -174,5 +195,10 @@
         "f": "self.getMap",
         "args": ["-$1"],
         "default": {"-$1": "$caster"}
+    },
+    "`": {
+        "f": "self.getQuote",
+        "args": ["$1"],
+        "string": ["$1"]
     }
 }

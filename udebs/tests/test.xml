@@ -52,7 +52,7 @@
     <reset />
 
     <move2>
-        <require>move2 ACT == 5</require>
+        <require>#move2 ACT == 5</require>
     </move2>
     <immune immutable='' />
     <unit1 immutable='False'>
@@ -65,6 +65,13 @@
         <DESC>description</DESC>
     </unit1>
     <unit2 />
+    <group3/>
+    <unit3>
+        <group>
+            <i>group1</i>
+            <i>group3</i>
+        </group>
+    </unit3>
     <notempty>
         <require>$target.NAME != immune</require>
     </notempty>

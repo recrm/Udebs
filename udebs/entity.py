@@ -1,21 +1,42 @@
+from udebs import errors, interpret
+
+
 class Entity:
-    def __init__(self, field=None, **options):
+    def __init__(self, field=None, debug=None, **options):
         if "_data" in options:
             # second path for copy operation only
             self.__dict__ = options["_data"]
             return
 
+        # Get base data
         self.name = options.get("name", "")
-        self.loc = options.get("loc", None)
-        self.immutable = options.get("immutable", False)
-        self.increment = options.get("increment", 0)
+        self.immutable = options.get("immutable", field.immutable)
 
+        # Set the stats
         for stat in field.stats:
-            self.__dict__[stat] = options.get(stat, 0)
+            setattr(self, stat, int(options.get(stat, 0)))
         for lists in field.lists:
-            self.__dict__[lists] = options.get(lists, [])
+            value = options.get(lists, [])
+            if not isinstance(value, list):
+                value = [value]
+            setattr(self, lists, value)
         for string in field.strings:
-            self.__dict__[string] = options.get(string, '')
+            setattr(self, string, options.get(string, ''))
+
+        # Transform effect and require into scripts
+        for stat_list in [self.effect, self.require]:
+            for i, elem in enumerate(stat_list):
+                if isinstance(elem, str):
+                    stat_list[i] = interpret.Script(elem, field.version, debug=debug)
+
+        # Set loc.
+        self.loc = None
+        if not self.immutable:
+            for map_ in field.map.values():
+                for loc in map_:
+                    if map_[loc] == self.name:
+                        self.loc = loc
+                        break
 
     def __eq__(self, other):
         if not isinstance(other, Entity):
@@ -38,24 +59,34 @@ class Entity:
     # ---------------------------------------------------
     #                 Call Functions                    -
     # ---------------------------------------------------
-    def controlEffect(self, env):
-        for effect in env["self"].getStat(self, 'effect'):
-            effect(env)
-
-        return True
-
-    def testRequire(self, env):
+    def test(self, env):
         for require in env["self"].getStat(self, 'require'):
-            if not require(env):
+            try:
+                value = eval(require.code, env)
+            except RecursionError:
+                raise
+            except Exception:
+                raise errors.UdebsExecutionError(require)
+
+            if not value:
                 return require
 
         return True
 
     def __call__(self, env):
-        value = self.testRequire(env)
-        if value is True:
-            return self.controlEffect(env)
-        return value
+        value = self.test(env)
+        if value is not True:
+            return value
+
+        for effect in env["self"].getStat(self, 'effect'):
+            try:
+                eval(effect.code, env)
+            except RecursionError:
+                raise
+            except Exception:
+                raise errors.UdebsExecutionError(effect)
+
+        return True
 
     # ---------------------------------------------------
     #                Clone Functions                   -

@@ -1,35 +1,23 @@
-import functools
 import math
 import time
-from .instance import Instance
-from .utilities import cache
-
+from udebs.instance import Instance
+from udebs.treesearch.utilities import cache, alpha_beta_cache
 
 
 class State(Instance):
     """Base class for all tree search algorithms."""
-    def substates(self, override=None):
+
+    def substates(self):
         """Iterate over substates to a state.
 
         yields a tuple, (child instance, action tuple)
         if the legalMoves iterator yielded something other than a tuple. This method will yield just that object for both values.
         """
-        stateNew = None
-        moves = override
-        if moves is None:
-            moves = self.legalMoves()
-
-        for move in moves:
-            if isinstance(move, tuple):
-                if stateNew is None:
-                    stateNew = self.copy()
-
-                if stateNew.castMove(*move[:3]):
-                    stateNew.controlTime(self.increment)
-                    yield stateNew, move
-                    stateNew = None
-            else:
-                yield move, move
+        new_state = self.copy()
+        for move in self.legalMoves():
+            if new_state.castMove(*move):
+                yield new_state, move
+                new_state = self.copy()
 
     def hash(self):
         """Implement this function if you plan on using treesearch.cache"""
@@ -43,11 +31,16 @@ class State(Instance):
         """Example implementations use this function to fetch a states leaf value."""
         return self.value
 
-#---------------------------------------------------
+    def result(self):
+        raise NotImplementedError
+
+
+# ---------------------------------------------------
 #             Various Tree Search Algorithms       -
-#---------------------------------------------------
+# ---------------------------------------------------
 class BruteForce(State):
     """Example implementation of a brute force minimax solver."""
+
     @cache
     def result(self):
         value = self.endState()
@@ -63,30 +56,31 @@ class BruteForce(State):
 
         return max(results)
 
+
 class AlphaBeta(State):
     """Example implementation of an alphabeta minimax solver."""
-    @cache
-    def result(self, alpha=-float("inf"), beta=float("inf")):
-        value = self.endState()
+    @alpha_beta_cache
+    def result(self, alpha, beta, storage):
+        value = self.value
         if value is not None:
             return -abs(value)
 
-        for child, e in self.substates():
-            if child is not e:
-                child = child.result(-beta, -alpha)
+        current = -float("inf")
+        for child in self.substates():
+            computed = -child.result(-beta, -alpha, storage)
+            if computed > current:
+                current = computed
+                if computed > alpha:
+                    alpha = computed
+                    if alpha >= beta:
+                        break
 
-            result = -child
+        return current
 
-            if result > alpha:
-                alpha = result
-
-            if alpha >= beta:
-                break
-
-        return alpha
 
 class MarkovChain(State):
     """Example implementation of a markov chain calculator."""
+
     @cache
     def result(self):
         value = self.endState()
@@ -99,11 +93,13 @@ class MarkovChain(State):
 
         return total
 
-#---------------------------------------------------
+
+# ---------------------------------------------------
 #                   Monty Carlo                    -
-#---------------------------------------------------
+# ---------------------------------------------------
 class MontyCarlo(State):
     """Experimental: Example implementation of a Monty Carlo treesearch algorithm."""
+
     def init(self, entry=None):
         self.children = None
         self.v = 0
@@ -139,7 +135,7 @@ class MontyCarlo(State):
         iters = 0
         while time.time() < t_end:
             self.result(**kwargs)
-            iters +=1
+            iters += 1
 
         if verbose:
             print(f"processed {iters} new iterations")
@@ -153,8 +149,10 @@ class MontyCarlo(State):
     def simulate(self, maximizer=True):
         raise NotImplementedError
 
+
 class AlphaMontyCarlo(MontyCarlo):
     """Experimental: Alpha Zero inspired variant of MontyCarlo treesearch."""
+
     def init(self, entry=None, policy=None):
         self.prior = None if policy is None else policy.get(entry[1], 0)
         return super().init(entry)

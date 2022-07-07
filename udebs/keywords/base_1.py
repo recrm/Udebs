@@ -1,20 +1,20 @@
-{
-    "SUB": {
+true = True
+false = False
+
+data = {
+    "elem": {
         "f": "standard.sub",
         "args": ["-$1", "$1"]
     },
     "in": {
         "f": "standard.inside",
-        "args": ["-$1", "$1"]
+        "args": ["-$1", "$1", "$2"],
+         "default": {"$2": 1}
     },
     "not-in": {
         "f": "standard.notin",
-        "args": ["-$1", "$1"]
-    },
-    "if": {
-        "f": "standard.logicif",
-        "args": ["$1", "$2", "$3"],
-        "default": {"$2": true, "$3": false}
+        "args": ["-$1", "$1", "$2"],
+        "default": {"$2": 1}
     },
     "min": {
         "f": "min",
@@ -30,26 +30,26 @@
     },
     "!=": {
         "f": "standard.notequal",
-        "args": ["-$1", "$1"]
+        "all": true
     },
     ">": {
-        "f": "standard.gt",
+        "f": "operator.gt",
         "args": ["-$1", "$1"]
     },
     "<": {
-        "f": "standard.lt",
+        "f": "operator.lt",
         "args": ["-$1", "$1"]
     },
     ">=": {
-        "f": "standard.gtequal",
+        "f": "operator.ge",
         "args": ["-$1", "$1"]
     },
     "<=": {
-        "f": "standard.ltequal",
+        "f": "operator.le",
         "args": ["-$1", "$1"]
     },
     "%": {
-        "f": "standard.mod",
+        "f": "operator.mod",
         "args": ["-$1", "$1"]
     },
     "+": {
@@ -60,47 +60,47 @@
         "f": "standard.multiply",
         "all": true
     },
-    "or": {
-        "f": "standard.logicor",
-        "all": true
+    "if": {
+        "f": "standard.logicif",
+        "args": ["$1", "$2", "$3"],
+        "default": {"$2": true, "$3": false}
     },
     "|": {
         "f": "abs",
         "args": ["$1"]
     },
     "/": {
-        "f": "standard.div",
+        "f": "operator.truediv",
         "args": ["-$1", "$1"],
         "default": {"-$1": 1}
     },
     "!": {
-        "f": "standard.logicnot",
+        "f": "operator.not_",
         "args": ["$1"]
     },
     "-": {
-        "f": "standard.minus",
+        "f": "operator.sub",
         "args": ["-$1", "$1"],
         "default": {"-$1": 0}
+    },
+    "->": {
+        "f": "standard.setvar",
+        "args": ["storage", "-$1", "$1"]
     },
     "=": {
         "f": "standard.setvar",
         "args": ["storage", "-$1", "$1"]
     },
     "$": {
-        "f": "standard.getvar",
-        "args": ["storage","$1"]
+        "f": "storage.__getitem__",
+        "args": ["$1"]
     },
     "print": {
         "f": "standard.print",
         "all": true
     },
     "length": {
-        "f": "standard.length",
+        "f": "len",
         "args": ["$1"]
-    },
-    "`": {
-        "f": "standard.quote",
-        "args": ["$1"],
-        "string": ["$1"]
     }
 }

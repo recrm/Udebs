@@ -23,7 +23,7 @@ class TestBattleStart:
         assert "equipment" in self.test.lists
         assert "inventory" in self.test.rlist
         total = sum([len(i) for i in [self.test.lists, self.test.stats, self.test.strings]])
-        assert total == 7
+        assert total == 8
 
     def test_map(self):
         assert len(self.test.map) == 3
@@ -46,7 +46,7 @@ class TestBattleStart:
 
     def test_entity(self):
         # four defined plus one built in.
-        assert len(self.test) == 13
+        assert len(self.test) == 15
         assert len(self.test["unit1"].group) == 1
 
         stats = self.test.strings.union(self.test.stats, self.test.lists)
@@ -64,8 +64,17 @@ class TestBattleWrite:
         path = os.path.dirname(__file__) + "/test.xml"
         path2 = os.path.dirname(__file__) + "/write_test.xml"
 
-        env1 = udebs.battleStart(path, name="test")
+        print("reading first")
+        env1 = udebs.battleStart(path)
+
+        print(env1.time)
         udebs.battleWrite(env1, path2, True)
-        env2 = udebs.battleStart(path2, script=None)
+        print("reading second")
+        env2 = udebs.battleStart(path2)
+        print(env2.time)
+
+        print(env1.keys(), env1.seed)
+        print(env2.keys(), env2.seed)
+
         assert env1 == env2
         os.remove(path2)

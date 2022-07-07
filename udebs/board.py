@@ -1,6 +1,6 @@
 from collections.abc import MutableMapping
+from udebs.interpret import getEnv
 import math
-import copy
 
 sides = [
     (-1, 0),
@@ -173,7 +173,8 @@ class Board(MutableMapping):
         else:
             new = {start}
 
-        searched = copy.copy(new)
+        searched = set()
+        searched.update(new)
 
         while len(new) > 0:
             yield new
@@ -186,8 +187,9 @@ class Board(MutableMapping):
                         searched.add(loc)
                         if self.testLoc(loc):
                             if callback:
-                                env = state.getEnv(start, loc, callback)
-                                if not callback.testRequire(env) is True:
+                                env = getEnv({"caster": state.getEntity(start), "target": state.getEntity(loc),
+                                              "move": callback}, {"self": state})
+                                if callback.test(env) is not True:
                                     continue
                             next_.add(loc)
                             if pointer:

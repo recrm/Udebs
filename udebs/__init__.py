@@ -1,5 +1,9 @@
-from .loadxml import battleStart, battleWrite
-from .interpret import importModule, importFunction
-from .utilities import *
-from .errors import *
-from .instance import Instance
+try:
+    from udebs.loadxml import battleStart, battleWrite
+except ModuleNotFoundError:
+    pass
+
+from udebs.interpret import importModule, importFunction
+from udebs.utilities import *
+from udebs.errors import *
+from udebs.instance import Instance
