@@ -2,6 +2,7 @@ import itertools
 import time
 import inspect
 import traceback
+import functools
 
 from udebs.interpret import importModule
 
@@ -37,7 +38,7 @@ def modify_state(state, entities=None, logging=True, revert=True):
 
 
 class Timer:
-    """Basic Timing context manager. Prints out the time it takes it's context to close."""
+    """Basic Timing context manager. Prints out the time it takes its context to close."""
 
     def __init__(self, verbose=True, name=""):
         self.verbose = verbose
@@ -59,7 +60,7 @@ class Timer:
 
 def no_recurse(f):
     """Wrapper function that forces a function to return True if it recurse."""
-
+    @functools.wraps(f)
     def func(*args, **kwargs):
         for i in traceback.extract_stack():
             if i[2] == f.__name__:
@@ -68,9 +69,6 @@ def no_recurse(f):
         return f(*args, **kwargs)
 
     return func
-
-
-norecurse = no_recurse
 
 
 def alternate(*args):
@@ -86,7 +84,7 @@ def alternate(*args):
     yield from zip(*gen)
 
 
-def register(f, args=None, name=None):
+def register(local_raw=None, globs_raw=None):
     """Register a function with udebs. Works as a function or a decorator.
 
     .. code-block:: python
@@ -114,28 +112,31 @@ def register(f, args=None, name=None):
         <i>TEST one two three</i>
 
     """
+    if globs_raw is None:
+        globs_raw = {}
 
-    def wrapper(args2, f2):
-        f_name = f2.__name__ if name is None else name
+    if local_raw is None:
+        local_raw = {}
 
-        if isinstance(args2, list):
-            args2 = {"args": args2}
+    def wrapper(func, local, globs):
+        f_name = func.__name__
 
-        local_vars = {
-            f_name: {
-                "f": f_name,
-            }
-        }
+        local_vars = {f_name: {"f": f_name}}
+        if isinstance(local, list):
+            local_vars[f_name]["args"] = local
+        else:
+            local_vars[f_name].update(local)
 
-        local_vars[f_name].update(args2)
+        global_vars = {f_name: func() if inspect.isclass(func) else func}
+        global_vars.update(globs)
 
-        importModule(local_vars, {f_name: f2() if inspect.isclass(f2) else f2})
-        return f2
+        importModule(local_vars, global_vars)
+        return func
 
-    if args is None:
-        return lambda *a, **b: wrapper(f, *a, **b)
+    if hasattr(local_raw, "__name__"):
+        return wrapper(local_raw, {}, {})
 
-    return wrapper(args, f)
+    return lambda f: wrapper(f, local_raw, globs_raw)
 
 
 # ---------------------------------------------------

@@ -49,11 +49,11 @@ class Instance(dict):
 
         # time
         self.time = options.get("time", 0)  # In game counter
-        self.increment = options.get("increment",
-                                     1)  # how much time passes between game_loop iterations. Useful for pausing.
+        # how much time passes between game_loop iterations. Useful for pausing.
+        self.increment = options.get("increment", 1)
         self.cont = options.get("cont", True)  # Flag to determine if game_loop should continue
-        self.next = options.get("next",
-                                None)  # The next state a game_loop will return. Useful for resets and reverts in game_loop
+        # The next state a game_loop will return. Useful for resets and reverts in game_loop
+        self.next = options.get("next", None)
         self.value = options.get("value", None)  # Value of the game.
 
         # maps
@@ -86,21 +86,20 @@ class Instance(dict):
         elif self.seed is not None:
             self.rand.seed(options["seed"])
 
-        # Set up Revert
-        self.state = None
-        if self.revert:
-            self.state = [self.copy()]
-
         # Initial logging
         if self.logging:
             info(f"INITIALIZING {self.name}")
-            info(f"Env time is now {self.time}")
 
         if init in self:
             self._controlMove(self["empty"], self["empty"], self[init])
             self._checkDelay()
         elif self.logging:
             info("")
+
+        # Set up Revert
+        self.state = None
+        if self.revert:
+            self.state = [self.copy()]
 
         super().__init__()
 
@@ -114,16 +113,13 @@ class Instance(dict):
 
         for k, v in self.__dict__.items():
             if k not in ("state", "rand") and v != getattr(other, k):
-                print(k, v, getattr(other, k), "failed")
                 return False
 
         for k, v in self.items():
             if other[k] != v:
-                print(k, v, "failed")
                 return False
 
         if len(self) != len(other):
-            print("len failed")
             return False
 
         return True
@@ -222,7 +218,7 @@ class Instance(dict):
         """
         Fetches the udebs entity object given a selector.
 
-        Udebs selectors can take all of the following forms.
+        Udebs selectors can take all the following forms.
 
         * string - The name of the object we are looking for.
         * tuple - A tuple of the form (x, y, name) representing a location on a map.
@@ -293,6 +289,9 @@ class Instance(dict):
 
     def _checkDelay(self):
         """Checks and runs actions waiting in delay."""
+        if self.logging:
+            info("checking delay")
+
         while True:
             again = False
             for delay in self.delay[:]:
@@ -317,6 +316,9 @@ class Instance(dict):
         """
         if time is None:
             time = self.increment
+
+        if time == 0:
+            self._checkDelay()
 
         for i in range(time):
             # Increment time
@@ -523,7 +525,7 @@ class Instance(dict):
     # ---------------------------------------------------
     #                 Call wrappers                    -
     # ---------------------------------------------------
-    def _controlMove(self, casters, targets, moves):
+    def _controlMove(self, casters, targets, moves, force=False):
         """
         Function to trigger an event. Returns True if an action triggers successfully.
 
@@ -551,7 +553,7 @@ class Instance(dict):
 
             # Cast the move
             env = getEnv({"caster": caster, "target": target, "move": move}, {"self": self})
-            test = move(env)
+            test = move(env, force=force)
             if test is not True:
                 if self.logging:
                     info(f"failed because {test}")
@@ -560,23 +562,33 @@ class Instance(dict):
 
         return value
 
-    def controlRepeat(self, callback, amount, storage):
+    def controlRepeat(self, callback, amount, storage, force=False, timeout=100):
         """
         Executes a callback n times.
+        The final argument is to force retries. If set to True system will
+        retry failures until exactly n attempts succeed. Over 100 consecutive failures
+        will trigger an exception. Value defaults to False.
 
         .. code-block:: xml
 
-            <i>REPEAT `(callback) 5</i>
+            <i>REPEAT `(callback) 5 False</i>
         """
         env = getEnv(storage, {"self": self})
-
+        success = True
         for i in range(amount):
             if callback(env) is not True:
+                success = False
                 if self.logging:
                     info(f"Repeat failed at {i}th interval")
-                return False
 
-        return True
+                if force:
+                    for j in range(timeout - 1):
+                        if callback(env) is True:
+                            break
+                    else:
+                        raise Exception("Timeout reached in repeat function.")
+
+        return success
 
     def controlOr(self, *args, storage=None):
         """
@@ -594,7 +606,7 @@ class Instance(dict):
             if condition(env) is True:
                 return True
 
-        return False # `($target.STAT.NBR &lt; 2)
+        return False
 
     def controlAnd(self, *args, storage=None):
         """
@@ -622,7 +634,7 @@ class Instance(dict):
     # ---------------------------------------------------
     def testMove(self, caster, target, move):
         """
-        Simulates an action. Returns true if require passes successfully, False otherwise.
+        Simulates an action. Returns true if the requirements passes successfully, False otherwise.
 
         .. code-block:: python
 
@@ -635,25 +647,25 @@ class Instance(dict):
             "move": move,
         }, {"self": self})) is True
 
-    def castInit(self, moves):
+    def castInit(self, moves, **kwargs):
         """Cast an action without variables.
 
         .. code-block:: xml
 
             <i>INIT move</i>
         """
-        return self.castMove(self["empty"], self["empty"], moves)
+        return self.castMove(self["empty"], self["empty"], moves, **kwargs)
 
-    def castAction(self, caster, move):
+    def castAction(self, caster, move, **kwargs):
         """Cast an action with only a caster.
 
         .. code-block:: xml
 
             <i>caster [$caster] ACTION move</i>
         """
-        return self.castMove(caster, self["empty"], move)
+        return self.castMove(caster, self["empty"], move, **kwargs)
 
-    def castFuture(self, caster, target, move):
+    def castFuture(self, caster, target, move, **kwargs):
         """Same as castMove except returns a copy of instance if move succeeds.
         Does not change original instance.
 
@@ -666,11 +678,11 @@ class Instance(dict):
         new = self.copy()
         new.revert = 0
         new.logging = False
-        if new.castMove(caster, target, move):
+        if new.castMove(caster, target, move, **kwargs):
             return new
 
-    def castMove(self, caster, target, move):
-        """Cast an action including both a caster and an target.
+    def castMove(self, caster, target, move, force=False, time=None):
+        """Cast an action including both a caster and a target.
 
         .. code-block:: xml
 
@@ -680,10 +692,10 @@ class Instance(dict):
         target = self.getEntity(target)
         move = self.getEntity(move)
 
-        value = self._controlMove(caster, target, move)
+        value = self._controlMove(caster, target, move, force=force)
         if value:
             self._checkDelay()
-            self.controlTime(self.increment)
+            self.controlTime(self.increment if time is None else time)
 
         return value
 
@@ -898,7 +910,8 @@ class Instance(dict):
         loc = self.getLocObject(target)
         return loc[value] if loc else None
 
-    def getLocObject(self, target):
+    @staticmethod
+    def getLocObject(target):
         """
         Gets the location tuple of a target, False if target not on a map.
 
@@ -944,13 +957,6 @@ class Instance(dict):
     # ---------------------------------------------------
     #                 Board get wrappers               -
     # ---------------------------------------------------
-
-    def mapIter(self, name="map"):
-        """Iterate over all cells in a map."""
-        map_ = self.map[name]
-        for loc in map_:
-            yield self[map_[loc]]
-
     def getPath(self, caster, target, callback):
         """
         Finds a path between caster and target using callback as filter for valid space.
