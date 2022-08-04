@@ -60,6 +60,7 @@ class Timer:
 
 def no_recurse(f):
     """Wrapper function that forces a function to return True if it recurse."""
+
     @functools.wraps(f)
     def func(*args, **kwargs):
         for i in traceback.extract_stack():
@@ -84,19 +85,51 @@ def alternate(*args):
     yield from zip(*gen)
 
 
-def register(local_raw=None, globs_raw=None):
-    """Register a function with udebs. Works as a function or a decorator.
+def register_raw(func, local=None, globs=None, name=None):
+    """Use this to register a function without using a decorator.
+    func - The function to register
+    local - Local call pattern for given function.
+    globs - Dictionary of global objects to add to udebs.
+    name - Name to give function (defaults to func.__name__)
+
+    .. code-block:: python
+
+        def TEST2(arg1, arg2, arg3):
+                return "hello world"
+
+        udebs.register(TEST2, {"args": ["$1", "$2", "$3"]})
+
+
+    """
+    f_name = func.__name__ if name is None else name
+
+    if local is None:
+        local = {}
+
+    if globs is None:
+        globs = {}
+
+    local_vars = {f_name: {"f": f_name}}
+    if isinstance(local, list):
+        local_vars[f_name]["args"] = local
+    else:
+        local_vars[f_name].update(local)
+
+    global_vars = {f_name: func() if inspect.isclass(func) else func}
+    global_vars.update(globs)
+
+    importModule(local_vars, global_vars)
+    return func
+
+
+def register(local_raw=None, globs_raw=None, name=None):
+    """Register a function with udebs using a decorator.
 
     .. code-block:: python
 
         @udebs.register({"args": ["$1", "$2", "$3"]})
         def TEST(arg1, arg2, arg3):
             return "hello world"
-
-        def TEST2(arg1, arg2, arg3):
-            return "hello world"
-
-        udebs.register(TEST2, {"args": ["$1", "$2", "$3"]})
 
         @udebs.register({"args": ["$1", $2, $3]})
         class Test3:
@@ -112,31 +145,10 @@ def register(local_raw=None, globs_raw=None):
         <i>TEST one two three</i>
 
     """
-    if globs_raw is None:
-        globs_raw = {}
-
-    if local_raw is None:
-        local_raw = {}
-
-    def wrapper(func, local, globs):
-        f_name = func.__name__
-
-        local_vars = {f_name: {"f": f_name}}
-        if isinstance(local, list):
-            local_vars[f_name]["args"] = local
-        else:
-            local_vars[f_name].update(local)
-
-        global_vars = {f_name: func() if inspect.isclass(func) else func}
-        global_vars.update(globs)
-
-        importModule(local_vars, global_vars)
-        return func
-
     if hasattr(local_raw, "__name__"):
-        return wrapper(local_raw, {}, {})
+        return register_raw(local_raw)
 
-    return lambda f: wrapper(f, local_raw, globs_raw)
+    return lambda f: register_raw(f, local_raw, globs_raw, name)
 
 
 # ---------------------------------------------------
