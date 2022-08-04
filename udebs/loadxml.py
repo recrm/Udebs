@@ -21,7 +21,7 @@ def _indent(elem, level=0):
             elem.tail = i
 
 
-# creates an xml file from instance object.
+# creates a xml file from instance object.
 def battleWrite(env, location, pretty=False):
     """
     Writes an instance object to file.
@@ -176,9 +176,8 @@ def battleStart(xml_file=None, field=instance.Instance, **overwrite):
     Creates an instance object from given xml file.
 
     xml_file - String representing file to look in.
-    debug - Boolean that gets passed to the interpret.interpret function.
+    debug - Boolean that gets passed to the interpret function.
     script - Override the script that runs after initialization
-    **overwrite - other overrides passed to the script.
     """
     if xml_file is None:
         xml_file = "<udebs />"
@@ -278,5 +277,7 @@ def battleStart(xml_file=None, field=instance.Instance, **overwrite):
     rand = root.find("random")
     if rand is not None:
         options["rand"] = eval(rand.text)
+
+    options.update(overwrite)
 
     return field(**options)

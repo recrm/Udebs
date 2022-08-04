@@ -14,7 +14,7 @@ class UdebsSyntaxError(UdebsError):
 
 
 class UdebsExecutionError(UdebsError):
-    """Is raised when an error occurs during execution of a udebs action."""
+    """Is raised when an error occurs during execution of an udebs action."""
 
     def __init__(self, script):
         self.script = script
@@ -24,7 +24,7 @@ class UdebsExecutionError(UdebsError):
 
 
 class UndefinedSelectorError(UdebsError):
-    """Is raised when udebs encounters an invalid reference to a udebs object."""
+    """Is raised when udebs encounters an invalid reference to an udebs object."""
 
     def __init__(self, target, _type):
         self.selector = target

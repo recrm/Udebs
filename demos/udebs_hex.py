@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
-import sys
-import math
 import itertools
+import math
+import sys
 from collections import Counter
 
 import udebs
@@ -279,7 +279,7 @@ if __name__ == "__main__":
 
     # Setup udebs
     comp = Cplayer(iterations=100, think_time2=think_time)
-    udebs.register(comp, ["self"], name="Cplayer")
+    udebs.register_raw(comp, {"args": ["self"]}, name="Cplayer")
     main_map = udebs.battleStart(game_config)
 
     # game loop

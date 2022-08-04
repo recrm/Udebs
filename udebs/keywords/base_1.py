@@ -1,6 +1,3 @@
-true = True
-false = False
-
 data = {
     "elem": {
         "f": "standard.sub",
@@ -9,7 +6,7 @@ data = {
     "in": {
         "f": "standard.inside",
         "args": ["-$1", "$1", "$2"],
-         "default": {"$2": 1}
+        "default": {"$2": 1}
     },
     "not-in": {
         "f": "standard.notin",
@@ -18,19 +15,19 @@ data = {
     },
     "min": {
         "f": "min",
-        "all": true
+        "all": True
     },
     "max": {
         "f": "max",
-        "all": true
+        "all": True
     },
     "==": {
         "f": "standard.equal",
-        "all": true
+        "all": True
     },
     "!=": {
         "f": "standard.notequal",
-        "all": true
+        "all": True
     },
     ">": {
         "f": "operator.gt",
@@ -54,16 +51,16 @@ data = {
     },
     "+": {
         "f": "standard.plus",
-        "all": true
+        "all": True
     },
     "*": {
         "f": "standard.multiply",
-        "all": true
+        "all": True
     },
     "if": {
         "f": "standard.logicif",
         "args": ["$1", "$2", "$3"],
-        "default": {"$2": true, "$3": false}
+        "default": {"$2": True, "$3": False}
     },
     "|": {
         "f": "abs",
@@ -97,7 +94,7 @@ data = {
     },
     "print": {
         "f": "standard.print",
-        "all": true
+        "all": True
     },
     "length": {
         "f": "len",

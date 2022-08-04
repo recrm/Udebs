@@ -1,6 +1,3 @@
-true = True
-false = False
-
 data = {
     "GETS": {
         "f": "self.controlListAdd",
@@ -71,16 +68,17 @@ data = {
     "OR": {
         "f": "self.controlOr",
         "kwargs": {"storage":  "storage"},
-        "all": true
+        "all": True
     },
     "AND": {
         "f": "self.controlAnd",
         "kwargs": {"storage":  "storage"},
-        "all": true
+        "all": True
     },
     "REPEAT": {
         "f": "self.controlRepeat",
-        "args": ["$1", "$2", "storage"]
+        "args": ["$1", "$2", "storage", "$3"],
+        "default": {"$3": False}
     },
     "DELAY": {
         "f": "self.controlDelay",
@@ -157,18 +155,22 @@ data = {
         "f": "self.rand.randint",
         "args": [0, "$1"]
     },
+    "RAND_CHOICE": {
+        "f": "self.rand.choice",
+        "args": ["$1"]
+    },
     "ALL": {
         "f": "self.getGroup",
-        "all": true
+        "all": True
     },
     "SEARCH": {
         "f": "self.getSearch",
-        "all": true
+        "all": True
     },
     "FILL": {
         "f": "self.getFill",
         "args": ["$1", "$2", "$3", "$4"],
-        "default": {"$2": "#empty", "$3": true, "$4": None}
+        "default": {"$2": "#empty", "$3": True, "$4": None}
     },
     "PATH": {
         "f": "self.getPath",
@@ -183,7 +185,7 @@ data = {
     "BLOCK": {
         "f": "self.testBlock",
         "args": ["$2", "$3", "$1"],
-        "default": {"$2": "$caster", "$3": "$target"},
+        "default": {"$2": "$caster", "$3": "$target", "-$1": None},
         "kwargs": {"max_dist": "-$1"}
     },
     "FUTURE": {

@@ -172,9 +172,6 @@ class TestInstanceGets:
         print(error)
 
     # Other functions
-    def test_mapIter(self):
-        assert len(list(self.env.mapIter("two"))) == 6
-
     def test_castAction(self):
         assert self.env.castAction("move2", "move2") is False
 
