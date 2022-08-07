@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 import sys
+
 import udebs
 
 try:
@@ -16,7 +17,6 @@ game_config = """
     <logging>False</logging>
     <name>life</name>
     <immutable>True</immutable>
-    <auto_entity>False</auto_entity>
 </config>
 
 <definitions>

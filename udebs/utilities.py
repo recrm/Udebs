@@ -1,16 +1,11 @@
 import itertools
 import time
-import inspect
 import traceback
 import functools
-
-from udebs.interpret import importModule
-
 
 # ---------------------------------------------------
 #                  Utilities                       -
 # ---------------------------------------------------
-# from udebs.treesearch.utilities import count_recursion
 
 
 def modify_state(state, entities=None, logging=True, revert=True):
@@ -83,122 +78,3 @@ def alternate(*args):
     maximum = max(len(i) for i in processed)
     gen = (itertools.islice(itertools.cycle(i), maximum) for i in processed)
     yield from zip(*gen)
-
-
-def register_raw(func, local=None, globs=None, name=None):
-    """Use this to register a function without using a decorator.
-    func - The function to register
-    local - Local call pattern for given function.
-    globs - Dictionary of global objects to add to udebs.
-    name - Name to give function (defaults to func.__name__)
-
-    .. code-block:: python
-
-        def TEST2(arg1, arg2, arg3):
-                return "hello world"
-
-        udebs.register(TEST2, {"args": ["$1", "$2", "$3"]})
-
-
-    """
-    f_name = func.__name__ if name is None else name
-
-    if local is None:
-        local = {}
-
-    if globs is None:
-        globs = {}
-
-    local_vars = {f_name: {"f": f_name}}
-    if isinstance(local, list):
-        local_vars[f_name]["args"] = local
-    else:
-        local_vars[f_name].update(local)
-
-    global_vars = {f_name: func() if inspect.isclass(func) else func}
-    global_vars.update(globs)
-
-    importModule(local_vars, global_vars)
-    return func
-
-
-def register(local_raw=None, globs_raw=None, name=None):
-    """Register a function with udebs using a decorator.
-
-    .. code-block:: python
-
-        @udebs.register({"args": ["$1", "$2", "$3"]})
-        def TEST(arg1, arg2, arg3):
-            return "hello world"
-
-        @udebs.register({"args": ["$1", $2, $3]})
-        class Test3:
-            def __init__(self):
-                self.message = "hello "
-
-            def __call__(self, world):
-                return self.message + world
-
-
-    .. code-block:: xml
-
-        <i>TEST one two three</i>
-
-    """
-    if hasattr(local_raw, "__name__"):
-        return register_raw(local_raw)
-
-    return lambda f: register_raw(f, local_raw, globs_raw, name)
-
-
-# ---------------------------------------------------
-#                  Deprecated                      -
-# ---------------------------------------------------
-
-def placeholder(name):
-    """Register a placeholder function that will be allocated after the udebs instance is created.
-
-    **deprecated - just register an empty function.
-    """
-    importModule({name: {
-        "f": "f_" + name,
-        "args": ["self"],
-    }}, {"f_" + name: lambda x: None})
-
-
-class Player:
-    """Base Class for players.
-
-    **deprecated - please use udebs.utilities.register
-    """
-
-    def __init__(self, name):
-        importModule({name: {
-            "f": "f_" + name,
-            "args": ["self"],
-        }}, {"f_" + name: self})
-
-    def __call__(self, state):
-        raise NotImplementedError("Player subclasses should implement a __call__ method.")
-
-
-def lookup(name, table):
-    """Function for adding a basic lookup function to the interpreter.
-
-    ** deprecated - please use custom function.
-    """
-
-    def wrapper(*args):
-        value = table
-        for arg in args:
-            try:
-                value = value[arg]
-            except KeyError:
-                return 0
-
-        return value
-
-    importModule({name: {
-        "f": "f_" + name,
-        "all": True,
-    }}, {"f_" + name: wrapper})

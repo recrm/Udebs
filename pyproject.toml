@@ -5,7 +5,8 @@ description = ""
 authors = ["Ryan Chartier <redrecrm@gmail.com>"]
 
 [tool.poetry.dependencies]
-python = "^3.6"
+python = "^3.7"
+pytest = "^7.1.2"
 
 [tool.poetry.dev-dependencies]
 pygame = "^2.1.2"

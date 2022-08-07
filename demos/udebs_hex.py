@@ -5,6 +5,7 @@ import sys
 from collections import Counter
 
 import udebs
+import udebs.interpret
 from udebs.treesearch import AlphaMontyCarlo
 
 try:
@@ -152,7 +153,7 @@ def event_update(main_map2, main_surface2, main_font2):
         pygame.draw.polygon(main_surface2, (255, 255, 255), hexagon.points, 0)
         pygame.draw.polygon(main_surface2, (0, 0, 0), hexagon.points, 1)
 
-        unit = main_map2.getName(main_map.getEntity((x2, y2, 'map')))
+        unit = main_map.getEntity((x2, y2, 'map')).name
         if unit != 'empty':
             char = main_map2.getStat(main_map[unit], "STONE")
             main_surface2.blit(main_font2.render(char, True, (0, 0, 0)), hexagon.square)
@@ -224,6 +225,9 @@ class Cplayer:
         self.iterations = iterations
         self.think_time = think_time2
 
+    def __str__(self):
+        return "cplayer"
+
     def __call__(self, state):
         # Check for reusable portions of previous trees.
         if self.tree is None:
@@ -279,8 +283,9 @@ if __name__ == "__main__":
 
     # Setup udebs
     comp = Cplayer(iterations=100, think_time2=think_time)
-    udebs.register_raw(comp, {"args": ["self"]}, name="Cplayer")
+    udebs.register(comp, {"args": ["self"]}, name="Cplayer")
     main_map = udebs.battleStart(game_config)
+
 
     # game loop
     event_update(main_map, main_surface, main_font)

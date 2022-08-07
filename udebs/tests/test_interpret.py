@@ -21,8 +21,8 @@ class TestInterpret:
         interpret.importModule(test, {'self': None})
 
     def test_setup(self):
-        assert "solitary" in interpret.Variables.keywords()
-        assert "testing" in interpret.Variables.keywords()
+        assert "solitary" in interpret.Variables.modules
+        assert "testing" in interpret.Variables.modules
         assert "self" in interpret.Variables.env
 
     def test_list(self):
@@ -46,7 +46,7 @@ class TestInterpret:
             interpret.interpret("max one in two")
 
     def test_solitary(self):
-        assert interpret.interpret("one in (solitary)") == "standard.inside('one',solitary(),1)"
+        assert interpret.interpret("one in (solitary)") == "inside('one',solitary(),1)"
 
     def test_dot(self):
         assert interpret.interpret("one two one.two.three") == interpret.interpret("one two (one two three)")

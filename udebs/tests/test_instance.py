@@ -72,9 +72,14 @@ class TestInstanceGets:
         assert self.env.getStat(unit1, "DESC") == "description"
         assert self.env.getStat(unit1, "group") == ["group1"]
 
+        self.env.castSingle("#unit2 STAT inventory")
+
     def test_controlListAdd(self):
         self.env.castSingle("#unit2 inventory GETS move1")
         assert len(self.env.getStat(self.env["unit2"], "inventory")) == 1
+
+    def test_getVar(self):
+        self.env.castSingle("VAR time")
 
     def test_controlListRemove(self):
         self.env.castSingle("#unit1 inventory LOSES move1")
@@ -125,12 +130,6 @@ class TestInstanceGets:
 
     def test_getName(self):
         assert self.env.castSingle("#unit1.NAME") == "unit1"
-
-    # Get Functions
-    def test_getListStat(self):
-        assert self.env.castSingle("#unit1 inventory LISTSTAT ACT") == 5
-        assert self.env.castSingle("#unit1 inventory LISTSTAT inventory") == []
-        assert self.env.castSingle("#unit1 inventory LISTSTAT DESC") == ""
 
     def test_getListGroup(self):
         assert self.env.castSingle("#unit1 inventory LISTGROUP move2") == "move1"

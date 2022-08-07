@@ -1,7 +1,4 @@
-from udebs import interpret
 import udebs
-from pytest import raises
-import os
 
 
 class TestBattleStart:
@@ -17,21 +14,7 @@ class TestBattleStart:
 
         assert f.time > 0
 
-    def test_placeholder(self):
-        """Not function is deprecated"""
-        udebs.placeholder("TEST")
-        assert "TEST" in interpret.Variables.modules[-1]
-
-    def test_lookup(self):
-        udebs.lookup("LOOKUP", {"one": {"two": {"three": 4}}})
-        path = os.path.dirname(__file__)
-        env = udebs.battleStart(path + "/test.xml", log=True)
-        assert env.castSingle("LOOKUP one two three") == 4
-        test = env.castSingle("LOOKUP one three")
-        assert test == 0
-
     def test_register(self):
-
         @udebs.register({"args": ["$1", "$2"]})
         def ADDITION1(one, two):
             return one + two
@@ -39,9 +22,9 @@ class TestBattleStart:
         def ADDITION2(one, two):
             return one + two
 
-        udebs.register(ADDITION2, ["$1", "$2"])
+        udebs.interpret.register(ADDITION2, ["$1", "$2"])
 
-        @udebs.register(["$1"])
+        @udebs.interpret.register(["$1"])
         class SUBTRACTION:
             def __init__(self):
                 self.one = 7
@@ -49,7 +32,7 @@ class TestBattleStart:
             def __call__(self, two):
                 return self.one - two
 
-        udebs.register(SUBTRACTION, ["$1"], name="sub1")
+        udebs.interpret.register(SUBTRACTION, ["$1"], name="sub1")
 
         main_map = udebs.battleStart()
         assert main_map.castSingle("ADDITION1 1 1") == 2

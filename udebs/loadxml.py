@@ -41,7 +41,7 @@ def battleWrite(env, location, pretty=False):
     for dtype in ['stats', 'lists', 'strings']:
         middle = e.SubElement(definitions, dtype)
         for item in getattr(env, dtype):
-            if item in {'group', 'effect', 'require', 'increment'}:
+            if item in {'effect', 'require', "increment", "group"}:
                 continue
             final = e.SubElement(middle, item)
             if item in env.rlist:
@@ -55,8 +55,6 @@ def battleWrite(env, location, pretty=False):
         add_leaf(config, "logging", str(env.logging))
     if env.revert != 0:
         add_leaf(config, "revert", str(env.revert))
-    if env.version != 1:
-        add_leaf(config, "version", str(env.version))
     if env.seed is not None:
         add_leaf(config, "seed", str(env.seed))
     if env.immutable is not True:
@@ -106,7 +104,7 @@ def battleWrite(env, location, pretty=False):
         for stat in stats:
             value = getattr(item, stat)
 
-            if value in [0, '', []]:
+            if value in [0, '', [], None]:
                 continue
 
             stat_node = e.SubElement(entity_node, stat)
@@ -211,7 +209,7 @@ def battleStart(xml_file=None, field=instance.Instance, **overwrite):
     # Config
     config = root.find("config")
     if config is not None:
-        for value, f in [("name", str), ("revert", int), ("logging", eval), ("version", int), ("seed", int),
+        for value, f in [("name", str), ("revert", int), ("logging", eval), ("seed", int),
                          ("immutable", eval)]:
             tmp = config.findtext(value)
             if tmp is not None:

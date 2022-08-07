@@ -1,14 +1,31 @@
-from itertools import product, chain
 import logging
+from collections import deque
+from itertools import product, chain
 from random import Random
 
 from udebs.board import Board
 from udebs.entity import Entity
 from udebs.errors import UndefinedSelectorError
-from udebs.interpret import Script, getEnv
+from udebs.interpret import Script, getEnv, register, importModule
 from udebs.utilities import no_recurse
+from udebs import basic
 
 info = logging.getLogger().info
+
+importModule({
+    "DICE": {
+        "f": "self.rand.randint",
+        "args": [0, "$1"]
+    },
+    "RAND_CHOICE": {
+        "f": "self.rand.choice",
+        "args": ["$1"]
+    },
+    "VAR": {
+        "f": "getattr",
+        "args": ["self", "$1"]
+    }
+})
 
 
 # ---------------------------------------------------
@@ -34,9 +51,9 @@ class Instance(dict):
             return
 
         # definitions
-        self.lists = {"group", "effect", "require"} | options.get("lists", set())
+        self.lists = {"effect", "require", "group"} | options.get("lists", set())
         self.stats = {"increment"} | options.get("stats", set())
-        self.strings = options.get("strings", set())
+        self.strings = {"name"} | options.get("strings", set())
         # rlist and rmap are flags that indicate objects entities should inherit from.
         self.rlist = ["group"] + options.get("rlist", [])
 
@@ -44,7 +61,6 @@ class Instance(dict):
         self.name = options.get("name", 'Unknown')  # only effects what is printed when initialized
         self.logging = options.get("logging", True)  # Turns logging on and off
         self.revert = options.get("revert", 0)  # Determines how many steps should be saved in revert
-        self.version = options.get("version", 1)  # What version of Udebs syntax is used.
         self.immutable = options.get("immutable", False)  # Determines default setting for entities immutability.
 
         # time
@@ -99,7 +115,7 @@ class Instance(dict):
         # Set up Revert
         self.state = None
         if self.revert:
-            self.state = [self.copy()]
+            self.state = deque([self.copy()], self.revert + 1)
 
         super().__init__()
 
@@ -172,7 +188,7 @@ class Instance(dict):
     # ---------------------------------------------------
     #               Selector Function                  -
     # ---------------------------------------------------
-
+    @register({"args": ["self", "$1"], "string": ["$1"]}, name="`")
     def getQuote(self, target, skip_interpret=True):
         """
         Returns a literal script as a new anonymous entity.
@@ -199,21 +215,22 @@ class Instance(dict):
                         bracket -= 1
 
                     if not bracket and char == ",":
-                        scripts.append(Script("".join(buf), self.version, skip_interpret=skip_interpret))
+                        scripts.append(Script("".join(buf), skip_interpret=skip_interpret))
                         buf = []
                         continue
 
                     buf.append(char)
 
-                scripts.append(Script("".join(buf), self.version, skip_interpret=skip_interpret))
+                scripts.append(Script("".join(buf), skip_interpret=skip_interpret))
 
             else:
-                scripts.append(Script(target, self.version, skip_interpret=skip_interpret))
+                scripts.append(Script(target, skip_interpret=skip_interpret))
 
             self[target] = Entity(self, require=scripts, name=target, immutable=True)
 
         return self[target]
 
+    @register(["self", "$1"], name="#")
     def getEntity(self, target):
         """
         Fetches the udebs entity object given a selector.
@@ -221,7 +238,7 @@ class Instance(dict):
         Udebs selectors can take all the following forms.
 
         * string - The name of the object we are looking for.
-        * tuple - A tuple of the form (x, y, name) representing a location on a map.
+        * tuple - A tuple of the form (x, y, name) or (x, y) representing a location on a map.
         * list - A list containing other selectors.
         * None - Returns the default empty selector.
 
@@ -229,17 +246,16 @@ class Instance(dict):
 
             <i># identifier</i>
         """
-        if isinstance(target, Entity):
-            return target
-        elif target is None:
-            return self['empty']
-        elif isinstance(target, str) and target in self:
+        if isinstance(target, str) and target in self:
             return self[target]
         elif isinstance(target, tuple):
             return self._getEntityTuple(target)
         elif isinstance(target, list):
             return [self.getEntity(i) for i in target]
-
+        elif target is None:
+            return self['empty']
+        elif isinstance(target, Entity):
+            return target
         raise UndefinedSelectorError(target, "entity")
 
     def _getEntityTuple(self, target):
@@ -262,6 +278,7 @@ class Instance(dict):
 
         return unit
 
+    # @register({"args": ["self", "-$1"], "default": {"-$1": "$caster"}}, name="MAP")
     def getMap(self, target="map"):
         """
         Fetches the map object caster currently resides on.
@@ -306,6 +323,7 @@ class Instance(dict):
         if self.logging:
             info("")
 
+    @register({"args": ["self", "$1"], "default": {"$1": 0}}, name="TIME")
     def controlTime(self, time=None, script="tick"):
         """
         Increments internal time by 'time' ticks, runs tick script, and activates any delayed effects.
@@ -342,8 +360,6 @@ class Instance(dict):
             # Append new version to state.
             if self.state:
                 self.state.append(self.copy())
-                if len(self.state) > self.revert:
-                    self.state = self.state[-self.revert:]
 
         return self.cont
 
@@ -357,7 +373,6 @@ class Instance(dict):
 
             main_map.getRevert(5)
         """
-
         if self.state:
             new_states = self.state.copy()
             new = self
@@ -371,6 +386,7 @@ class Instance(dict):
             new.state.append(new.copy())
             return new
 
+    @register(["self", "$1", "$2", "storage"], name="DELAY")
     def controlDelay(self, callback, time, storage):
         """
         Delays an effect a number of ticks.
@@ -398,7 +414,10 @@ class Instance(dict):
     # ---------------------------------------------------
     #           Corporate get functions                 -
     # ---------------------------------------------------
-    def getStat(self, target, stat):
+    @register({"args": ["self", "-$1", "name"], "default": {"-$1": "$caster"}}, name="NAME")
+    @register({"args": ["self", "-$1", "group"], "default": {"-$1": "$caster"}}, name="GROUP")
+    @register({"args": ["self", "-$1", "$1"], "default": {"-$1": "$caster"}}, name="STAT")
+    def getStat(self, targets, stat):
         """
         General getter for all attributes.
 
@@ -407,11 +426,33 @@ class Instance(dict):
         .. code-block:: xml
 
             <i>target [$caster] STAT stat</i>
+            <i>target [$caster] NAME</i>
+            <i>target [$caster] GROUP</i>
         """
         # Note these special attributes ignore inheritance.
-        if stat in {"increment", "group"}:
-            return getattr(target, stat)
+        if stat in {"group", "name"}:
+            output = [getattr(target, stat) for target in targets]
+            return output if len(output) > 1 else output[0]
 
+        if stat in self.stats:
+            func = sum
+        elif stat in self.lists:
+            def func(values):
+                return [i for j in values for i in j]
+        elif stat in self.strings:
+            def func(values):
+                for i in values:
+                    if i is not None:
+                        return i
+        else:
+            raise UndefinedSelectorError(stat, "stat")
+
+        if len(targets) == 1:
+            return self._getStatInner(targets, stat, func)
+
+        return [self._getStatInner(i, stat, func) for i in targets]
+
+    def _getStatInner(self, target, stat, func):
         values = self._getStatHelper(target, stat)
 
         # rmap only apply to current object not rlist.
@@ -421,27 +462,7 @@ class Instance(dict):
                     child = self[self.map[map_][target.loc]]
                     values = chain(values, self._getStatHelper(child, stat))
 
-        if stat in self.stats:
-            return sum(values)
-        elif stat in self.lists:
-            return [i for j in values for i in j]
-        elif stat in self.strings:
-            for i in values:
-                if i != "":
-                    return i
-            else:
-                return ""
-        else:
-            raise UndefinedSelectorError(stat, "stat")
-
-    def getVar(self, target):
-        """Gets variables attached to the instance itself.
-
-        ..code-block:: xml
-
-            <i>VAR time</i>
-        """
-        return getattr(self, target)
+        return func(values)
 
     def _getStatHelper(self, target, stat):
         yield getattr(target, stat)
@@ -451,6 +472,7 @@ class Instance(dict):
                     unit = self[unit]
                 yield from self._getStatHelper(unit, stat)
 
+    @register({"args": ["self"], "all": True}, name="ALL")
     def getGroup(self, *args):
         """Return all objects belonging to group. Can take multiple arguments and returns
         all objects belonging to any group.
@@ -470,25 +492,28 @@ class Instance(dict):
 
         return found
 
-    def getListStat(self, target, lst, stat):
-        """
-        Returns sum of all object stats in a list.
+    #     @register({"args": ["self", "-$2", "-$1", "$1"], "default": {"-$2": "$caster"}}, name="LISTSTAT")
+    #     def getListStat(self, target, lst, stat):
+    #         """
+    #         Returns sum of all object stats in a list.
 
-        .. code-block:: xml
+    #         .. code-block:: xml
 
-            <i>target [$caster] lst LISTSTAT stat</i>
-        """
-        lst = self.getStat(target, lst)
+    #             <i>target [$caster] lst LISTSTAT stat</i>
+    #         """
+    #         lst = self.getStat(target, lst)
 
-        found = (self.getStat(self.getEntity(element), stat) for element in lst)
+    #         found = (self.getStat(self.getEntity(element), stat) for element in lst)
 
-        if stat in self.stats:
-            return sum(found)
-        elif stat in self.lists:
-            return list(i for j in found for i in j)
-        elif stat in self.strings:
-            return next(found)
+    #         if stat in self.stats:
+    #             return sum(found)
+    #         elif stat in self.lists:
+    #             return list(i for j in found for i in j)
+    #         elif stat in self.strings:
+    #             return next(found)
 
+    @register({"args": ["self", "-$2", "-$1", "$1"], "default": {"-$1": "$caster"}}, name="LISTGROUP")
+    @register({"args": ["self", "-$1", "group", "$1"], "default": {"-$1": "$caster"}}, name="CLASS")
     def getListGroup(self, target, lst, group):
         """
         Returns first element in list that is a member of group.
@@ -504,6 +529,7 @@ class Instance(dict):
                 return item
         return False
 
+    @register({"args": ["self"], "all": True}, name="SEARCH")
     def getSearch(self, *args):
         """
         Return objects contained in all given groups.
@@ -525,6 +551,9 @@ class Instance(dict):
     # ---------------------------------------------------
     #                 Call wrappers                    -
     # ---------------------------------------------------
+    @register({"args": ["self", "-$1", "$1", "$2"], "default": {"-$1": "$caster"}}, name="CAST")
+    @register(["self", "#empty", "#empty", "$1"], name="INIT")
+    @register(["self", "-$1", "#empty", "$1"], name="ACTION")
     def _controlMove(self, casters, targets, moves, force=False):
         """
         Function to trigger an event. Returns True if an action triggers successfully.
@@ -562,6 +591,7 @@ class Instance(dict):
 
         return value
 
+    @register({"args": ["self", "$1", "$2", "storage", "$3"], "default": {"$3": False}}, name="REPEAT")
     def controlRepeat(self, callback, amount, storage, force=False, timeout=100):
         """
         Executes a callback n times.
@@ -590,6 +620,7 @@ class Instance(dict):
 
         return success
 
+    @register({"args": ["self"], "kwargs": {"storage": "storage"}, "all": True}, name="OR")
     def controlOr(self, *args, storage=None):
         """
         A basic or statement. Executes arguments in order until one of them is true.
@@ -608,6 +639,7 @@ class Instance(dict):
 
         return False
 
+    @register({"args": ["self"], "kwargs": {"storage": "storage"}, "all": True}, name="AND")
     def controlAnd(self, *args, storage=None):
         """
         A basic and statement. Executes arguments until one of them is false.
@@ -665,6 +697,7 @@ class Instance(dict):
         """
         return self.castMove(caster, self["empty"], move, **kwargs)
 
+    @register({"args": ["self", "$caster", "$target", "$move", "$1", "$2"], "default": {"$2": 0}}, name="FUTURE")
     def castFuture(self, caster, target, move, **kwargs):
         """Same as castMove except returns a copy of instance if move succeeds.
         Does not change original instance.
@@ -702,6 +735,7 @@ class Instance(dict):
     def castLambda(self, string):
         """
         Call a function directly from a user input effect String.
+        Useful if you want to use the retrieve the return value.
 
         .. code-block:: python
 
@@ -721,13 +755,14 @@ class Instance(dict):
 
             main_map.castSingle("caster CAST target move")
         """
-        code = Script(string, version=self.version)
+        code = Script(string)
         env = getEnv({}, {"self": self})
         return eval(code.code, env)
 
     # ---------------------------------------------------
     #               Entity control                     -
     # ---------------------------------------------------
+    @register({"args": ["self", "-$2", "-$1", "$1"], "default": {"-$2": "$caster"}}, name="GETS")
     def controlListAdd(self, targets, lst, entries):
         """
         Adds an element to a list.
@@ -749,6 +784,7 @@ class Instance(dict):
 
         return changed
 
+    @register({"args": ["self", "-$2", "-$1", "$1"], "default": {"-$2": "$caster"}}, name="LOSES")
     def controlListRemove(self, targets, lst, entries):
         """
         Removes an element from a list.
@@ -772,6 +808,7 @@ class Instance(dict):
 
         return changed
 
+    @register({"args": ["self", "-$1", "$1"], "default": {"-$1": "$caster"}}, name="CLEAR")
     def controlClear(self, targets, lst):
         """
         Removes all from a targets list attribute.
@@ -790,6 +827,7 @@ class Instance(dict):
 
         return changed
 
+    @register(["self", "-$1", "$1"], name="SHUFFLE")
     def controlShuffle(self, targets, lst):
         """
         Randomize order of a list.
@@ -808,6 +846,9 @@ class Instance(dict):
 
         return changed
 
+    @register(["self", "-$2", "-$1", "$1"], name="+=")
+    @register(["self", "-$2", "-$1", "$1", -1], name="-=")
+    @register({"args": ["self", "-$2", "-$1", "$1"], "default": {"-$2": "$caster"}}, name="CHANGE")
     def controlIncrement(self, targets, stat, increment, multi=1):
         """
         Increment a statistic by a static value.
@@ -831,6 +872,7 @@ class Instance(dict):
 
         return changed
 
+    @register({"args": ["self", "-$2", "-$1", "$1"], "default": {"-$2": "$caster"}}, name="REPLACE")
     def controlString(self, targets, stat, value):
         """
         Replace a value with another value.
@@ -851,6 +893,7 @@ class Instance(dict):
 
         return changed
 
+    @register({"args": ["self", "-$1", "$1"], "default": {"-$1": "$caster", "$1": "#empty"}}, name="RECRUIT")
     def controlRecruit(self, target, positions):
         """
         Create a new entity by copying another then move it to a position.
@@ -868,14 +911,17 @@ class Instance(dict):
 
         for position in positions:
             if not target.immutable:
-                new = target.clone()
-                self[new.name] = new
+                target.increment += 1
+                name = f"{target.name}{target.increment}"
+                new = target.copy(name=name, increment=0)
+                self[name] = new
                 if self.logging:
-                    info(f"{new} has been recruited")
+                    info(f"{name} has been recruited")
             self.controlTravel(new, position)
 
         return new
 
+    @register(["self", "-$1"], name="DELETE")
     def controlDelete(self, target):
         """
         Permanently remove an object from the game.
@@ -894,9 +940,11 @@ class Instance(dict):
         return False
 
     # ---------------------------------------------------
-    #                 Entity get wrappers              -
+    #                 Entity loc wrappers              -
     # ---------------------------------------------------
-
+    @register({"args": ["self", "-$1"], "default": {"-$1": "$caster"}}, name="XLOC")
+    @register({"args": ["self", "-$1", 1], "default": {"-$1": "$caster"}}, name="YLOC")
+    @register({"args": ["self", "-$1", 2], "default": {"-$1": "$caster"}}, name="MAPNAME")
     def getLocData(self, target, value=0):
         """
         Gets the x, y, or map name coordinate of target, False if target not on a map.
@@ -911,6 +959,7 @@ class Instance(dict):
         return loc[value] if loc else None
 
     @staticmethod
+    @register({"args": ["-$1"], "default": {"-$1": "$caster"}}, name="LOC")
     def getLocObject(target):
         """
         Gets the location tuple of a target, False if target not on a map.
@@ -925,18 +974,7 @@ class Instance(dict):
             return target
         return target.loc
 
-    @staticmethod
-    def getName(target):
-        """
-        Gets the name of a target.
-
-        .. code-block:: xml
-
-            <i>target [$caster] NAME</i>
-        """
-        names = [i.name for i in target]
-        return names if len(names) > 1 else names[0]
-
+    @register({"args": ["self", "-$1", "$1", "$2", "$3"], "default": {"-$1": "$caster", "$3": "None"}}, name="SHIFT")
     def getShift(self, target, x, y, name=None):
         """
         Returns a new loc shifted x and y units from an old one
@@ -957,6 +995,7 @@ class Instance(dict):
     # ---------------------------------------------------
     #                 Board get wrappers               -
     # ---------------------------------------------------
+    @register({"args": ["self", "$2", "$3", "$1"], "default": {"$2": "$caster", "$3": "$target"}}, name="PATH")
     def getPath(self, caster, target, callback):
         """
         Finds a path between caster and target using callback as filter for valid space.
@@ -974,6 +1013,7 @@ class Instance(dict):
 
         return []
 
+    @register({"args": ["self", "$2", "$3", "$1"], "default": {"$2": "$caster", "$3": "$target"}}, name="DISTANCE")
     def getDistance(self, caster, target, method):
         """
         Returns distance between caster and target using method as a metric.
@@ -991,6 +1031,8 @@ class Instance(dict):
 
         return float("inf")
 
+    @register({"args": ["self", "$2", "$3", "$1"], "default": {"$2": "$caster", "$3": "$target", "-$1": None},
+               "kwargs": {"max_dist": "-$1"}}, name="BLOCK")
     def testBlock(self, caster, target, callback, max_dist=None):
         """
         Test to see if path exists between caster and target using callback as filter for valid space.
@@ -1008,6 +1050,8 @@ class Instance(dict):
 
         return False
 
+    @register({"args": ["self", "$1", "$2", "$3", "$4"], "default": {"$2": "#empty", "$3": True, "$4": None}},
+              name="FILL")
     def getFill(self, center, callback=None, include_center=True, distance=None):
         """
         Gets all squares in a pattern starting at center, using callback as filter for valid space.
@@ -1035,6 +1079,8 @@ class Instance(dict):
     # ---------------------------------------------------
     #              Board control wrappers              -
     # ---------------------------------------------------
+    @register({"args": ["self", "-$1", "$1"], "default": {"-$1": "$caster"}}, name="MOVE")
+    @register({"args": ["self", "-$1", "$1"], "default": {"-$1": "$caster"}}, name="TRAVEL")
     def controlTravel(self, caster, targets=None):
         """Move one object to a new location.
 
@@ -1098,6 +1144,7 @@ class Instance(dict):
         if current.logging:
             info(f"EXITING {current.name}\n")
 
+    @register({"args": ["self", "$1"], "default": {"$1": 1}}, name="EXIT")
     def exit(self, value=1):
         """Requests the end of the game by setting Instance.cont to False, and exiting out of the game_loop.
 

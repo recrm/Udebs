@@ -8,32 +8,41 @@ class Entity:
             self.__dict__ = options["_data"]
             return
 
-        # Get base data
-        self.name = options.get("name", "")
+        self.other = {"name", "immutable", "loc"}
+        self.lists = set()
+
+        # Get base special data
         self.immutable = options.get("immutable", field.immutable)
+        self.loc = None
+
+        # Set guaranteed attributes
+        self.increment = 0
+        self.group = []
         self.effect = []
         self.require = []
-        self.increment = 0
+        self.name = ""
 
         # Set the stats
         for stat in field.stats:
             setattr(self, stat, int(options.get(stat, 0)))
-        for lists in field.lists:
+            self.other.add(stat)
+        for lists in field.lists.union({"group"}):
             value = options.get(lists, [])
             if not isinstance(value, list):
                 value = [value]
             setattr(self, lists, value)
+            self.lists.add(lists)
         for string in field.strings:
-            setattr(self, string, options.get(string, ''))
+            setattr(self, string, options.get(string, None))
+            self.other.add(string)
 
         # Transform effect and require into scripts
         for stat_list in [self.effect, self.require]:
             for i, elem in enumerate(stat_list):
                 if isinstance(elem, str):
-                    stat_list[i] = interpret.Script(elem, field.version, debug=debug)
+                    stat_list[i] = interpret.Script(elem, debug=debug)
 
         # Set loc.
-        self.loc = None
         if not self.immutable:
             for map_ in field.map.values():
                 for loc in map_:
@@ -86,8 +95,6 @@ class Entity:
         for effect in env["self"].getStat(self, 'effect'):
             try:
                 eval(effect.code, env)
-            except RecursionError:
-                raise
             except Exception:
                 raise errors.UdebsExecutionError(effect)
 
@@ -97,21 +104,16 @@ class Entity:
     #                Clone Functions                   -
     # ---------------------------------------------------
     def copy(self, **kwargs):
-        """The dependency on field prevents me from doing this as __copy__"""
+        """Make a copy of this entity for use in other instances."""
+        kwargs["other"] = self.other
+        kwargs["lists"] = self.lists
 
-        for k, v in self.__dict__.items():
+        for k in self.other:
             if k not in kwargs:
-                if isinstance(v, list):
-                    v = v[:]
-                kwargs[k] = v
+                kwargs[k] = self.__dict__[k]
+
+        for k in self.lists:
+            if k not in kwargs:
+                kwargs[k] = self.__dict__[k][:]
 
         return Entity(_data=kwargs)
-
-    def clone(self):
-        """Returns a clone of self."""
-        # Set name of new
-        self.increment += 1
-        name = self.name + str(self.increment)
-
-        # Create new
-        return self.copy(name=name, increment=0)
