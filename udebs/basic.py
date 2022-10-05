@@ -40,9 +40,8 @@ importModule({
         "f": "operator.mod",
         "args": ["-$1", "$1"]
     },
-
     "/": {
-        "f": "operator.truediv",
+        "f": "operator.floordiv",
         "args": ["-$1", "$1"],
         "default": {"-$1": 1}
     },
@@ -59,7 +58,6 @@ importModule({
         "f": "storage.__getitem__",
         "args": ["$1"]
     },
-
 })
 
 
