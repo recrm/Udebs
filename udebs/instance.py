@@ -1,18 +1,18 @@
 import logging
-from collections import deque
 from itertools import product, chain
 from random import Random
 
 from udebs.board import Board
 from udebs.entity import Entity
 from udebs.errors import UndefinedSelectorError
-from udebs.interpret import Script, getEnv, register, importModule
+from udebs.interpret import Script, register, Variables
 from udebs.utilities import no_recurse
 from udebs import basic
 
 info = logging.getLogger().info
 
-importModule({
+
+Variables.modules.update({
     "DICE": {
         "f": "self.rand.randint",
         "args": [0, "$1"]
@@ -26,6 +26,24 @@ importModule({
         "args": ["self", "$1"]
     }
 })
+
+
+def _getStatRmap(state, target, stat):
+    yield from _getStatInheritance(state, target, stat)
+
+    # rmap only apply to current object not rlist.
+    if target.loc:
+        for map_ in state.rmap:
+            if map_ != target.loc[2]:
+                child = state[state.map[map_][target.loc]]
+                yield from _getStatInheritance(state, child, stat)
+
+
+def _getStatInheritance(state, target, stat):
+    yield getattr(target, stat)
+    for lst in state.rlist:
+        for unit in getattr(target, lst):
+            yield from _getStatInheritance(state, state[unit], stat)
 
 
 # ---------------------------------------------------
@@ -80,6 +98,8 @@ class Instance(dict):
             if "rmap" in map_options:
                 self.rmap.append(map_options["name"])
 
+        self._rmap = _getStatRmap if self.rmap else _getStatInheritance
+
         # Entities
         self["empty"] = Entity(self, name="empty", immutable=True)
         for entity_options in options.get("entities", []):
@@ -87,6 +107,9 @@ class Instance(dict):
 
         for special in options.get("special", []):
             self.getQuote(special)
+
+        # Constants
+        self.constants = {}
 
         # Delay
         self.delay = []
@@ -115,7 +138,7 @@ class Instance(dict):
         # Set up Revert
         self.state = None
         if self.revert:
-            self.state = deque([self.copy()], self.revert + 1)
+            self.state = [self.copy()]
 
         super().__init__()
 
@@ -151,7 +174,7 @@ class Instance(dict):
             new = type(self)(is_copy=True)
 
         for k, v in self.__dict__.items():
-            if k not in {"delay", "map", "state"}:
+            if k not in {"delay", "map", "state", "next"}:
                 setattr(new, k, v)
 
         # Handle entities
@@ -182,6 +205,7 @@ class Instance(dict):
 
         # Handle state
         new.state = None
+        new.next = None
 
         return new
 
@@ -230,6 +254,15 @@ class Instance(dict):
 
         return self[target]
 
+    @register({"args": ["self", "storage", "$1"], "string": ["$1"], "all": True}, name="CONSTANT")
+    def controlConst(self, storage, code, *args):
+        key = (code, *args)
+        if key not in self.constants:
+            code = Script(code, skip_interpret=True)
+            self.constants[key] = eval(code.code, Variables.env, {"storage": storage, "self": self})
+
+        return self.constants[key]
+
     @register(["self", "$1"], name="#")
     def getEntity(self, target):
         """
@@ -259,21 +292,17 @@ class Instance(dict):
         raise UndefinedSelectorError(target, "entity")
 
     def _getEntityTuple(self, target):
-        if len(target) < 3:
-            map_name = "map"
-        else:
-            map_name = target[2]
-
+        map_ = self.getMap(target)
         try:
-            name = self.map[map_name][target]
-        except (IndexError, TypeError, KeyError):
+            name = map_[target]
+        except IndexError:
             raise UndefinedSelectorError(target, "entity")
 
         unit = self[name]
 
         if not unit.loc:
             if len(target) < 3:
-                target = (*target, map_name)
+                target = (*target, "map")
             unit = unit.copy(loc=target)
 
         return unit
@@ -289,9 +318,7 @@ class Instance(dict):
         """
         if isinstance(target, tuple):
             target = target[2] if len(target) == 3 else "map"
-        if not target:
-            return None
-        elif isinstance(target, str) and target in self.map:
+        if isinstance(target, str) and target in self.map:
             return self.map[target]
         elif isinstance(target, Board):
             return target
@@ -309,21 +336,18 @@ class Instance(dict):
         if self.logging:
             info("checking delay")
 
-        while True:
-            again = False
-            for delay in self.delay[:]:
-                if delay['ticks'] <= 0:
-                    self.delay.remove(delay)
-                    delay['script'](delay['env'])
-                    again = True
+        new = []
+        for delay in self.delay:
+            if delay['ticks'] <= 0:
+                delay['script'](delay['env'])
+            else:
+                new.append(delay)
 
-            if not again:
-                break
+        self.delay = new
 
         if self.logging:
             info("")
 
-    @register({"args": ["self", "$1"], "default": {"$1": 0}}, name="TIME")
     def controlTime(self, time=None, script="tick"):
         """
         Increments internal time by 'time' ticks, runs tick script, and activates any delayed effects.
@@ -360,6 +384,8 @@ class Instance(dict):
             # Append new version to state.
             if self.state:
                 self.state.append(self.copy())
+                if len(self.state) > self.revert:
+                    self.state = self.state[-self.revert:]
 
         return self.cont
 
@@ -380,7 +406,7 @@ class Instance(dict):
                 try:
                     new = new_states.pop()
                 except IndexError:
-                    return False
+                    return None
 
             new.state = new_states
             new.state.append(new.copy())
@@ -398,7 +424,7 @@ class Instance(dict):
 
             <i>DELAY `(caster CAST target move) 0</i>
         """
-        env = getEnv(storage, {"self": self})
+        env = {"self": self, "storage": storage}
 
         new_delay = {
             "env": env,
@@ -414,10 +440,17 @@ class Instance(dict):
     # ---------------------------------------------------
     #           Corporate get functions                 -
     # ---------------------------------------------------
-    @register({"args": ["self", "-$1", "name"], "default": {"-$1": "$caster"}}, name="NAME")
-    @register({"args": ["self", "-$1", "group"], "default": {"-$1": "$caster"}}, name="GROUP")
-    @register({"args": ["self", "-$1", "$1"], "default": {"-$1": "$caster"}}, name="STAT")
-    def getStat(self, targets, stat):
+    @register(["self", "-$1"], name="NAME")
+    def getName(self, target):
+        if isinstance(target, tuple):
+            return self.getMap(target)[target]
+        if isinstance(target, list):
+            return [self.getName(i) for i in target]
+        return target.name
+
+    @register({"args": ["self", "-$1", "$1", "$2"], "default": {"-$1": "$caster", "$2": True}}, name="STAT")
+    @register(["self", "-$1", "group", "False"], name="GROUP")
+    def getStat(self, target, stat, inherit=True):
         """
         General getter for all attributes.
 
@@ -426,54 +459,26 @@ class Instance(dict):
         .. code-block:: xml
 
             <i>target [$caster] STAT stat</i>
-            <i>target [$caster] NAME</i>
             <i>target [$caster] GROUP</i>
+            <i>target [$caster] NAME</i>
         """
-        # Note these special attributes ignore inheritance.
-        if stat in {"group", "name"}:
-            output = [getattr(target, stat) for target in targets]
-            return output if len(output) > 1 else output[0]
-
-        if stat in self.stats:
-            func = sum
+        if isinstance(target, list):
+            return [self.getStat(i, stat, inherit) for i in target]
+        elif not inherit:
+            return getattr(target, stat)
+        elif stat in self.stats:
+            return sum(self._rmap(self, target, stat))
         elif stat in self.lists:
-            def func(values):
-                return [i for j in values for i in j]
+            return [i for j in self._rmap(self, target, stat) for i in j]
         elif stat in self.strings:
-            def func(values):
-                for i in values:
-                    if i is not None:
-                        return i
+            for i in self._rmap(self, target, stat):
+                if i is not None:
+                    return i
         else:
             raise UndefinedSelectorError(stat, "stat")
 
-        if len(targets) == 1:
-            return self._getStatInner(targets, stat, func)
-
-        return [self._getStatInner(i, stat, func) for i in targets]
-
-    def _getStatInner(self, target, stat, func):
-        values = self._getStatHelper(target, stat)
-
-        # rmap only apply to current object not rlist.
-        if target.loc:
-            for map_ in self.rmap:
-                if map_ != target.loc[2]:
-                    child = self[self.map[map_][target.loc]]
-                    values = chain(values, self._getStatHelper(child, stat))
-
-        return func(values)
-
-    def _getStatHelper(self, target, stat):
-        yield getattr(target, stat)
-        for lst in self.rlist:
-            for unit in getattr(target, lst):
-                if isinstance(unit, str):
-                    unit = self[unit]
-                yield from self._getStatHelper(unit, stat)
-
     @register({"args": ["self"], "all": True}, name="ALL")
-    def getGroup(self, *args):
+    def getAll(self, *args):
         """Return all objects belonging to group. Can take multiple arguments and returns
         all objects belonging to any group.
 
@@ -560,7 +565,12 @@ class Instance(dict):
 
         Note: If a list of entity selectors is received for any argument, all actions in the product will trigger.
         """
+        if isinstance(targets, tuple):
+            targets = [targets]
+
         value = False
+
+        env = {"storage": None, "self": self}
 
         for caster, target, move in product(casters, targets, moves):
             if self.logging:
@@ -581,13 +591,12 @@ class Instance(dict):
                     info(f"{caster_name} uses {move} on {target_name}")
 
             # Cast the move
-            env = getEnv({"caster": caster, "target": target, "move": move}, {"self": self})
+            env["storage"] = {"caster": caster, "target": target, "move": move}
             test = move(env, force=force)
-            if test is not True:
-                if self.logging:
-                    info(f"failed because {test}")
-            else:
+            if test is True:
                 value = True
+            elif self.logging:
+                info(f"failed because {test}")
 
         return value
 
@@ -603,7 +612,7 @@ class Instance(dict):
 
             <i>REPEAT `(callback) 5 False</i>
         """
-        env = getEnv(storage, {"self": self})
+        env = {"storage": storage, "self": self}
         success = True
         for i in range(amount):
             if callback(env) is not True:
@@ -620,6 +629,22 @@ class Instance(dict):
 
         return success
 
+    @register({"args": ["self", "$1", "$2", "$3", "storage"]}, name="IF")
+    def controlIf(self, cond, statement, other, storage):
+        """
+        A more advanced if statement. Executes statement only if cond is true, else executes other.
+
+        .. code-block:: xml
+
+            <i>IF (cond) `(statement) `(other)</i>
+        """
+        env = {"storage": storage, "self": self}
+
+        if cond:
+            statement(env)
+        else:
+            other(env)
+
     @register({"args": ["self"], "kwargs": {"storage": "storage"}, "all": True}, name="OR")
     def controlOr(self, *args, storage=None):
         """
@@ -631,8 +656,7 @@ class Instance(dict):
 
             <i>OR `(condition1) `(condition2)</i>
         """
-        env = getEnv(storage, {"self": self})
-
+        env = {"storage": storage, "self": self}
         for condition in args:
             if condition(env) is True:
                 return True
@@ -650,7 +674,7 @@ class Instance(dict):
 
             <i>AND `(condition1) `(condition2)</i>
         """
-        env = getEnv(storage, {"self": self})
+        env = {"storage": storage, "self": self}
 
         for condition in args:
             result = condition(env)
@@ -673,11 +697,13 @@ class Instance(dict):
             main_map.testMove(caster, target, move)
 
         """
-        return move.test(getEnv({
+        env = {"storage": {
             "caster": caster,
             "target": target,
             "move": move,
-        }, {"self": self})) is True
+        }, "self": self}
+
+        return move.test(env) is True
 
     def castInit(self, moves, **kwargs):
         """Cast an action without variables.
@@ -742,8 +768,7 @@ class Instance(dict):
             main_map.castLambda("caster CAST target move")
         """
         code = self.getQuote(string, skip_interpret=False)
-        env = getEnv({}, {"self": self})
-        return code(env)
+        return code({"storage": {}, "self": self})
 
     def castSingle(self, string):
         """
@@ -756,8 +781,7 @@ class Instance(dict):
             main_map.castSingle("caster CAST target move")
         """
         code = Script(string)
-        env = getEnv({}, {"self": self})
-        return eval(code.code, env)
+        return eval(code.code, {"storage": {}, "self": self})
 
     # ---------------------------------------------------
     #               Entity control                     -
@@ -1067,7 +1091,6 @@ class Instance(dict):
         if center:
             map_ = self.map[center[2]]
             fill = sorted(map_.getFill(center, distance, include_center, callback=callback, state=self))
-            self.rand.shuffle(fill)
             return fill
 
         return []
@@ -1102,7 +1125,7 @@ class Instance(dict):
             # Then move caster to target location.
             target = self.getLocObject(target)
             if target:
-                map_ = self.map[target[2]]
+                map_ = self.getMap(target)
                 unit_name = map_[target]
                 unit_self = self[unit_name]
 
@@ -1136,8 +1159,9 @@ class Instance(dict):
             yield current
 
             if current.next is not None:
-                yield current.next
                 current = current.next
+                current.next = None
+                continue
 
             current.controlTime(current.increment, script=script)
 
@@ -1168,6 +1192,7 @@ class Instance(dict):
         self.value = None
         self.time = 0
         self.delay.clear()
+        self.rand.seed(self.seed)
         if self.logging:
             info(f"Env time is now {self.time}")
 

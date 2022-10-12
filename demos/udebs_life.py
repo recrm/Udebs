@@ -24,17 +24,13 @@ game_config = """
         <NBR />
         <LIFE />
     </stats>
-
-    <lists>
-        <neighbors />
-    </lists>
 </definitions>
 
 <maps>
     <map type="diag">
         <dim>
-            <x>50</x>
-            <y>50</y>
+            <x>75</x>
+            <y>75</y>
         </dim>
     </map>
 </maps>
@@ -43,72 +39,79 @@ game_config = """
 
     <!-- Objects -->
     <cell immutable="False" />
-
-    <change>
-        <require>
-            <i>neighbors = $target.STAT.neighbors</i>
-        </require>
-        <effect>DELAY `(#cell neighbors GETS $neighbors) 0</effect>
-    </change>
+    <cells />
 
     <!-- Life -->
-    <life>
-        <group>change</group>
-        <require>$target.STAT.LIFE == 0</require>
+    <base_life>
+        <require>$target.STAT.LIFE.false == 0</require>
         <effect>
             <i>$target LIFE REPLACE 1</i>
-            <i>DELAY `(#$neighbors NBR += 1) 0</i>
+            <i>DELAY `(#(CONSTANT #(FILL $target.LOC None false 1).NAME $target.LOC) NBR += 1) 0</i>
         </effect>
-    </life>
+    </base_life>
 
     <auto_life>
-        <group>life</group>
+        <group>base_life</group>
         <require>$target.STAT.NBR == 3</require>
     </auto_life>
 
     <random_life>
-        <group>life</group>
+        <group>base_life</group>
         <require>DICE.4 == 0</require>
-        <effect>#cell neighbors GETS $target.NAME</effect>
     </random_life>
 
     <!-- Death -->
-    <death>
-        <group>change</group>
-        <require>
-            <i>$target.STAT.LIFE == 1</i>
-            <i>nbr = $target.STAT.NBR</i>
-            <i>`($nbr &lt; 2) OR `($nbr &gt; 3)</i>
-        </require>
+    <base_death>
+        <require>$target.STAT.LIFE == 1</require>
         <effect>
             <i>$target LIFE REPLACE 0</i>
-            <i>DELAY `(#$neighbors NBR -= 1) 0</i>
+            <i>DELAY `(#(CONSTANT #(FILL $target.LOC None false 1).NAME $target.LOC) NBR -= 1) 0</i>
         </effect>
-    </death>
+    </base_death>
+
+    <auto_death>
+        <group>base_death</group>
+        <require>
+            <i>nbr = $target.STAT.NBR.false</i>
+            <i>`($nbr &lt; 2) OR `($nbr > 3)</i>
+        </require>
+    </auto_death>
 
     <!-- Scripts -->
-    <populate_neighbors>
-        <effect>$target neighbors REPLACE #(FILL $target #empty false 1).NAME</effect>
-    </populate_neighbors>
-
     <init>
         <effect>
-            <i>all = FILL.(1 1).#empty</i>
+            <i>all = FILL.(1 1)</i>
             <i>#cell RECRUIT $all</i>
-            <i>cells = #$all</i>
-            <i>CAST $cells #populate_neighbors</i>
-            <i>CAST $cells #random_life</i>
+            <i>#$all group GETS cells</i>
+            <i>CAST #$all #random_life</i>
         </effect>
     </init>
 
     <tick>
-        <effect>
-            <i>all = #(dedup #cell.STAT.neighbors)</i>
-            <i>CAST $all #death</i>
-            <i>CAST $all #auto_life</i>
-            <i>#cell CLEAR neighbors</i>
-        </effect>
+        <effect>CAST ALL.cells `(IF $target.STAT.LIFE.false `(CAST $target #auto_death) `(CAST $target #auto_life))</effect>
     </tick>
+
+    <reset>
+        <effect>
+            <i>all = ALL.cells</i>
+            <i>$all NBR REPLACE 0</i>
+            <i>$all LIFE REPLACE 0</i>
+            <i>CAST $all #random_life</i>
+        </effect>
+    </reset>
+
+    <clear>
+        <effect>
+            <i>all = ALL.cells</i>
+            <i>$all NBR REPLACE 0</i>
+            <i>$all LIFE REPLACE 0</i>
+        </effect>
+    </clear>
+
+    <manual_change>
+        <effect>IF $target.STAT.LIFE.false `(CAST.$target.#base_death) `(CAST.$target.#base_life)</effect>
+    </manual_change>
+
 </entities>
 </udebs>
 """
@@ -145,7 +148,7 @@ if __name__ == "__main__":
     try:
         seed = int(sys.argv[1])
     except IndexError:
-        seed = None
+        seed = 56738734
 
     # State variables
     ts = 10
@@ -158,7 +161,7 @@ if __name__ == "__main__":
     mainClock = pygame.time.Clock()
 
     # game loop
-    for main_map in field.gameLoop():
+    for main_map in field.gameLoop(1):
         redraw_board(main_map, surface, ts)
         mainClock.tick(10)
 
@@ -172,8 +175,8 @@ if __name__ == "__main__":
                     main_map.increment = 0 if main_map.increment == 1 else 1
 
                 if event.key == pygame.K_DELETE:
-                    main_map.next = udebs.battleStart(game_config, seed=seed)
-                    main_map.next.increment = main_map.increment
+                    main_map.resetState()
+                    main_map.next = main_map
 
                 elif main_map.increment == 0:
                     # Step back one step

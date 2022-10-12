@@ -9,7 +9,6 @@ class Variables:
     env = {
         "__builtins__": {"abs": abs, "min": min, "max": max, "len": len, "getattr": getattr},
         "operator": operator,
-        "storage": None,
     }
     default = {
         "f": "",
@@ -21,57 +20,6 @@ class Variables:
     }
 
 
-def importModule(dicts=None, globs=None):
-    """
-    Add modules to interpreter in bulk.
-
-    **In almost all cases it's better to use udebs.interpret.register
-
-    .. code-block:: python
-
-        def test(a):
-            do_stuff()
-
-        def test2(a):
-            do_stuff()
-
-        importModule({
-            "stuff1": {
-                "f": "test",
-                "args": ["$1"]
-            },
-            "stuff2": {
-                "f": "test2",
-                "args": ["$1"]
-            }, {"TEST": test, "TEST2": test2}
-        )
-
-    .. code-block:: xml
-
-        <i>TEST one</i>
-        <i>TEST2 one</i>
-
-
-    """
-    if globs is None:
-        globs = {}
-    if dicts is None:
-        dicts = {}
-
-    Variables.modules.update(dicts)
-    Variables.env.update(globs)
-
-
-def getEnv(local, glob=None):
-    """Retrieves a copy of the base variables."""
-    new_env = {}
-    new_env.update(Variables.env)
-    if glob:
-        new_env.update(glob)
-    new_env["storage"] = local
-    return new_env
-
-
 # ---------------------------------------------------
 #            Interpreter Functions                 -
 # ---------------------------------------------------
@@ -79,6 +27,8 @@ def formatS(string):
     """Converts a string into its python representation."""
     string = str(string)
     if string == "self":
+        return string
+    elif string == "storage":
         return string
     elif string == "false":
         return "False"
@@ -327,7 +277,8 @@ def _register_raw(func, local=None, globs=None, name=None):
 
     globs[f_name] = func() if inspect.isclass(func) else func
 
-    importModule(local_vars, globs)
+    Variables.modules.update(local_vars)
+    Variables.env.update(globs)
     return func
 
 

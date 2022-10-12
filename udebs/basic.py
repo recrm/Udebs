@@ -1,9 +1,9 @@
-from udebs.interpret import register, importModule
+from udebs.interpret import register, Variables
 import logging
 
 log = logging.getLogger(__name__)
 
-importModule({
+Variables.modules.update({
     "min": {
         "f": "min",
         "all": True
@@ -172,6 +172,11 @@ def plus(*args):
         <i>+ arg1 arg2 ...</i>
     """
     return sum(args)
+
+
+@register(["$1"], name="sum")
+def sumation(arg):
+    return sum(arg)
 
 
 @register({"all": True}, name="*")

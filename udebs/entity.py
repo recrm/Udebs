@@ -1,4 +1,5 @@
 from udebs import errors, interpret
+from udebs.interpret import Variables
 
 
 class Entity:
@@ -74,11 +75,10 @@ class Entity:
     def test(self, env):
         for require in env["self"].getStat(self, 'require'):
             try:
-                value = eval(require.code, env)
+                value = eval(require.code, Variables.env, env)
             except RecursionError:
                 raise
             except Exception:
-                print(env)
                 raise errors.UdebsExecutionError(require)
 
             if not value:
@@ -94,7 +94,7 @@ class Entity:
 
         for effect in env["self"].getStat(self, 'effect'):
             try:
-                eval(effect.code, env)
+                eval(effect.code, Variables.env, env)
             except Exception:
                 raise errors.UdebsExecutionError(effect)
 

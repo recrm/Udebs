@@ -1,5 +1,4 @@
 from collections.abc import MutableMapping
-from udebs.interpret import getEnv
 import math
 
 sides = [
@@ -187,8 +186,11 @@ class Board(MutableMapping):
                         searched.add(loc)
                         if self.testLoc(loc):
                             if callback:
-                                env = getEnv({"caster": state.getEntity(start), "target": state.getEntity(loc),
-                                              "move": callback}, {"self": state})
+                                env = {"storage": {
+                                    "caster": state.getEntity(start),
+                                    "target": state.getEntity(loc),
+                                    "move": callback
+                                }, "self": state}
                                 if callback.test(env) is not True:
                                     continue
                             next_.add(loc)
