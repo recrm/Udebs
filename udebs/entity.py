@@ -11,6 +11,9 @@ class Entity:
         # Get base data
         self.name = options.get("name", "")
         self.immutable = options.get("immutable", field.immutable)
+        self.effect = []
+        self.require = []
+        self.increment = 0
 
         # Set the stats
         for stat in field.stats:
@@ -66,6 +69,7 @@ class Entity:
             except RecursionError:
                 raise
             except Exception:
+                print(env)
                 raise errors.UdebsExecutionError(require)
 
             if not value:
@@ -73,10 +77,11 @@ class Entity:
 
         return True
 
-    def __call__(self, env):
-        value = self.test(env)
-        if value is not True:
-            return value
+    def __call__(self, env, force=False):
+        if not force:
+            value = self.test(env)
+            if value is not True:
+                return value
 
         for effect in env["self"].getStat(self, 'effect'):
             try:

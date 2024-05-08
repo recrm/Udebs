@@ -1,37 +1,39 @@
 from udebs import errors
+import operator
+import logging
 
-class operator:
-    @staticmethod
-    def gt(one, two):
-        return one > two
-
-    @staticmethod
-    def lt(one, two):
-        return one < two
-
-    @staticmethod
-    def ge(one, two):
-        return one >= two
-
-    @staticmethod
-    def le(one, two):
-        return one <= two
-
-    @staticmethod
-    def mod(one, two):
-        return one % two
-
-    @staticmethod
-    def truediv(one, two):
-        return one / two
-
-    @staticmethod
-    def not_(one):
-        return not one
-
-    @staticmethod
-    def sub(one, two):
-        return one - two
+# class operator:
+#     @staticmethod
+#     def gt(one, two):
+#         return one > two
+#
+#     @staticmethod
+#     def lt(one, two):
+#         return one < two
+#
+#     @staticmethod
+#     def ge(one, two):
+#         return one >= two
+#
+#     @staticmethod
+#     def le(one, two):
+#         return one <= two
+#
+#     @staticmethod
+#     def mod(one, two):
+#         return one % two
+#
+#     @staticmethod
+#     def truediv(one, two):
+#         return one / two
+#
+#     @staticmethod
+#     def not_(one):
+#         return not one
+#
+#     @staticmethod
+#     def sub(one, two):
+#         return one - two
 
 
 # ---------------------------------------------------
@@ -54,6 +56,7 @@ class Standard:
             <i>print arg1 arg2 ...</i>
         """
         print(*args)
+        logging.info(" ".join(str(i) for i in args))
         return True
 
     @staticmethod
@@ -136,46 +139,6 @@ class Standard:
         return True
 
     @staticmethod
-    def gt(before, after):
-        """Checks if before is greater than after
-
-        .. code-block:: xml
-
-            <i>before &gt; after</i>
-        """
-        return before > after
-
-    @staticmethod
-    def lt(before, after):
-        """Checks if before is less than after
-
-        .. code-block:: xml
-
-            <i>before &lt; after</i>
-        """
-        return before < after
-
-    @staticmethod
-    def gtequal(before, after):
-        """Checks if before is greater than or equal to after
-
-        .. code-block:: xml
-
-            <i>before &gt;= after</i>
-        """
-        return before >= after
-
-    @staticmethod
-    def ltequal(before, after):
-        """Checks if before is less than or equal to after
-
-        .. code-block:: xml
-
-            <i>before &lt;= after</i>
-        """
-        return before <= after
-
-    @staticmethod
     def plus(*args):
         """Sums arguments
 
@@ -201,16 +164,6 @@ class Standard:
         return i
 
     @staticmethod
-    def mod(before, after):
-        """Returns before mod after.
-
-        .. code-block:: xml
-
-            <i>before % after</i>
-        """
-        return before % after
-
-    @staticmethod
     def setvar(storage, variable, value):
         """Stores value inside of variable.
 
@@ -225,49 +178,6 @@ class Standard:
         return True
 
     @staticmethod
-    def getvar(storage, variable):
-        """Retrieves a variable
-
-        .. code-block:: xml
-
-            <i>$ variable</i>
-            <i>$variable</i>
-        """
-        return storage[variable]
-
-    @staticmethod
-    def div(before, after):
-        """Returns before divided by after.
-
-        .. code-block:: xml
-
-            <i>before / after</i>
-        """
-        return before / after
-
-    @staticmethod
-    def logicnot(element):
-        """Switches a boolean from true to false and vice versa
-
-        .. code-block:: xml
-
-            <i>! element</i>
-            <i>!element</i>
-        """
-        return not element
-
-    @staticmethod
-    def minus(before, element):
-        """Returns before - element. (before defaults to 0 if not given)
-
-        .. code-block:: xml
-
-            <i>before - element</i>
-            <i>-element</i>
-        """
-        return before - element
-
-    @staticmethod
     def sub(array, i):
         """Gets the ith element of array.
 
@@ -280,19 +190,9 @@ class Standard:
         except IndexError:
             return "empty"
 
-    @staticmethod
-    def length(list_):
-        """Returns the length of an iterable.
-
-        .. code-block:: xml
-
-            <i>length list_</i>
-        """
-        return len(list(list_))
-
 
 class Variables:
-    versions = [0, 1]
+    versions = [1]
     modules = {
         -1: {},
     }
@@ -407,18 +307,21 @@ def formatS(string, version):
         return "'" + string + "'"
 
 
-def call(args, version):
+def call(args, version, root=False):
     """Converts callList into functionString."""
     # Find keyword
     keywords = [i for i in args if i in Variables.keywords(version)]
 
     # Too many keywords is a syntax error.
     if len(keywords) > 1:
-        raise errors.UdebsSyntaxError("CallList contains to many keywords '{}'".format(args))
+        raise errors.UdebsSyntaxError(f"CallList contains to many keywords '{args}'")
 
     # No keywords create a tuple object.
-    elif len(keywords) == 0:
+    elif len(keywords) == 0 and not root:
         return "(" + ",".join(formatS(i, version) for i in args) + ")"
+
+    elif len(keywords) == 0 and root:
+        raise errors.UdebsSyntaxError(f"No keywords in root objected '{args}'")
 
     keyword = keywords[0]
 
@@ -469,7 +372,7 @@ def call(args, version):
             del nodes[key]
 
     if len(nodes) > 0:
-        raise errors.UdebsSyntaxError("Keyword contains unused arguments. '{}'".format(" ".join(args)))
+        raise errors.UdebsSyntaxError("Keyword contains unused arguments. '{" ".join(args)}'")
 
     # Insert keyword arguments.
     for key in sorted(kwargs.keys()):
@@ -523,10 +426,10 @@ def split_callstring(raw, version):
     call_list.append(buf)
 
     if in_brackets:
-        raise errors.UdebsSyntaxError("Brackets are mismatched. '{}'".format(raw))
+        raise errors.UdebsSyntaxError(f"Brackets are mismatched. '{raw}'")
 
     if '' in call_list:
-        raise errors.UdebsSyntaxError("Empty element in call_list. '{}'".format(raw))
+        raise errors.UdebsSyntaxError(f"Empty element in call_list. '{raw}'")
 
     # Length one special cases.
     if len(call_list) == 1:
@@ -540,7 +443,7 @@ def split_callstring(raw, version):
     return call_list
 
 
-def interpret(string, version=1, debug=False):
+def interpret(string, version=1, debug=False, root=False):
     """Recursive function that parses callString"""
     try:
         _list = split_callstring(string, version)
@@ -559,7 +462,7 @@ def interpret(string, version=1, debug=False):
             else:
                 found.append(entry)
 
-        comp = call(found, version)
+        comp = call(found, version, root=root)
         if debug:
             print("call:", _list)
             print("computed:", comp)
@@ -579,8 +482,8 @@ class Script:
 
     def __init__(self, effect, version=1, debug=False, skip_interpret=False):
         # Raw text given to script.
-        self.raw = effect
-        self.interpret = effect if skip_interpret else interpret(effect, version, debug)
+        self.raw = None if skip_interpret else effect
+        self.interpret = effect if skip_interpret else interpret(effect, version, debug, root=True)
         self.code = compile(self.interpret, '<string>', "eval")
 
     def __repr__(self):

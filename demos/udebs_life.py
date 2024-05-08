@@ -14,7 +14,6 @@ game_config = """
 <config>
     <revert>10</revert>
     <logging>False</logging>
-    <seed>4643</seed>
     <name>life</name>
     <immutable>True</immutable>
     <auto_entity>False</auto_entity>
@@ -117,7 +116,8 @@ game_config = """
 
 def redraw_board(board, surface2, ts2):
     surface2.fill((0, 0, 0))
-    for target in board.mapIter():
+    for target in board.getMap():
+        target = board.getEntity(target)
         if board.getStat(target, "LIFE"):
             rect = pygame.Rect(target.loc[0] * ts2, target.loc[1] * ts2, ts2, ts2)
             pygame.draw.rect(surface2, (100, 200, 100, 127), rect)
