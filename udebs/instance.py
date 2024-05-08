@@ -8,7 +8,6 @@ from udebs.entity import Entity
 from udebs.errors import UndefinedSelectorError
 from udebs.interpret import Script, register, Variables
 from udebs.utilities import no_recurse
-from udebs import basic
 from numbers import Number
 
 info = logging.getLogger().info
