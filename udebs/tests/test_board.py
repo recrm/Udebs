@@ -96,45 +96,45 @@ class TestPathing:
         notempty = self.test["notempty"]
         unit2 = self.test["unit2"]
 
-        test = self.test.getPath(unit1, unit2, notempty)
+        test = self.test.get_path(unit1, unit2, notempty)
         assert (0, 0, "map") in test
         assert (4, 3, "map") in test
         assert len(test) == 5
-        test = self.test.getPath((0, 1), (0, 1), empty)
+        test = self.test.get_path((0, 1), (0, 1), empty)
         assert len(test) == 1
         self.test.controlTravel(unit1, (1, 2, "two"))
-        assert self.test.getPath((0, 0, "two"), (1, 2, "two"), notempty) == []
-        assert len(self.test.getPath(empty, empty, empty)) == 0
-        assert self.test.getPath(unit1, empty, empty) == []
+        assert self.test.get_path((0, 0, "two"), (1, 2, "two"), notempty) == []
+        assert len(self.test.get_path(empty, empty, empty)) == 0
+        assert self.test.get_path(unit1, empty, empty) == []
 
     def test_distance(self):
         unit1 = self.test["unit1"]
         empty = self.test["empty"]
         unit2 = self.test["unit2"]
         notempty = self.test["notempty"]
-        assert self.test.getDistance(empty, unit1, "x") == float("inf")
-        assert self.test.getDistance(unit1, empty, "x") == float("inf")
-        assert self.test.getDistance(unit1, empty, "empty") == float("inf")
-        assert self.test.getDistance(unit1, unit2, 'x') == 4
-        assert self.test.getDistance(unit1, unit2, 'y') == 3
-        assert self.test.getDistance(unit1, unit2, "z") == 7
-        assert self.test.getDistance(unit1, unit2, "hex") == 7
-        assert self.test.getDistance(unit1, unit2, 'p1') == 7
-        assert self.test.getDistance(unit1, unit2, "p2") == 5
-        assert self.test.getDistance(unit1, unit2, 'pinf') == 4
-        assert self.test.getDistance(unit1, unit2, notempty) == 4
+        assert self.test.get_distance(empty, unit1, "x") == float("inf")
+        assert self.test.get_distance(unit1, empty, "x") == float("inf")
+        assert self.test.get_distance(unit1, empty, "empty") == float("inf")
+        assert self.test.get_distance(unit1, unit2, 'x') == 4
+        assert self.test.get_distance(unit1, unit2, 'y') == 3
+        assert self.test.get_distance(unit1, unit2, "z") == 7
+        assert self.test.get_distance(unit1, unit2, "hex") == 7
+        assert self.test.get_distance(unit1, unit2, 'p1') == 7
+        assert self.test.get_distance(unit1, unit2, "p2") == 5
+        assert self.test.get_distance(unit1, unit2, 'pinf') == 4
+        assert self.test.get_distance(unit1, unit2, notempty) == 4
 
         with raises(ValueError):
-            self.test.getDistance(unit1, unit2, "not a unit")
+            self.test.get_distance(unit1, unit2, "not a unit")
 
     def test_testBlock(self):
         empty = self.test["empty"]
         unit1 = self.test["unit1"]
         unit2 = self.test["unit2"]
         notempty = self.test["notempty"]
-        assert self.test.testBlock(empty, unit1, empty) is False
-        assert self.test.testBlock(unit1, unit2, notempty)
-        assert self.test.testBlock(unit1, empty, notempty) is False
+        assert self.test.test_block(empty, unit1, empty) is False
+        assert self.test.test_block(unit1, unit2, notempty)
+        assert self.test.test_block(unit1, empty, notempty) is False
 
     def test_getFill(self):
         unit1 = self.test["unit1"]
@@ -143,14 +143,14 @@ class TestPathing:
         notempty = self.test["notempty"]
         sideways = self.test["sideways"]
 
-        test = self.test.getFill(unit1, callback=notempty)
+        test = self.test.get_fill(unit1, callback=notempty)
         assert (2, 2, "map") not in test
-        test = self.test.getFill(unit2, callback=sideways)
+        test = self.test.get_fill(unit2, callback=sideways)
         assert all([i[0] == 4 for i in test])
-        assert len(self.test.getFill(empty, callback=empty)) == 0
-        test = self.test.getFill((0, 0, "two"), callback=empty, distance=1)
+        assert len(self.test.get_fill(empty, callback=empty)) == 0
+        test = self.test.get_fill((0, 0, "two"), callback=empty, distance=1)
         assert len(test) == 3
-        assert len(self.test.getFill(empty, empty)) == 0
+        assert len(self.test.get_fill(empty, empty)) == 0
 
 
 class TestDirectPathing:
@@ -162,12 +162,12 @@ class TestDirectPathing:
         self.map = self.test.map['map']
 
     def test_getAdjacent(self):
-        test = list(self.two.getAdjacent({(0, 0, "two")}, callback=self.test["empty"], state=self.test))
+        test = list(self.two.get_adjacent({(0, 0, "two")}, callback=self.test["empty"], state=self.test))
         assert len(test) == 4
         assert len(test[0]) == 1
-        test2 = list(self.two.getAdjacent({(0, 0, "two")}, callback=self.test["empty"], state=self.test))
+        test2 = list(self.two.get_adjacent({(0, 0, "two")}, callback=self.test["empty"], state=self.test))
         assert len(test2) == 4
         assert test2[0] == {(0, 0, "two")}
 
     def test_testLoc(self):
-        assert self.two.testLoc((0, 0)) is False
+        assert self.two.test_loc((0, 0)) is False

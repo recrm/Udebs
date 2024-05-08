@@ -53,6 +53,7 @@
 
     <move2>
         <require>#move2 ACT == 5</require>
+        <increment>5</increment>
     </move2>
     <immune immutable='' />
     <unit1 immutable='False'>

@@ -13,7 +13,6 @@ class TestBattleStart:
         assert self.test.logging is False
         assert self.test.name == "testing"
         assert self.test.revert == 4
-        assert self.test.version == 1
         assert self.test.seed == 690
         assert self.test.immutable is False
 
@@ -23,7 +22,7 @@ class TestBattleStart:
         assert "equipment" in self.test.lists
         assert "inventory" in self.test.rlist
         total = sum([len(i) for i in [self.test.lists, self.test.stats, self.test.strings]])
-        assert total == 8
+        assert total == 9
 
     def test_map(self):
         assert len(self.test.map) == 3
@@ -75,6 +74,8 @@ class TestBattleWrite:
 
         print(env1.keys(), env1.seed)
         print(env2.keys(), env2.seed)
+
+        print(env1.rlist, env2.rlist)
 
         assert env1 == env2
         os.remove(path2)

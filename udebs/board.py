@@ -1,5 +1,5 @@
 from collections.abc import MutableMapping
-from udebs.interpret import getEnv
+from typing import Iterator
 import math
 
 sides = [
@@ -45,7 +45,7 @@ class Board(MutableMapping):
         self.x = len(self.map)
         self.y = max([len(x) for x in self.map])
 
-    def __eq__(self, other):
+    def __eq__(self, other) -> bool:
         if not isinstance(other, Board):
             return False
 
@@ -55,14 +55,14 @@ class Board(MutableMapping):
                     return True
         return False
 
-    def __getitem__(self, key):
+    def __getitem__(self, key: tuple) -> str:
         x, y = key[0], key[1]
         if x >= 0:
             if y >= 0:
                 return self.map[x][y]
         raise IndexError
 
-    def __setitem__(self, key, value):
+    def __setitem__(self, key: tuple, value: str) -> None:
         x, y = key[0], key[1]
         if x >= 0:
             if y >= 0:
@@ -70,7 +70,7 @@ class Board(MutableMapping):
                 return
         raise IndexError
 
-    def __delitem__(self, key):
+    def __delitem__(self, key: tuple) -> None:
         x, y = key[0], key[1]
         if x >= 0:
             if y >= 0:
@@ -78,7 +78,7 @@ class Board(MutableMapping):
                 return
         raise IndexError
 
-    def __len__(self):
+    def __len__(self) -> int:
         return self.x * self.y
 
     def __iter__(self):
@@ -86,13 +86,13 @@ class Board(MutableMapping):
             for y in range(self.y):
                 yield x, y, self.name
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return "<board: " + self.name + ">"
 
-    def __copy__(self):
+    def __copy__(self) -> "Board":
         return self.copy()
 
-    def copy(self):
+    def copy(self) -> "Board":
         options = {}
         for k, v in self.__dict__.items():
             if k == "map":
@@ -104,7 +104,7 @@ class Board(MutableMapping):
     # ---------------------------------------------------
     #                    Methods                       -
     # ---------------------------------------------------
-    def show(self):
+    def show(self) -> None:
         """Pretty prints a map."""
         maxi = 0
         for name in self.values():
@@ -124,7 +124,7 @@ class Board(MutableMapping):
 
             print()
 
-    def getDistance(self, one, two, method, **kwargs):
+    def get_distance(self, one: tuple, two: tuple, method: str, **kwargs) -> float:
         """Returns distance between two locations.
 
         one - starting loc
@@ -134,7 +134,7 @@ class Board(MutableMapping):
         """
         if not isinstance(method, str):
             count = 0
-            for i in self.getAdjacent(one, callback=method, **kwargs):
+            for i in self.get_adjacent(one, callback=method, **kwargs):
                 if two in i:
                     return count
                 count += 1
@@ -156,7 +156,8 @@ class Board(MutableMapping):
         else:
             raise ValueError(f"{method} is an invalid metric")
 
-    def getAdjacent(self, start, sort=None, pointer=None, state=None, callback=None):
+    def get_adjacent(self, start: tuple | set[tuple], sort=None, pointer=None, state=None,
+                     callback=None) -> Iterator[set[tuple]]:
         """
         Iterates over concentric circles of adjacent tiles.
 
@@ -167,12 +168,12 @@ class Board(MutableMapping):
         callback - callback to filter cells
 
         """
-        if isinstance(start, set):
-            new = start
-            start = next(iter(start))
-        else:
+        if not isinstance(start, set):
             new = {start}
+        else:
+            new = start
 
+        start = state.getEntity(start)
         searched = set()
         searched.update(new)
 
@@ -185,11 +186,14 @@ class Board(MutableMapping):
                     loc = (child[0] + x_, child[1] + y_, self.name)
                     if loc not in searched:
                         searched.add(loc)
-                        if self.testLoc(loc):
+                        if self.test_loc(loc):
                             if callback:
-                                env = getEnv({"caster": state.getEntity(start), "target": state.getEntity(loc),
-                                              "move": callback}, {"self": state})
-                                if callback.test(env) is not True:
+                                env = {"storage": {
+                                    "caster": start,
+                                    "target": state.getEntity(loc),
+                                    "move": callback
+                                }, "self": state}
+                                if callback.test(env) is not None:
                                     continue
                             next_.add(loc)
                             if pointer:
@@ -198,7 +202,7 @@ class Board(MutableMapping):
             if sort:
                 new = sort(new)
 
-    def getPath(self, start, finish, **kwargs):
+    def get_path(self, start: tuple, finish: tuple, **kwargs) -> list[tuple]:
         """
         Algorithm to find a path between start and finish assuming callback.
 
@@ -207,16 +211,13 @@ class Board(MutableMapping):
         Returns empty list if there is no path.
 
         """
-        if not isinstance(start, set):
-            start = {start}
-
         if not isinstance(finish, set):
             finish = {finish}
 
         pointer = {i: None for i in start}
 
         # Populate pointer.
-        for i in self.getAdjacent(start, pointer=pointer, **kwargs):
+        for i in self.get_adjacent(start, pointer=pointer, **kwargs):
             final = finish.intersection(i)
             if len(final) > 0:
                 break
@@ -232,7 +233,8 @@ class Board(MutableMapping):
         found.reverse()
         return found
 
-    def getFill(self, center, distance=float("inf"), include_center=True, **kwargs):
+    def get_fill(self, center: tuple, distance: float = float("inf"),
+                 include_center: bool = True, **kwargs) -> set[tuple]:
         """
         Returns a list of map spaces that center fills into.
 
@@ -241,23 +243,20 @@ class Board(MutableMapping):
         include_center - Boolean to determine if center should be included.
 
         """
-        if not isinstance(center, set):
-            center = {center}
-
         found = set()
         count = 0
-        for i in self.getAdjacent(center, **kwargs):
+        for i in self.get_adjacent(center, **kwargs):
             found.update(i)
             if count >= distance:
                 break
             count += 1
 
         if not include_center:
-            found -= center
+            found.remove(center)
 
         return found
 
-    def testLoc(self, loc):
+    def test_loc(self, loc: tuple) -> bool:
         """
         Test a loc to see if it is valid.
 
@@ -277,23 +276,20 @@ class Board(MutableMapping):
 
         return False
 
-    def testBlock(self, start, finish, max_dist=None, **kwargs):
+    def test_block(self, start: tuple, finish: tuple, max_dist: float = float("inf"), **kwargs) -> bool:
         """
         Tests to see if there exists a path from start to finish.
 
         start, finish - Starting and finishing locations.
 
         """
-        if max_dist is None:
-            max_dist = float("inf")
-
         if start == finish and max_dist > 0:
             return True
 
-        i = self.getAdjacent(finish)
+        i = self.get_adjacent(finish)
         next(i)
         final = next(i)
-        for dist, i in enumerate(self.getAdjacent(start, **kwargs)):
+        for dist, i in enumerate(self.get_adjacent(start, **kwargs)):
             if i.intersection(final):
                 return True
 

@@ -22,15 +22,6 @@ class TestEntityClass:
         assert len(self.env["unit1"]) == 1
         assert len(list(iter(self.env["unit1"]))) == 1
 
-    def test_clone(self):
-        unit = self.env["unit1"]
-        unit1 = unit.clone()
-
-        assert unit.increment == 1
-        assert unit1.increment == 0
-        assert unit.name == "unit1"
-        assert unit1.name == "unit11"
-
     def test_eq(self):
         unit = self.env["unit1"]
         assert (unit == "test") is False

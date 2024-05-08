@@ -3,7 +3,9 @@ try:
 except ModuleNotFoundError:
     pass
 
-from udebs.interpret import importModule, importFunction
+from udebs.interpret import register
 from udebs.utilities import *
 from udebs.errors import *
 from udebs.instance import Instance
+from udebs.entity import Entity
+from udebs.board import Board

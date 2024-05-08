@@ -1,206 +1,14 @@
+import inspect
+
 from udebs import errors
 import operator
-import logging
-
-# class operator:
-#     @staticmethod
-#     def gt(one, two):
-#         return one > two
-#
-#     @staticmethod
-#     def lt(one, two):
-#         return one < two
-#
-#     @staticmethod
-#     def ge(one, two):
-#         return one >= two
-#
-#     @staticmethod
-#     def le(one, two):
-#         return one <= two
-#
-#     @staticmethod
-#     def mod(one, two):
-#         return one % two
-#
-#     @staticmethod
-#     def truediv(one, two):
-#         return one / two
-#
-#     @staticmethod
-#     def not_(one):
-#         return not one
-#
-#     @staticmethod
-#     def sub(one, two):
-#         return one - two
-
-
-# ---------------------------------------------------
-#            Imports and Variables                  -
-# ---------------------------------------------------
-class Standard:
-    """
-    Basic functionality wrappers.
-
-    Do not import any of these, included only as reference for udebs config file syntax.
-    """
-
-    @staticmethod
-    def print(*args):
-        """
-        prints extra output to console.
-
-        .. code-block:: xml
-
-            <i>print arg1 arg2 ...</i>
-        """
-        print(*args)
-        logging.info(" ".join(str(i) for i in args))
-        return True
-
-    @staticmethod
-    def logicif(cond, value, other):
-        """
-        returns value if condition else other.
-
-        (Note, this function evaluates all conditions regardless of if condition.)
-        (Deprecated in version 1.1.0 in favor of AND, OR blocks.)
-
-        .. code-block:: xml
-
-            <i>if cond value other</i>
-        """
-        return value if cond else other
-
-    @staticmethod
-    def inside(before, after, amount=1):
-        """
-        Returns true if before in after amount times else false.
-
-        .. code-block:: xml
-
-            <i>value in obj</i>
-        """
-        if isinstance(after, str):
-            return before in after
-
-        if amount == 0:
-            return True
-
-        count = 0
-        for item in after:
-            if item == before:
-                count += 1
-                if count >= amount:
-                    return True
-
-        return False
-
-    @staticmethod
-    def notin(*args, **kwargs):
-        """
-        Returns false if value in obj else true.
-
-        .. code-block:: xml
-
-            <i>value not-in obj</i>
-        """
-        return not Standard.inside(*args, **kwargs)
-
-    @staticmethod
-    def equal(*args):
-        """Checks for equality of args.
-
-        .. code-block:: xml
-
-            <i>== arg1 arg2 ...</i>
-            <i>arg1 == arg2</i>
-        """
-        x = args[0]
-        for y in args:
-            if y != x:
-                return False
-        return True
-
-    @staticmethod
-    def notequal(*args):
-        """Checks for inequality of args.
-
-        .. code-block:: xml
-
-            <i>!= arg1 arg2 ...</i>
-            <i>arg1 != arg2</i>
-        """
-        x = args[0]
-        for y in args[1:]:
-            if x == y:
-                return False
-        return True
-
-    @staticmethod
-    def plus(*args):
-        """Sums arguments
-
-        .. code-block:: xml
-
-            <i>arg1 + arg2</i>
-            <i>+ arg1 arg2 ...</i>
-        """
-        return sum(args)
-
-    @staticmethod
-    def multiply(*args):
-        """Multiplies arguments
-
-        .. code-block:: xml
-
-            <i>arg1 * arg2</i>
-            <i>* arg1 arg2 ...</i>
-        """
-        i = 1
-        for number in args:
-            i *= number
-        return i
-
-    @staticmethod
-    def setvar(storage, variable, value):
-        """Stores value inside of variable.
-
-        Note: always returns true so can be used in require block.
-
-        .. code-block:: xml
-
-            <i>variable = value</i>
-            <i>variable -> value</i>
-        """
-        storage[variable] = value
-        return True
-
-    @staticmethod
-    def sub(array, i):
-        """Gets the ith element of array.
-
-        .. code-block:: xml
-
-            <i>array sub i</i>
-        """
-        try:
-            return array[i]
-        except IndexError:
-            return "empty"
 
 
 class Variables:
-    versions = [1]
-    modules = {
-        -1: {},
-    }
+    modules = {}
     env = {
-        "__builtins__": {"abs": abs, "min": min, "max": max, "len": len},
-        "standard": Standard,
+        "__builtins__": {"abs": abs, "min": min, "max": max, "len": len, "getattr": getattr},
         "operator": operator,
-        "storage": None,
     }
     default = {
         "f": "",
@@ -211,78 +19,16 @@ class Variables:
         "string": [],
     }
 
-    @staticmethod
-    def keywords(version=1):
-        return dict(Variables.modules[version], **Variables.modules[-1])
-
-
-def importFunction(f, args):
-    """
-    Allows a user to import a single function into udebs.
-
-    **deprecated - please use udebs.utilities.register
-    """
-
-    module = {
-        f.__name__: {
-            "f": f.__name__
-        }
-    }
-
-    module[f.__name__].update(args)
-    importModule(module, {f.__name__: f})
-
-
-def importModule(dicts=None, globs=None, version=-1):
-    """
-    Allows user to extend base variables available to the interpreter.
-    Should be run before the instance object is created.
-
-    **deprecated for users - please use udebs.utilities.register
-    """
-    if globs is None:
-        globs = {}
-    if dicts is None:
-        dicts = {}
-    if version not in Variables.modules:
-        Variables.modules[version] = {}
-
-    Variables.modules[version].update(dicts)
-    Variables.env.update(globs)
-
-
-"""This whole function needs to be rewritten"""
-
-
-def importSystemModule(name, globs=None):
-    """Convenience script for import system keywords."""
-    if globs is None:
-        globs = {}
-
-    from udebs import keywords
-
-    for version in Variables.versions:
-        module_name = f"{name}_{str(version)}"
-        importModule(getattr(keywords, module_name).data, globs, version)
-
-
-def getEnv(local, glob=None):
-    """Retrieves a copy of the base variables."""
-    new_env = {}
-    new_env.update(Variables.env)
-    if glob:
-        new_env.update(glob)
-    new_env["storage"] = local
-    return new_env
-
 
 # ---------------------------------------------------
 #            Interpreter Functions                 -
 # ---------------------------------------------------
-def formatS(string, version):
+def formatS(string):
     """Converts a string into its python representation."""
     string = str(string)
     if string == "self":
+        return string
+    elif string == "storage":
         return string
     elif string == "false":
         return "False"
@@ -301,16 +47,16 @@ def formatS(string, version):
     elif string in Variables.env:
         return string
     # In case prefix notation used in keyword defaults.
-    elif string[0] in Variables.keywords(version):
-        return interpret(string, version)
+    elif string[0] in Variables.modules:
+        return interpret(string)
     else:
         return "'" + string + "'"
 
 
-def call(args, version, root=False):
+def call(args, root=False):
     """Converts callList into functionString."""
     # Find keyword
-    keywords = [i for i in args if i in Variables.keywords(version)]
+    keywords = [i for i in args if i in Variables.modules]
 
     # Too many keywords is a syntax error.
     if len(keywords) > 1:
@@ -318,7 +64,7 @@ def call(args, version, root=False):
 
     # No keywords create a tuple object.
     elif len(keywords) == 0 and not root:
-        return "(" + ",".join(formatS(i, version) for i in args) + ")"
+        return "(" + ",".join(formatS(i) for i in args) + ")"
 
     elif len(keywords) == 0 and root:
         raise errors.UdebsSyntaxError(f"No keywords in root objected '{args}'")
@@ -328,7 +74,7 @@ def call(args, version, root=False):
     # Get and fix data for this keyword.
     data = {}
     data.update(Variables.default)
-    data.update(Variables.keywords(version)[keyword])
+    data.update(Variables.modules[keyword])
 
     # Create dict of values
     current = args.index(keyword)
@@ -354,21 +100,21 @@ def call(args, version, root=False):
             del nodes[value]
         else:
             new_value = value
-        kwargs[key] = formatS(new_value, version)
+        kwargs[key] = formatS(new_value)
 
     arguments = []
     # Insert positional arguments
     for key in data["args"]:
         if key in nodes:
-            arguments.append(formatS(nodes[key], version))
+            arguments.append(formatS(nodes[key]))
             del nodes[key]
         else:
-            arguments.append(formatS(key, version))
+            arguments.append(formatS(key))
 
     # Insert ... arguments.
     if data["all"]:
         for key in sorted(nodes.keys(), key=lambda x: int(x.replace("$", ""))):
-            arguments.append(formatS(nodes[key], version))
+            arguments.append(formatS(nodes[key]))
             del nodes[key]
 
     if len(nodes) > 0:
@@ -381,7 +127,7 @@ def call(args, version, root=False):
     return data["f"] + "(" + ",".join(arguments) + ")"
 
 
-def split_callstring(raw, version):
+def split_callstring(raw):
     """Converts callString into call_list."""
     open_bracket = {'(', '{', '['}
     close_bracket = {')', '}', ']'}
@@ -436,17 +182,17 @@ def split_callstring(raw, version):
         value = call_list[0]
 
         # Prefix calling.
-        if value not in Variables.keywords(version):
-            if value[0] in Variables.keywords(version):
+        if value not in Variables.modules:
+            if value[0] in Variables.modules:
                 return [value[0], value[1:]]
 
     return call_list
 
 
-def interpret(string, version=1, debug=False, root=False):
+def interpret(string, debug=False, root=False):
     """Recursive function that parses callString"""
     try:
-        _list = split_callstring(string, version)
+        _list = split_callstring(string)
         if debug:
             print("Interpret:", string)
             print("Split:", _list)
@@ -454,15 +200,15 @@ def interpret(string, version=1, debug=False, root=False):
         found = []
         for entry in _list:
             if entry[0] == "(" and entry[-1] == ")":
-                found.append(interpret(entry[1:-1], version, debug))
+                found.append(interpret(entry[1:-1], debug))
             elif "." in entry:
-                found.append(interpret(entry, version, debug))
-            elif entry[0] in Variables.keywords(version) and entry not in Variables.keywords(version):
-                found.append(interpret(entry, version, debug))
+                found.append(interpret(entry, debug))
+            elif entry[0] in Variables.modules and entry not in Variables.modules:
+                found.append(interpret(entry, debug))
             else:
                 found.append(entry)
 
-        comp = call(found, version, root=root)
+        comp = call(found, root=root)
         if debug:
             print("call:", _list)
             print("computed:", comp)
@@ -479,11 +225,10 @@ def interpret(string, version=1, debug=False, root=False):
 # ---------------------------------------------------
 class Script:
     """Storage class for interpreted code ready for the eval function."""
-
-    def __init__(self, effect, version=1, debug=False, skip_interpret=False):
+    def __init__(self, effect, debug=False, skip_interpret=False):
         # Raw text given to script.
         self.raw = None if skip_interpret else effect
-        self.interpret = effect if skip_interpret else interpret(effect, version, debug, root=True)
+        self.interpret = effect if skip_interpret else interpret(effect, debug, root=True)
         self.code = compile(self.interpret, '<string>', "eval")
 
     def __repr__(self):
@@ -502,5 +247,63 @@ class Script:
 # ---------------------------------------------------
 #                     Runtime                      -
 # ---------------------------------------------------
-importSystemModule("base")
-importSystemModule("udebs")
+def _register_raw(func, local=None, globs=None, name=None):
+    """Use this to register a function without using a decorator.
+    func - The function to register
+    local - Local call pattern for given function.
+    globs - Dictionary of global objects to add to udebs.
+    name - Name to give function (defaults to func.__name__)
+    """
+    if name is None and not hasattr(func, "__name__"):
+        raise errors.UdebsSyntaxError("Must set name attribute when registering a class object.")
+
+    f_name = func.__name__ if hasattr(func, "__name__") else name
+    title = name if name is not None else f_name
+
+    if local is None:
+        local = {}
+    elif isinstance(local, list):
+        local = {"args": local}
+
+    local_vars = {
+        title: {
+            "f": f_name,
+            **local,
+        }
+    }
+
+    if globs is None:
+        globs = {}
+
+    globs[f_name] = func() if inspect.isclass(func) else func
+
+    Variables.modules.update(local_vars)
+    Variables.env.update(globs)
+    return func
+
+
+def register(function, *args, name=None):
+    """Register a function with udebs using a decorator.
+
+    name - keyword used to signify this function from within udebs.
+
+    .. code-block:: python
+
+        @udebs.register({"args": ["$1", "$2", "$3"]})
+        def TEST(arg1, arg2, arg3):
+            return "hello world"
+
+        def TEST2(arg1, arg2, arg3):
+                    return "hello world"
+
+        udebs.register(TEST2, {"args": ["$1", "$2", "$3"]})
+
+    .. code-block:: xml
+
+        <i>TEST one two three</i>
+
+    """
+    if hasattr(function, "__call__"):
+        return _register_raw(function, *args, name=name)
+
+    return lambda f: _register_raw(f, function, *args, name=name)
