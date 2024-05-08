@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 import sys
+import gc
 
 import udebs
 
@@ -29,8 +30,8 @@ game_config = """
 <maps>
     <map type="diag">
         <dim>
-            <x>75</x>
-            <y>75</y>
+            <x>100</x>
+            <y>100</y>
         </dim>
     </map>
 </maps>
@@ -46,13 +47,13 @@ game_config = """
         <require>$target.STAT.LIFE.false == 0</require>
         <effect>
             <i>$target LIFE REPLACE 1</i>
-            <i>DELAY `(#(CONSTANT #(FILL $target.LOC None false 1).NAME $target.LOC) NBR += 1) 0</i>
+            <i>DELAY `(#(CONSTANT #(FILL $target None false 1).NAME $target.NAME) NBR += 1) 0</i>
         </effect>
     </base_life>
 
     <auto_life>
         <group>base_life</group>
-        <require>$target.STAT.NBR == 3</require>
+        <require>$target.STAT.NBR.False == 3</require>
     </auto_life>
 
     <random_life>
@@ -62,10 +63,10 @@ game_config = """
 
     <!-- Death -->
     <base_death>
-        <require>$target.STAT.LIFE == 1</require>
+        <require>$target.STAT.LIFE.False == 1</require>
         <effect>
             <i>$target LIFE REPLACE 0</i>
-            <i>DELAY `(#(CONSTANT #(FILL $target.LOC None false 1).NAME $target.LOC) NBR -= 1) 0</i>
+            <i>DELAY `(#(CONSTANT #(FILL $target None false 1).NAME $target.LOC) NBR -= 1) 0</i>
         </effect>
     </base_death>
 
@@ -88,7 +89,11 @@ game_config = """
     </init>
 
     <tick>
-        <effect>CAST ALL.cells `(IF $target.STAT.LIFE.false `(CAST $target #auto_death) `(CAST $target #auto_life))</effect>
+        <effect>CAST ALL.cells `(
+            IF $target.STAT.LIFE.false 
+            `(CAST $target #auto_death) 
+            `(CAST $target #auto_life)
+        )</effect>
     </tick>
 
     <reset>
@@ -109,7 +114,7 @@ game_config = """
     </clear>
 
     <manual_change>
-        <effect>IF $target.STAT.LIFE.false `(CAST.$target.#base_death) `(CAST.$target.#base_life)</effect>
+        <effect>IF $target.STAT.LIFE.false `(CAST $target #base_death) `(CAST $target #base_life)</effect>
     </manual_change>
 
 </entities>
@@ -148,7 +153,7 @@ if __name__ == "__main__":
     try:
         seed = int(sys.argv[1])
     except IndexError:
-        seed = 56738734
+        seed = None
 
     # State variables
     ts = 10
@@ -163,29 +168,24 @@ if __name__ == "__main__":
     # game loop
     for main_map in field.gameLoop(1):
         redraw_board(main_map, surface, ts)
-        mainClock.tick(10)
+        # mainClock.tick(10)
 
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
-                pygame.quit()
                 main_map.exit()
+                pygame.quit()
 
             elif event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_SPACE:
-                    main_map.increment = 0 if main_map.increment == 1 else 1
+                    main_map.increment = not main_map.increment
 
-                if event.key == pygame.K_DELETE:
-                    main_map.resetState()
-                    main_map.next = main_map
+                elif event.key == pygame.K_DELETE:
+                    main_map.next = main_map.resetState()
 
-                elif main_map.increment == 0:
-                    # Step back one step
-                    if event.key == pygame.K_LEFT:
-                        test = main_map.getRevert(1)
-                        if test:
-                            main_map.next = test
-                            main_map.next.increment = 0
+                # Step back one step
+                elif event.key == pygame.K_LEFT and main_map.increment == 0:
+                    main_map.next = main_map.getRevert(1)
 
-                    # Step forward one step
-                    if event.key == pygame.K_RIGHT:
-                        main_map.controlTime(1)
+                # Step forward one step
+                elif event.key == pygame.K_RIGHT and main_map.increment == 0:
+                    main_map.controlTime(1)

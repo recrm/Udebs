@@ -1,5 +1,6 @@
 from udebs import errors, interpret
 from udebs.interpret import Variables
+from typing import Optional
 
 
 class Entity:
@@ -72,7 +73,7 @@ class Entity:
     # ---------------------------------------------------
     #                 Call Functions                    -
     # ---------------------------------------------------
-    def test(self, env):
+    def test(self, env: dict) -> Optional[str]:
         for require in env["self"].getStat(self, 'require'):
             try:
                 value = eval(require.code, Variables.env, env)
@@ -84,12 +85,10 @@ class Entity:
             if not value:
                 return require
 
-        return True
-
-    def __call__(self, env, force=False):
+    def __call__(self, env: dict, force: bool = False) -> Optional[str]:
         if not force:
             value = self.test(env)
-            if value is not True:
+            if value is not None:
                 return value
 
         for effect in env["self"].getStat(self, 'effect'):
@@ -98,12 +97,10 @@ class Entity:
             except Exception:
                 raise errors.UdebsExecutionError(effect)
 
-        return True
-
     # ---------------------------------------------------
     #                Clone Functions                   -
     # ---------------------------------------------------
-    def copy(self, **kwargs):
+    def copy(self, **kwargs) -> "Entity":
         """Make a copy of this entity for use in other instances."""
         kwargs["other"] = self.other
         kwargs["lists"] = self.lists

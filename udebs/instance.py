@@ -1,6 +1,7 @@
 import logging
-from itertools import product, chain
+from itertools import product
 from random import Random
+from typing import Any, Optional
 
 from udebs.board import Board
 from udebs.entity import Entity
@@ -8,6 +9,7 @@ from udebs.errors import UndefinedSelectorError
 from udebs.interpret import Script, register, Variables
 from udebs.utilities import no_recurse
 from udebs import basic
+from numbers import Number
 
 info = logging.getLogger().info
 
@@ -142,11 +144,17 @@ class Instance(dict):
 
         super().__init__()
 
-    def __bool__(self):
+    def __bool__(self) -> bool:
         return self.cont
 
+    def __str__(self) -> str:
+        return f"<Instance: {self.name} {self.time}>"
+
+    def __repr__(self) -> str:
+        return f"<Instance: {self.name} {self.time}>"
+
     @no_recurse
-    def __eq__(self, other):
+    def __eq__(self, other) -> bool:
         if not isinstance(other, Instance):
             return False
 
@@ -163,10 +171,10 @@ class Instance(dict):
 
         return True
 
-    def __ne__(self, other):
+    def __ne__(self, other) -> bool:
         return not self == other
 
-    def __copy__(self):
+    def __copy__(self) -> "Instance":
         return self.copy()
 
     def copy(self, new=None) -> "Instance":
@@ -213,7 +221,7 @@ class Instance(dict):
     #               Selector Function                  -
     # ---------------------------------------------------
     @register({"args": ["self", "$1"], "string": ["$1"]}, name="`")
-    def getQuote(self, target, skip_interpret=True):
+    def getQuote(self, target: str, skip_interpret: bool = True) -> Entity:
         """
         Returns a literal script as a new anonymous entity.
 
@@ -255,7 +263,7 @@ class Instance(dict):
         return self[target]
 
     @register({"args": ["self", "storage", "$1"], "string": ["$1"], "all": True}, name="CONSTANT")
-    def controlConst(self, storage, code, *args):
+    def controlConst(self, storage: dict, code: str, *args) -> Any:
         key = (code, *args)
         if key not in self.constants:
             code = Script(code, skip_interpret=True)
@@ -264,7 +272,7 @@ class Instance(dict):
         return self.constants[key]
 
     @register(["self", "$1"], name="#")
-    def getEntity(self, target):
+    def getEntity(self, target: Optional[str | tuple | list | Entity]) -> Entity | list[Entity]:
         """
         Fetches the udebs entity object given a selector.
 
@@ -291,7 +299,7 @@ class Instance(dict):
             return target
         raise UndefinedSelectorError(target, "entity")
 
-    def _getEntityTuple(self, target):
+    def _getEntityTuple(self, target: tuple) -> Entity:
         map_ = self.getMap(target)
         try:
             name = map_[target]
@@ -307,8 +315,8 @@ class Instance(dict):
 
         return unit
 
-    # @register({"args": ["self", "-$1"], "default": {"-$1": "$caster"}}, name="MAP")
-    def getMap(self, target="map"):
+    @register({"args": ["self", "-$1"], "default": {"-$1": "$caster"}}, name="MAP")
+    def getMap(self, target: str | tuple | Board | Entity = "map") -> Board:
         """
         Fetches the map object caster currently resides on.
 
@@ -331,7 +339,7 @@ class Instance(dict):
     #                 Time Management                  -
     # ---------------------------------------------------
 
-    def _checkDelay(self):
+    def _checkDelay(self) -> None:
         """Checks and runs actions waiting in delay."""
         if self.logging:
             info("checking delay")
@@ -348,7 +356,7 @@ class Instance(dict):
         if self.logging:
             info("")
 
-    def controlTime(self, time=None, script="tick"):
+    def controlTime(self, time: Optional[int] = None, script: str = "tick") -> bool:
         """
         Increments internal time by 'time' ticks, runs tick script, and activates any delayed effects.
 
@@ -383,13 +391,15 @@ class Instance(dict):
 
             # Append new version to state.
             if self.state:
-                self.state.append(self.copy())
+                test = self.copy()
+                self.state.append(test)
                 if len(self.state) > self.revert:
                     self.state = self.state[-self.revert:]
+                    assert self.state[-1] is test
 
         return self.cont
 
-    def getRevert(self, time=0):
+    def getRevert(self, time: int = 0) -> Optional["Instance"]:
         """
         Returns a previous game state.
 
@@ -413,7 +423,7 @@ class Instance(dict):
             return new
 
     @register(["self", "$1", "$2", "storage"], name="DELAY")
-    def controlDelay(self, callback, time, storage):
+    def controlDelay(self, callback: Entity, time: str, storage: dict) -> bool:
         """
         Delays an effect a number of ticks.
 
@@ -441,7 +451,7 @@ class Instance(dict):
     #           Corporate get functions                 -
     # ---------------------------------------------------
     @register(["self", "-$1"], name="NAME")
-    def getName(self, target):
+    def getName(self, target: tuple | Entity) -> str | list[str]:
         if isinstance(target, tuple):
             return self.getMap(target)[target]
         if isinstance(target, list):
@@ -450,7 +460,7 @@ class Instance(dict):
 
     @register({"args": ["self", "-$1", "$1", "$2"], "default": {"-$1": "$caster", "$2": True}}, name="STAT")
     @register(["self", "-$1", "group", "False"], name="GROUP")
-    def getStat(self, target, stat, inherit=True):
+    def getStat(self, target: Entity, stat: str, inherit: bool = True) -> list[str] | int | str:
         """
         General getter for all attributes.
 
@@ -478,7 +488,7 @@ class Instance(dict):
             raise UndefinedSelectorError(stat, "stat")
 
     @register({"args": ["self"], "all": True}, name="ALL")
-    def getAll(self, *args):
+    def getAll(self, *args: str) -> list[Entity]:
         """Return all objects belonging to group. Can take multiple arguments and returns
         all objects belonging to any group.
 
@@ -519,7 +529,7 @@ class Instance(dict):
 
     @register({"args": ["self", "-$2", "-$1", "$1"], "default": {"-$1": "$caster"}}, name="LISTGROUP")
     @register({"args": ["self", "-$1", "group", "$1"], "default": {"-$1": "$caster"}}, name="CLASS")
-    def getListGroup(self, target, lst, group):
+    def getListGroup(self, target: Entity, lst: str, group: str) -> str | bool:
         """
         Returns first element in list that is a member of group.
 
@@ -535,7 +545,7 @@ class Instance(dict):
         return False
 
     @register({"args": ["self"], "all": True}, name="SEARCH")
-    def getSearch(self, *args):
+    def getSearch(self, *args: str) -> list[Entity]:
         """
         Return objects contained in all given groups.
 
@@ -543,7 +553,7 @@ class Instance(dict):
 
             <i>SEARCH arg1 arg2 ...</i>
         """
-        found = self.getGroup(args[0])
+        found = self.getAll(args[0], "group")
         for arg in args[1:]:
             new = []
             for i in found:
@@ -559,7 +569,8 @@ class Instance(dict):
     @register({"args": ["self", "-$1", "$1", "$2"], "default": {"-$1": "$caster"}}, name="CAST")
     @register(["self", "#empty", "#empty", "$1"], name="INIT")
     @register(["self", "-$1", "#empty", "$1"], name="ACTION")
-    def _controlMove(self, casters, targets, moves, force=False):
+    def _controlMove(self, casters: Entity | list[Entity], targets: Entity | list[Entity], moves: Entity | list[Entity],
+                     force: bool = False) -> bool:
         """
         Function to trigger an event. Returns True if an action triggers successfully.
 
@@ -593,7 +604,7 @@ class Instance(dict):
             # Cast the move
             env["storage"] = {"caster": caster, "target": target, "move": move}
             test = move(env, force=force)
-            if test is True:
+            if test is None:
                 value = True
             elif self.logging:
                 info(f"failed because {test}")
@@ -601,12 +612,13 @@ class Instance(dict):
         return value
 
     @register({"args": ["self", "$1", "$2", "storage", "$3"], "default": {"$3": False}}, name="REPEAT")
-    def controlRepeat(self, callback, amount, storage, force=False, timeout=100):
+    def controlRepeat(self, callback: Entity, amount: int, storage: dict, force: bool = False,
+                      timeout: int = 100) -> bool:
         """
         Executes a callback n times.
         The final argument is to force retries. If set to True system will
-        retry failures until exactly n attempts succeed. Over 100 consecutive failures
-        will trigger an exception. Value defaults to False.
+        retry failures until exactly the requested attempts succeed. Over 100 consecutive failures
+        will trigger an exception.
 
         .. code-block:: xml
 
@@ -615,14 +627,14 @@ class Instance(dict):
         env = {"storage": storage, "self": self}
         success = True
         for i in range(amount):
-            if callback(env) is not True:
+            if callback(env) is not None:
                 success = False
                 if self.logging:
                     info(f"Repeat failed at {i}th interval")
 
                 if force:
                     for j in range(timeout - 1):
-                        if callback(env) is True:
+                        if callback(env) is None:
                             break
                     else:
                         raise Exception("Timeout reached in repeat function.")
@@ -630,7 +642,7 @@ class Instance(dict):
         return success
 
     @register({"args": ["self", "$1", "$2", "$3", "storage"]}, name="IF")
-    def controlIf(self, cond, statement, other, storage):
+    def controlIf(self, cond: bool, statement: Entity, other: Entity, storage: dict) -> None:
         """
         A more advanced if statement. Executes statement only if cond is true, else executes other.
 
@@ -646,7 +658,7 @@ class Instance(dict):
             other(env)
 
     @register({"args": ["self"], "kwargs": {"storage": "storage"}, "all": True}, name="OR")
-    def controlOr(self, *args, storage=None):
+    def controlOr(self, *args: Entity, storage: dict) -> bool:
         """
         A basic or statement. Executes arguments in order until one of them is true.
 
@@ -658,13 +670,13 @@ class Instance(dict):
         """
         env = {"storage": storage, "self": self}
         for condition in args:
-            if condition(env) is True:
+            if condition(env) is None:
                 return True
 
         return False
 
     @register({"args": ["self"], "kwargs": {"storage": "storage"}, "all": True}, name="AND")
-    def controlAnd(self, *args, storage=None):
+    def controlAnd(self, *args: Entity, storage: dict) -> bool:
         """
         A basic and statement. Executes arguments until one of them is false.
 
@@ -678,7 +690,7 @@ class Instance(dict):
 
         for condition in args:
             result = condition(env)
-            if result is not True:
+            if result is not None:
                 if self.logging:
                     info(f"And failed at: {result}")
                 return False
@@ -688,7 +700,7 @@ class Instance(dict):
     # ---------------------------------------------------
     #                 User Entrypoints                  -
     # ---------------------------------------------------
-    def testMove(self, caster, target, move):
+    def testMove(self, caster: str, target: str, move: str) -> bool:
         """
         Simulates an action. Returns true if the requirements passes successfully, False otherwise.
 
@@ -698,14 +710,14 @@ class Instance(dict):
 
         """
         env = {"storage": {
-            "caster": caster,
-            "target": target,
-            "move": move,
+            "caster": self[caster],
+            "target": self[target],
+            "move": self[move],
         }, "self": self}
 
-        return move.test(env) is True
+        return self[move].test(env) is None
 
-    def castInit(self, moves, **kwargs):
+    def castInit(self, moves: str, **kwargs) -> bool:
         """Cast an action without variables.
 
         .. code-block:: xml
@@ -714,7 +726,7 @@ class Instance(dict):
         """
         return self.castMove(self["empty"], self["empty"], moves, **kwargs)
 
-    def castAction(self, caster, move, **kwargs):
+    def castAction(self, caster: str, move: str, **kwargs) -> bool:
         """Cast an action with only a caster.
 
         .. code-block:: xml
@@ -724,7 +736,7 @@ class Instance(dict):
         return self.castMove(caster, self["empty"], move, **kwargs)
 
     @register({"args": ["self", "$caster", "$target", "$move", "$1", "$2"], "default": {"$2": 0}}, name="FUTURE")
-    def castFuture(self, caster, target, move, **kwargs):
+    def castFuture(self, caster: str, target: str, move: str, **kwargs) -> "Instance":
         """Same as castMove except returns a copy of instance if move succeeds.
         Does not change original instance.
 
@@ -740,7 +752,7 @@ class Instance(dict):
         if new.castMove(caster, target, move, **kwargs):
             return new
 
-    def castMove(self, caster, target, move, force=False, time=None):
+    def castMove(self, caster: str, target: str, move: str, force: bool = False, time: Optional[int] = None):
         """Cast an action including both a caster and a target.
 
         .. code-block:: xml
@@ -758,7 +770,7 @@ class Instance(dict):
 
         return value
 
-    def castLambda(self, string):
+    def castLambda(self, string: str) -> bool | str:
         """
         Call a function directly from a user input effect String.
         Useful if you want to use the retrieve the return value.
@@ -770,7 +782,7 @@ class Instance(dict):
         code = self.getQuote(string, skip_interpret=False)
         return code({"storage": {}, "self": self})
 
-    def castSingle(self, string):
+    def castSingle(self, string: str) -> Any:
         """
         DEPRECATED - Please use castLambda
 
@@ -787,7 +799,7 @@ class Instance(dict):
     #               Entity control                     -
     # ---------------------------------------------------
     @register({"args": ["self", "-$2", "-$1", "$1"], "default": {"-$2": "$caster"}}, name="GETS")
-    def controlListAdd(self, targets, lst, entries):
+    def controlListAdd(self, targets: Entity | list[Entity], lst: str, entries: str | list[str]) -> bool:
         """
         Adds an element to a list.
 
@@ -809,7 +821,7 @@ class Instance(dict):
         return changed
 
     @register({"args": ["self", "-$2", "-$1", "$1"], "default": {"-$2": "$caster"}}, name="LOSES")
-    def controlListRemove(self, targets, lst, entries):
+    def controlListRemove(self, targets: Entity | list[Entity], lst: str, entries: str | list[str]) -> bool:
         """
         Removes an element from a list.
 
@@ -833,7 +845,7 @@ class Instance(dict):
         return changed
 
     @register({"args": ["self", "-$1", "$1"], "default": {"-$1": "$caster"}}, name="CLEAR")
-    def controlClear(self, targets, lst):
+    def controlClear(self, targets: Entity | list[Entity], lst: str) -> bool:
         """
         Removes all from a targets list attribute.
 
@@ -851,8 +863,8 @@ class Instance(dict):
 
         return changed
 
-    @register(["self", "-$1", "$1"], name="SHUFFLE")
-    def controlShuffle(self, targets, lst):
+    @register({"args": ["self", "-$1", "$1"], "default": {"-$1": None}}, name="SHUFFLE")
+    def controlShuffle(self, targets: Optional[Entity | list[Entity]], lst: str | list) -> list | bool:
         """
         Randomize order of a list.
 
@@ -860,6 +872,10 @@ class Instance(dict):
 
             <i>target SHUFFLE lst</i>
         """
+        if targets is None:
+            self.rand.shuffle(lst)
+            return lst
+
         changed = False
         for target in targets:
             if not target.immutable:
@@ -873,7 +889,7 @@ class Instance(dict):
     @register(["self", "-$2", "-$1", "$1"], name="+=")
     @register(["self", "-$2", "-$1", "$1", -1], name="-=")
     @register({"args": ["self", "-$2", "-$1", "$1"], "default": {"-$2": "$caster"}}, name="CHANGE")
-    def controlIncrement(self, targets, stat, increment, multi=1):
+    def controlIncrement(self, targets: Entity | list[Entity], stat: str, increment: int, multi: int = 1) -> bool:
         """
         Increment a statistic by a static value.
 
@@ -897,7 +913,7 @@ class Instance(dict):
         return changed
 
     @register({"args": ["self", "-$2", "-$1", "$1"], "default": {"-$2": "$caster"}}, name="REPLACE")
-    def controlString(self, targets, stat, value):
+    def controlString(self, targets: Entity | list[Entity], stat: str, value: Any) -> bool:
         """
         Replace a value with another value.
 
@@ -918,7 +934,7 @@ class Instance(dict):
         return changed
 
     @register({"args": ["self", "-$1", "$1"], "default": {"-$1": "$caster", "$1": "#empty"}}, name="RECRUIT")
-    def controlRecruit(self, target, positions):
+    def controlRecruit(self, target: Entity, positions: tuple | list[tuple] | Entity | list[Entity]) -> Entity:
         """
         Create a new entity by copying another then move it to a position.
 
@@ -946,7 +962,7 @@ class Instance(dict):
         return new
 
     @register(["self", "-$1"], name="DELETE")
-    def controlDelete(self, target):
+    def controlDelete(self, target: Entity):
         """
         Permanently remove an object from the game.
 
@@ -969,7 +985,7 @@ class Instance(dict):
     @register({"args": ["self", "-$1"], "default": {"-$1": "$caster"}}, name="XLOC")
     @register({"args": ["self", "-$1", 1], "default": {"-$1": "$caster"}}, name="YLOC")
     @register({"args": ["self", "-$1", 2], "default": {"-$1": "$caster"}}, name="MAPNAME")
-    def getLocData(self, target, value=0):
+    def getLocData(self, target: tuple | Entity, value=0) -> int | str:
         """
         Gets the x, y, or map name coordinate of target, False if target not on a map.
 
@@ -984,7 +1000,7 @@ class Instance(dict):
 
     @staticmethod
     @register({"args": ["-$1"], "default": {"-$1": "$caster"}}, name="LOC")
-    def getLocObject(target):
+    def getLocObject(target: tuple | Entity) -> tuple:
         """
         Gets the location tuple of a target, False if target not on a map.
 
@@ -999,7 +1015,7 @@ class Instance(dict):
         return target.loc
 
     @register({"args": ["self", "-$1", "$1", "$2", "$3"], "default": {"-$1": "$caster", "$3": "None"}}, name="SHIFT")
-    def getShift(self, target, x, y, name=None):
+    def getShift(self, target: tuple | Entity, x: int, y: int, name: Optional[str] = None) -> tuple | Entity:
         """
         Returns a new loc shifted x and y units from an old one
 
@@ -1011,7 +1027,7 @@ class Instance(dict):
         if loc is not None:
             new_name = name if name else loc[2]
             new_loc = (loc[0] + x, loc[1] + y, new_name)
-            if self.map[new_name].testLoc(new_loc):
+            if self.map[new_name].test_loc(new_loc):
                 return new_loc
 
         return self['empty']
@@ -1020,7 +1036,7 @@ class Instance(dict):
     #                 Board get wrappers               -
     # ---------------------------------------------------
     @register({"args": ["self", "$2", "$3", "$1"], "default": {"$2": "$caster", "$3": "$target"}}, name="PATH")
-    def getPath(self, caster, target, callback):
+    def getPath(self, caster: tuple | Entity, target: tuple | Entity, callback: Entity) -> list[tuple]:
         """
         Finds a path between caster and target using callback as filter for valid space.
 
@@ -1032,13 +1048,13 @@ class Instance(dict):
         if caster:
             target = self.getLocObject(target)
             map_ = self.map[caster[2]]
-            if map_.testLoc(target):
-                return map_.getPath(caster, target, callback=callback, state=self)
+            if map_.test_loc(target):
+                return map_.get_path(caster, target, callback=callback, state=self)
 
         return []
 
     @register({"args": ["self", "$2", "$3", "$1"], "default": {"$2": "$caster", "$3": "$target"}}, name="DISTANCE")
-    def getDistance(self, caster, target, method):
+    def getDistance(self, caster: tuple | Entity, target: tuple | Entity, method: str) -> Number:
         """
         Returns distance between caster and target using method as a metric.
 
@@ -1050,14 +1066,15 @@ class Instance(dict):
         if caster:
             target = self.getLocObject(target)
             map_ = self.map[caster[2]]
-            if map_.testLoc(target):
-                return map_.getDistance(caster, target, method, state=self)
+            if map_.test_loc(target):
+                return map_.get_distance(caster, target, method, state=self)
 
         return float("inf")
 
     @register({"args": ["self", "$2", "$3", "$1"], "default": {"$2": "$caster", "$3": "$target", "-$1": None},
                "kwargs": {"max_dist": "-$1"}}, name="BLOCK")
-    def testBlock(self, caster, target, callback, max_dist=None):
+    def testBlock(self, caster: tuple | Entity, target: tuple | Entity, callback: Entity,
+                  max_dist: Optional[int] = None) -> bool:
         """
         Test to see if path exists between caster and target using callback as filter for valid space.
 
@@ -1069,14 +1086,15 @@ class Instance(dict):
         if caster:
             target = self.getLocObject(target)
             map_ = self.map[caster[2]]
-            if map_.testLoc(target):
-                return map_.testBlock(caster, target, callback=callback, state=self, max_dist=max_dist)
+            if map_.test_loc(target):
+                return map_.test_block(caster, target, callback=callback, state=self, max_dist=max_dist)
 
         return False
 
     @register({"args": ["self", "$1", "$2", "$3", "$4"], "default": {"$2": "#empty", "$3": True, "$4": None}},
               name="FILL")
-    def getFill(self, center, callback=None, include_center=True, distance=None):
+    def getFill(self, center: tuple | Entity, callback: Optional[Entity] = None, include_center: bool = True,
+                distance: Optional[int] = None) -> list[tuple]:
         """
         Gets all squares in a pattern starting at center, using callback as filter for valid space.
 
@@ -1090,12 +1108,12 @@ class Instance(dict):
         center = self.getLocObject(center)
         if center:
             map_ = self.map[center[2]]
-            fill = sorted(map_.getFill(center, distance, include_center, callback=callback, state=self))
+            fill = sorted(map_.get_fill(center, distance, include_center, callback=callback, state=self))
             return fill
 
         return []
 
-    def printMap(self, board="map"):
+    def printMap(self, board: str = "map"):
         """Print a map."""
         self.map[board].show()
 
@@ -1104,7 +1122,8 @@ class Instance(dict):
     # ---------------------------------------------------
     @register({"args": ["self", "-$1", "$1"], "default": {"-$1": "$caster"}}, name="MOVE")
     @register({"args": ["self", "-$1", "$1"], "default": {"-$1": "$caster"}}, name="TRAVEL")
-    def controlTravel(self, caster, targets=None):
+    def controlTravel(self, caster: Entity | list[Entity],
+                      targets: Optional[Entity | list[Entity] | tuple | list[tuple]] = None) -> None:
         """Move one object to a new location.
 
         .. code-block:: xml
@@ -1144,7 +1163,7 @@ class Instance(dict):
     #                 Game Loop Helpers                -
     # ---------------------------------------------------
 
-    def gameLoop(self, time=1, script="tick"):
+    def gameLoop(self, time: int = 1, script: str = "tick") -> None:
         """Iterate over in game time.
 
         .. code-block:: python
@@ -1159,6 +1178,10 @@ class Instance(dict):
             yield current
 
             if current.next is not None:
+                if current is not current.next:
+                    current.state = None
+
+                current.next.increment = current.increment
                 current = current.next
                 current.next = None
                 continue
@@ -1169,7 +1192,7 @@ class Instance(dict):
             info(f"EXITING {current.name}\n")
 
     @register({"args": ["self", "$1"], "default": {"$1": 1}}, name="EXIT")
-    def exit(self, value=1):
+    def exit(self, value: int = 1) -> None:
         """Requests the end of the game by setting Instance.cont to False, and exiting out of the game_loop.
 
         .. code-block:: xml
@@ -1181,7 +1204,7 @@ class Instance(dict):
         self.cont = False
         self.value = value
 
-    def resetState(self, script="reset"):
+    def resetState(self, script: str = "reset") -> "Instance":
         """Resets the game metadata to default.
 
         .. code-block:: python
@@ -1192,7 +1215,10 @@ class Instance(dict):
         self.value = None
         self.time = 0
         self.delay.clear()
-        self.rand.seed(self.seed)
+
+        if self.seed is not None:
+            self.rand.seed(self.seed)
+
         if self.logging:
             info(f"Env time is now {self.time}")
 
@@ -1205,3 +1231,5 @@ class Instance(dict):
 
         if self.revert:
             self.state = [self.copy()]
+
+        return self
