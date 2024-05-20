@@ -5,7 +5,7 @@ from udebs.board import Board
 
 # Test battleStart
 class TestBattleStart:
-    def setup(self):
+    def setup_method(self):
         path = os.path.dirname(__file__)
         self.test = udebs.battleStart(path + "/test.xml")
 
@@ -54,7 +54,7 @@ class TestBattleStart:
                 assert hasattr(value, stat)
 
     def test_string(self):
-        test = udebs.battleStart("<udebs><config><logging>True</logging></config><map><x>6</x><y>6</y></map></udebs>")
+        test = udebs.battleStart("<udebs><config><logging>True</logging></config><map><dim><x>6</x><y>6</y></dim></map></udebs>")
         assert len(test) == 1
 
 

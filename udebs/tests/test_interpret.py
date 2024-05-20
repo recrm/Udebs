@@ -6,8 +6,8 @@ import udebs
 
 class TestInterpret:
     @staticmethod
-    def setup():
-        test = {
+    def setup_method():
+        interpret.Variables.modules.update({
             "solitary": {
                 "f": "solitary",
             },
@@ -17,13 +17,11 @@ class TestInterpret:
                 "args": ["-$1", "$1", "$2", "three"],
                 "kwargs": {"none": "$3", "value": "empty", "test": 10},
             }
-        }
-        interpret.importModule(test, {'self': None})
+        })
 
     def test_setup(self):
         assert "solitary" in interpret.Variables.modules
         assert "testing" in interpret.Variables.modules
-        assert "self" in interpret.Variables.env
 
     def test_list(self):
         assert interpret.interpret("one two three") == "('one','two','three')"
@@ -77,7 +75,7 @@ class TestInterpret:
 
 
 class TestBase:
-    def setup(self):
+    def setup_method(self):
         path = os.path.dirname(__file__)
         self.env = udebs.battleStart(path + "/test.xml", log=True)
 

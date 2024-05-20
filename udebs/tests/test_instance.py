@@ -5,7 +5,7 @@ from pytest import raises
 
 
 class TestInstanceGets:
-    def setup(self):
+    def setup_method(self):
         path = os.path.dirname(__file__)
         self.env = udebs.battleStart(path + "/test.xml", log=True)
 
@@ -29,8 +29,8 @@ class TestInstanceGets:
         unit = self.env["unit1"]
 
         assert unit is self.env.getEntity("unit1")
-        assert unit is self.env.getEntity((0, 0, "two"))
-        assert unit in self.env.getEntity(["unit1", (0, 0, "two")])
+        assert unit is self.env.getEntity(self.env.getLocObject((0, 0, "two")))
+        assert unit in self.env.getEntity(["unit1", self.env.getLocObject((0, 0, "two"))])
 
         assert self.env["empty"] == self.env.getEntity(None)
 
@@ -38,15 +38,12 @@ class TestInstanceGets:
             self.env.getEntity("unit")
 
         with raises(udebs.UndefinedSelectorError):
-            self.env.getEntity((0, 0, "unknown"))
-
-        with raises(udebs.UndefinedSelectorError):
-            self.env.getEntity((-1, 0, "two"))
+            self.env.getEntity(self.env.getLocObject((-1, 0, "two")))
 
     def test_getMap(self):
-        map_ = self.env.getMap( "two")
+        map_ = self.env.getMap("two")
         assert self.env.getMap(map_) == map_
-        assert self.env.getMap((0, 0, "two")) == map_
+        assert self.env.getMap(self.env.getLocObject((0, 0, "two"))) == map_
         assert self.env.getMap(self.env["unit1"]) == map_
         with raises(udebs.UndefinedSelectorError):
             self.env.getMap("unknown")
@@ -70,7 +67,7 @@ class TestInstanceGets:
             print(test)
 
         assert self.env.getStat(unit1, "DESC") == "description"
-        assert self.env.getStat(unit1, "group") == ["group1"]
+        assert self.env.getStat(unit1, "group") == ["group1", "move2"]
 
         self.env.castSingle("#unit2 STAT inventory")
 
@@ -102,11 +99,12 @@ class TestInstanceGets:
         assert self.env.getStat(self.env["unit2"], "ACT") == 10
 
     def test_controlRecruit(self):
-        script = "#unit2 RECRUIT (1 1 two)"
+        script = "#unit2 RECRUIT @(1 1 two)"
         self.env.castSingle(script)
-        assert self.env.getEntity((1, 1, "two")).name == "unit21"
+        assert self.env.getEntity(self.env.getLocObject((1, 1, "two"))).name == "unit21"
 
         self.env.castSingle("#unit2 RECRUIT #empty")
+        print(type(self.env.getEntity("unit22").loc), "test")
         assert self.env.getEntity("unit22").loc is None
 
     def test_controlTravel(self):
@@ -119,8 +117,14 @@ class TestInstanceGets:
             self.env.castSingle("unit1 MOVE (FILL (0 0 two) empty)")
 
     # Entity Locs
+    def test_getLocObject(self):
+        assert self.env.getLocObject((1, 1, 1, 1, "map")).loc == (1, 1, 1, 1, "map")
+        assert self.env.getLocObject(None).loc is None
+        assert self.env.getLocObject((1,)).loc == (1, "map")
+        assert self.env.getLocObject(self.env["unit1"]).loc == (0, 0, "two")
+
     def test_getLoc(self):
-        assert self.env.castSingle("#unit1.LOC") == (0, 0, "two")
+        assert self.env.castSingle("@#unit1").loc == (0, 0, "two")
 
     def test_getX(self):
         assert self.env.castSingle("#unit1.XLOC") == 0
@@ -154,7 +158,7 @@ class TestInstanceGets:
                 i.castSingle("EXIT")
 
         assert index == 5
-        assert self.env.time == 7
+        assert self.env.time == 8
         self.env.resetState()
         assert self.env.time == 0
         assert self.env.cont is True
@@ -164,7 +168,7 @@ class TestInstanceGets:
         assert self.env.time == 8
         a = self.env.getRevert(2)
         assert a.time == 6
-        assert self.env.getRevert(100) is False
+        assert self.env.getRevert(100) is None
 
     def test_error(self):
         error = udebs.UndefinedSelectorError("one", "entity")
@@ -175,6 +179,6 @@ class TestInstanceGets:
         assert self.env.castAction("move2", "move2") is False
 
     def test_testMove(self):
-        empty = self.env["empty"]
-        assert self.env.testMove(empty, empty, self.env["tick"])
-        assert self.env.testMove(empty, empty, self.env["move2"]) is False
+        empty = "empty"
+        assert self.env.testMove(empty, empty, "tick")
+        assert self.env.testMove(empty, empty, "move2") is False

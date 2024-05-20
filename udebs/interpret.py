@@ -23,7 +23,7 @@ class Variables:
 # ---------------------------------------------------
 #            Interpreter Functions                 -
 # ---------------------------------------------------
-def formatS(string):
+def format_string(string):
     """Converts a string into its python representation."""
     string = str(string)
     if string == "self":
@@ -41,7 +41,7 @@ def formatS(string):
     # String quoted by user.
     elif string[0] == string[-1] and string[0] in {"'", '"'}:
         return string
-    # String has already been handled by call
+    # Call has already handled this string.
     elif string[-1] == ")":
         return string
     elif string in Variables.env:
@@ -64,7 +64,7 @@ def call(args, root=False):
 
     # No keywords create a tuple object.
     elif len(keywords) == 0 and not root:
-        return "(" + ",".join(formatS(i) for i in args) + ")"
+        return "(" + ",".join(format_string(i) for i in args) + ")"
 
     elif len(keywords) == 0 and root:
         raise errors.UdebsSyntaxError(f"No keywords in root objected '{args}'")
@@ -100,25 +100,25 @@ def call(args, root=False):
             del nodes[value]
         else:
             new_value = value
-        kwargs[key] = formatS(new_value)
+        kwargs[key] = format_string(new_value)
 
     arguments = []
     # Insert positional arguments
     for key in data["args"]:
         if key in nodes:
-            arguments.append(formatS(nodes[key]))
+            arguments.append(format_string(nodes[key]))
             del nodes[key]
         else:
-            arguments.append(formatS(key))
+            arguments.append(format_string(key))
 
     # Insert ... arguments.
     if data["all"]:
         for key in sorted(nodes.keys(), key=lambda x: int(x.replace("$", ""))):
-            arguments.append(formatS(nodes[key]))
+            arguments.append(format_string(nodes[key]))
             del nodes[key]
 
     if len(nodes) > 0:
-        raise errors.UdebsSyntaxError("Keyword contains unused arguments. '{" ".join(args)}'")
+        raise errors.UdebsSyntaxError(f"Keyword '{keyword}' contains unused arguments: {" ".join(nodes.keys())}")
 
     # Insert keyword arguments.
     for key in sorted(kwargs.keys()):
@@ -250,7 +250,7 @@ class Script:
 def _register_raw(func, local=None, globs=None, name=None):
     """Use this to register a function without using a decorator.
     func - The function to register
-    local - Local call pattern for given function.
+    local - Local call the pattern for given function.
     globs - Dictionary of global objects to add to udebs.
     name - Name to give function (defaults to func.__name__)
     """

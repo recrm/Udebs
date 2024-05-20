@@ -4,7 +4,7 @@ from typing import Optional
 
 
 class Entity:
-    def __init__(self, field=None, debug=None, **options):
+    def __init__(self, field=None, **options):
         if "_data" in options:
             # second path for copy operation only
             self.__dict__ = options["_data"]
@@ -42,7 +42,7 @@ class Entity:
         for stat_list in [self.effect, self.require]:
             for i, elem in enumerate(stat_list):
                 if isinstance(elem, str):
-                    stat_list[i] = interpret.Script(elem, debug=debug)
+                    stat_list[i] = interpret.Script(elem)
 
         # Set loc.
         if not self.immutable:
@@ -114,3 +114,6 @@ class Entity:
                 kwargs[k] = self.__dict__[k][:]
 
         return Entity(_data=kwargs)
+
+
+FullEntity = Entity | list[Entity]

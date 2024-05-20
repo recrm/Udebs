@@ -1,4 +1,4 @@
-import re
+from functools import reduce
 from udebs import instance
 from xml.etree import ElementTree
 
@@ -147,28 +147,28 @@ def _parse_map(field_map2):
     options2 = {"name": field_map2.tag}
 
     # Attributes
-    for att in ("empty", "rmap", "type"):
-        if field_map2.get(att) is not None:
-            options2[att] = field_map2.get(att)
+    for key, value in field_map2.attrib.items():
+        options2[key] = value
 
-    # dimensions.
-    dim_map = field_map2.find("dim")
-    if dim_map is not None:
-        options2['dim'] = (
-            int(dim_map.find('x').text),
-            int(dim_map.find('y').text)
-        )
+    for child in field_map2:
+        if len(child):
+            data = {}
+            for subchild in child:
+                data[subchild.tag] = subchild.text
+        else:
+            data = child.text
 
-    else:
-        dim = []
-        for row in field_map2:
-            dim.append(re.split(r"\W*,\W*", row.text))
-        options2['dim'] = [list(j) for j in zip(*dim)]
+        if child.tag in options2:
+            if not isinstance(options2[child.tag], list):
+                options2[child.tag] = [options2[child.tag]]
+            options2[child.tag].append(data)
+        else:
+            options2[child.tag] = data
 
     return options2
 
 
-# Creates and instance object from xml file.
+# Creates an instance object from xml file.
 def battleStart(xml_file=None, field=instance.Instance, **overwrite):
     """
     Creates an instance object from given xml file.
@@ -279,3 +279,42 @@ def battleStart(xml_file=None, field=instance.Instance, **overwrite):
     options.update(overwrite)
 
     return field(**options)
+
+
+def combine_xml(*args):
+    def _clean(xml_file):
+        if xml_file is None:
+            xml_file = "<udebs />"
+        try:
+            tree = ElementTree.parse(xml_file)
+            return tree.getroot()
+        except IOError:
+            return ElementTree.fromstring(xml_file)
+
+    def _create_and_select(root, name):
+        node = root.find(name)
+        if node is None:
+            node = ElementTree.Element(name)
+            root.append(node)
+
+        return node
+
+    def _combine(one, two):
+        for child in two:
+            # Note config is not merged, only the configuration in the first node is counted.
+            if child.tag == "definitions":
+                node = _create_and_select(one, "definitions")
+                for type_ in ["stats", "strings", "lists"]:
+                    if node_type := child.find(type_):
+                        node_child = _create_and_select(node, type_)
+                        node_child.extend(node_type)
+
+            elif child.tag in {"maps", "entities"}:
+                node = _create_and_select(one, child.tag)
+                node.extend(child)
+
+        return one
+
+    files = [_clean(i) for i in args]
+    joined = reduce(_combine, files)
+    return ElementTree.tostring(joined)

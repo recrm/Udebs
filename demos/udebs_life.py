@@ -65,7 +65,7 @@ game_config = """
         <require>$target.STAT.LIFE.False == 1</require>
         <effect>
             <i>$target LIFE REPLACE 0</i>
-            <i>DELAY `(#(CONSTANT #(FILL $target None false 1).NAME $target.LOC) NBR -= 1) 0</i>
+            <i>DELAY `(#(CONSTANT #(FILL $target None false 1).NAME $target.NAME) NBR -= 1) 0</i>
         </effect>
     </base_death>
 
@@ -80,7 +80,7 @@ game_config = """
     <!-- Scripts -->
     <init>
         <effect>
-            <i>all = FILL.(1 1)</i>
+            <i>all = FILL.@(1 1)</i>
             <i>#cell RECRUIT $all</i>
             <i>#$all group GETS cells</i>
             <i>CAST #$all #random_life</i>

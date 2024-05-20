@@ -3,9 +3,12 @@ import os
 from pytest import raises
 import copy
 
+from udebs.modules import flat_map
+from udebs.board import Location
+
 
 class TestBoardClass:
-    def setup(self):
+    def setup_method(self):
         path = os.path.dirname(__file__)
         self.test = udebs.battleStart(path + "/test.xml")
         self.one = self.test.map["one"]
@@ -83,85 +86,86 @@ class TestBoardClass:
 
 
 class TestPathing:
-    def setup(self):
+    def setup_method(self):
         path = os.path.dirname(__file__)
         self.test = udebs.battleStart(path + "/test.xml")
-        self.test.controlTravel(self.test["unit1"], (0, 0))
-        self.test.controlTravel(self.test["unit2"], (4, 3))
-        self.test.controlTravel(self.test["immune"], (2, 2))
+        self.test.controlTravel(self.test["unit1"], Location((0, 0)))
+        self.test.controlTravel(self.test["unit2"], Location((4, 3)))
+        self.test.controlTravel(self.test["immune"], Location((2, 2)))
 
-    def test_getPath(self):
+    def test_get_path(self):
         empty = self.test["empty"]
         unit1 = self.test["unit1"]
         notempty = self.test["notempty"]
         unit2 = self.test["unit2"]
 
-        test = self.test.get_path(unit1, unit2, notempty)
-        assert (0, 0, "map") in test
-        assert (4, 3, "map") in test
+        test = flat_map.get_path(self.test, unit1, unit2, notempty)
+        assert (0, 0, "map") in [i.loc for i in test]
+        assert (4, 3, "map") in [i.loc for i in test]
         assert len(test) == 5
-        test = self.test.get_path((0, 1), (0, 1), empty)
+
+        test = flat_map.get_path(self.test, Location((0, 1)), Location((0, 1)), empty)
         assert len(test) == 1
-        self.test.controlTravel(unit1, (1, 2, "two"))
-        assert self.test.get_path((0, 0, "two"), (1, 2, "two"), notempty) == []
-        assert len(self.test.get_path(empty, empty, empty)) == 0
-        assert self.test.get_path(unit1, empty, empty) == []
+        self.test.controlTravel(unit1, Location((1, 2, "two")))
+        assert flat_map.get_path(self.test, Location((0, 0, "two")), Location((1, 2, "two")), notempty) == []
+        assert len(flat_map.get_path(self.test, empty, empty, empty)) == 0
+        assert flat_map.get_path(self.test, unit1, empty, empty) == []
 
     def test_distance(self):
         unit1 = self.test["unit1"]
         empty = self.test["empty"]
         unit2 = self.test["unit2"]
         notempty = self.test["notempty"]
-        assert self.test.get_distance(empty, unit1, "x") == float("inf")
-        assert self.test.get_distance(unit1, empty, "x") == float("inf")
-        assert self.test.get_distance(unit1, empty, "empty") == float("inf")
-        assert self.test.get_distance(unit1, unit2, 'x') == 4
-        assert self.test.get_distance(unit1, unit2, 'y') == 3
-        assert self.test.get_distance(unit1, unit2, "z") == 7
-        assert self.test.get_distance(unit1, unit2, "hex") == 7
-        assert self.test.get_distance(unit1, unit2, 'p1') == 7
-        assert self.test.get_distance(unit1, unit2, "p2") == 5
-        assert self.test.get_distance(unit1, unit2, 'pinf') == 4
-        assert self.test.get_distance(unit1, unit2, notempty) == 4
+        assert flat_map.get_distance(self.test, empty, unit1, "x") == float("inf")
+        assert flat_map.get_distance(self.test, unit1, empty, "x") == float("inf")
+        assert flat_map.get_distance(self.test, unit1, empty, "empty") == float("inf")
+        assert flat_map.get_distance(self.test, unit1, unit2, 'x') == 4
+        assert flat_map.get_distance(self.test, unit1, unit2, 'y') == 3
+        assert flat_map.get_distance(self.test, unit1, unit2, "z") == 7
+        assert flat_map.get_distance(self.test, unit1, unit2, "hex") == 7
+        assert flat_map.get_distance(self.test, unit1, unit2, 'p1') == 7
+        assert flat_map.get_distance(self.test, unit1, unit2, "p2") == 5
+        assert flat_map.get_distance(self.test, unit1, unit2, 'pinf') == 4
+        assert flat_map.get_distance(self.test, unit1, unit2, notempty) == 4
 
         with raises(ValueError):
-            self.test.get_distance(unit1, unit2, "not a unit")
+            flat_map.get_distance(self.test, unit1, unit2, "not a unit")
 
-    def test_testBlock(self):
+    def test_test_block(self):
         empty = self.test["empty"]
         unit1 = self.test["unit1"]
         unit2 = self.test["unit2"]
         notempty = self.test["notempty"]
-        assert self.test.test_block(empty, unit1, empty) is False
-        assert self.test.test_block(unit1, unit2, notempty)
-        assert self.test.test_block(unit1, empty, notempty) is False
+        assert flat_map.test_block(self.test, empty, unit1, empty) is False
+        assert flat_map.test_block(self.test, unit1, unit2, notempty)
+        assert flat_map.test_block(self.test, unit1, empty, notempty) is False
 
-    def test_getFill(self):
+    def test_get_fill(self):
         unit1 = self.test["unit1"]
         unit2 = self.test["unit2"]
         empty = self.test["empty"]
         notempty = self.test["notempty"]
         sideways = self.test["sideways"]
 
-        test = self.test.get_fill(unit1, callback=notempty)
+        test = flat_map.get_fill(self.test, unit1, callback=notempty)
         assert (2, 2, "map") not in test
-        test = self.test.get_fill(unit2, callback=sideways)
-        assert all([i[0] == 4 for i in test])
-        assert len(self.test.get_fill(empty, callback=empty)) == 0
-        test = self.test.get_fill((0, 0, "two"), callback=empty, distance=1)
+        test = flat_map.get_fill(self.test, unit2, callback=sideways)
+        assert all([i.loc[0] == 4 for i in test])
+        assert len(flat_map.get_fill(self.test, empty, callback=empty)) == 0
+        test = flat_map.get_fill(self.test, Location((0, 0, "two")), callback=empty, distance=1)
         assert len(test) == 3
-        assert len(self.test.get_fill(empty, empty)) == 0
+        assert len(flat_map.get_fill(self.test, empty, empty)) == 0
 
 
 class TestDirectPathing:
-    def setup(self):
+    def setup_method(self):
         path = os.path.dirname(__file__)
         self.test = udebs.battleStart(path + "/test.xml")
         self.one = self.test.map["one"]
         self.two = self.test.map["two"]
         self.map = self.test.map['map']
 
-    def test_getAdjacent(self):
+    def test_get_adjacent(self):
         test = list(self.two.get_adjacent({(0, 0, "two")}, callback=self.test["empty"], state=self.test))
         assert len(test) == 4
         assert len(test[0]) == 1
@@ -169,5 +173,5 @@ class TestDirectPathing:
         assert len(test2) == 4
         assert test2[0] == {(0, 0, "two")}
 
-    def test_testLoc(self):
-        assert self.two.test_loc((0, 0)) is False
+    def test_test_loc(self):
+        assert self.two.test_loc((0, 0)) is True

@@ -4,7 +4,7 @@ import os
 
 
 class TestEntityClass:
-    def setup(self):
+    def setup_method(self):
         path = os.path.dirname(__file__)
         self.env = udebs.battleStart(path + "/test.xml")
 
